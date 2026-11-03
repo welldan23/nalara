@@ -14,6 +14,7 @@ import { createAuthGuards, crossOriginGuard } from './plugins/auth.ts';
 import { authRoutes } from './routes/auth.ts';
 import { healthRoutes } from './routes/health.ts';
 import { osRoutes } from './routes/os.ts';
+import { publicRoutes } from './routes/public.ts';
 
 export interface AppDependencies {
   /** True only when the database answers and every migration is applied. */
@@ -37,7 +38,7 @@ export type AppConfig = Pick<
   Config,
   'logLevel' | 'nodeEnv' | 'appOrigin' | 'session' | 'mfaEncryptionKey'
 > &
-  Partial<Pick<Config, 'trustedProxies'>>;
+  Partial<Pick<Config, 'trustedProxies' | 'publicSiteEnabled'>>;
 
 export const BODY_LIMIT_BYTES = 16 * 1024;
 export const REQUEST_TIMEOUT_MS = 10_000;
@@ -135,6 +136,11 @@ export async function buildApp(config: AppConfig, deps: AppDependencies): Promis
       ...(deps.mfaRateLimitMax !== undefined ? { mfaRateLimitMax: deps.mfaRateLimitMax } : {}),
     });
     await app.register(osRoutes, { prefix: '/api/v1/os', guards, db: deps.database });
+    await app.register(publicRoutes, {
+      prefix: '/api/v1/public',
+      db: deps.database,
+      enabled: config.publicSiteEnabled ?? false,
+    });
   }
   return app;
 }

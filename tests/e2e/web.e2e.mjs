@@ -106,6 +106,7 @@ const apiEnv = {
   SESSION_SECRET: 'e2e-session-secret-'.padEnd(48, 'x'),
   MFA_ENCRYPTION_KEY: Buffer.alloc(32, 5).toString('base64'),
   PORT: String(API_PORT),
+  PUBLIC_SITE_ENABLED: 'true',
 };
 const webEnv = {
   PATH: process.env.PATH ?? '',
@@ -458,6 +459,55 @@ try {
     await waitStatus('Disetujui');
   });
 
+  await check('TEST-P1-06', 'public pages: home, topic, article; unpublished is 404', async () => {
+    // A fresh anonymous visitor: no cookies at all.
+    const page = await newPage();
+    const home = await page.goto(`${WEB}/`);
+    assert(home?.status() === 200, `home status ${home?.status()}`);
+    await page.getByRole('link', { name: 'Alur terbit (revisi)' }).click();
+    await page.waitForURL(`${WEB}/artikel/alur-terbit`);
+    assert((await page.locator('h1').textContent()) === 'Alur terbit (revisi)', 'article title');
+    const reading = (await page.locator('article.reading').textContent()) ?? '';
+    for (const text of ['Terverifikasi.', 'Sumber', 'Badan Pusat Statistik', 'Isi TEST fixture.']) {
+      assert(reading.includes(text), `article page missing "${text}"`);
+    }
+    assert(
+      (await page.locator('#sumber-1 a').getAttribute('href')) ===
+        'https://www.bps.go.id/id/pressrelease/2026/11/01/alur.html',
+      'source link',
+    );
+    await shot(page, '10-public-article');
+
+    await page.goto(`${WEB}/topik/ekonomi`);
+    assert(
+      (await page.getByRole('link', { name: 'Alur terbit (revisi)' }).count()) === 1,
+      'topic page does not list the article',
+    );
+    await page.goto(`${WEB}/tentang`);
+    assert((await page.locator('#verifikasi').count()) === 1, 'about page');
+
+    // Approved-but-unpublished, unknown and malformed slugs are all plain 404 pages.
+    for (const path of [
+      '/artikel/tanpa-sumber',
+      '/artikel/tidak-ada',
+      '/artikel/Bad%20Slug',
+      '/topik/tidak-ada',
+    ]) {
+      const response = await page.goto(`${WEB}${path}`);
+      assert(response?.status() === 404, `${path} answered ${response?.status()}`);
+      assert(!((await page.textContent('main')) ?? '').includes('Tanpa sumber'), `${path} leaked`);
+    }
+
+    await page.setViewportSize({ width: 320, height: 640 });
+    for (const path of ['/', '/artikel/alur-terbit', '/topik/ekonomi', '/tentang']) {
+      await page.goto(`${WEB}${path}`);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      assert(overflow <= 0, `${path} overflows by ${overflow}px`);
+    }
+  });
+
   await check(
     'TEST-WEB-04',
     'invalid or expired session cookie redirects (server-side check)',
@@ -487,10 +537,12 @@ try {
       await page.evaluate(() => document.activeElement?.classList.contains('skip-link')),
       'first Tab is not the skip link',
     );
+    // The skip link jumps over the masthead and navigation straight into the content.
+    await page.keyboard.press('Enter');
     await page.keyboard.press('Tab');
     assert(
       await page.evaluate(() => document.activeElement?.getAttribute('name') === 'email'),
-      'second Tab is not the email field',
+      'Tab after the skip link is not the email field',
     );
     const outline = await page.evaluate(() => {
       const style = getComputedStyle(document.activeElement);
@@ -579,4 +631,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 13 ? 0 : 1);
+process.exit(failed === 0 && results.length === 14 ? 0 : 1);
