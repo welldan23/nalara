@@ -291,6 +291,9 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
   - Mutasi: menambah `|| true` ke langkah backup → tes repo FAIL (lalu dikembalikan)
   - `actionlint` → bersih
   - `pnpm audit --prod --audit-level low` → 0 · `pnpm audit signatures` → 358/358 terverifikasi
+- **Ditemukan oleh run CI pertama (draft PR #17) dan diperbaiki:**
+  - `backup-smoke` butuh `pnpm install` karena drill menjalankan CLI migrasi asli (driver `pg`).
+  - `compose.smoke.mjs` crash setelah build image: `execFileSync` dengan `stdio: 'inherit'` mengembalikan `null`, lalu `.trim()` gagal. Lokal tidak pernah kena karena selalu memakai `SMOKE_SKIP_BUILD=1`. Bug ini direproduksi lokal sebelum diperbaiki.
 - Bukti CI merah: lihat bagian "CI red proof" di bawah (dijalankan di GitHub setelah PR ini dibuka).
 - **Butuh founder:** aktifkan ruleset `main` + required status checks (6 nama job, runbook §2). Tanpa itu CI merah terlihat tapi tidak memblokir merge secara teknis.
 - Security review: PASS
