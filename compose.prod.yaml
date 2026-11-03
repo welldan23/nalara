@@ -1,0 +1,113 @@
+# Production topology (P0-012, ADR-002/003/006). The reverse proxy (Caddy, P0-013) is the only
+# service that will publish ports; nothing here does.
+#
+#   docker compose -f compose.prod.yaml --env-file /srv/nalara/.env run --rm migrate
+#   docker compose -f compose.prod.yaml --env-file /srv/nalara/.env up -d
+#
+# Secrets come only from the host's env file at runtime (never baked into images).
+# DB_APP_PASSWORD and DB_MIGRATOR_PASSWORD must be URL-safe (e.g. `openssl rand -hex 24`).
+name: nalara
+
+x-hardened: &hardened
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ['no-new-privileges:true']
+  tmpfs: [/tmp]
+  logging:
+    driver: json-file
+    options: { max-size: 10m, max-file: '3' }
+
+services:
+  db:
+    <<: *hardened
+    image: postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+    # The official entrypoint drops to the postgres user; it needs these to do so.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    tmpfs: [/tmp, /var/run/postgresql]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      DB_MIGRATOR_PASSWORD: ${DB_MIGRATOR_PASSWORD:?set DB_MIGRATOR_PASSWORD}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?set DB_APP_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks: [backend]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+    mem_limit: 512m
+
+  # One-shot, explicit migration step (ADR-003): `docker compose run --rm migrate`.
+  migrate:
+    <<: *hardened
+    image: nalara-api:local
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    restart: 'no'
+    profiles: [tools]
+    command: ['node', 'dist/db/migrate-cli.js']
+    environment:
+      NODE_ENV: production
+      DATABASE_MIGRATOR_URL: postgres://nalara_migrator:${DB_MIGRATOR_PASSWORD:?set DB_MIGRATOR_PASSWORD}@db:5432/nalara
+    networks: [backend]
+    depends_on:
+      db: { condition: service_healthy }
+
+  api:
+    <<: *hardened
+    image: nalara-api:local
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    environment:
+      NODE_ENV: production
+      APP_BASE_URL: ${APP_BASE_URL:?set APP_BASE_URL}
+      DATABASE_URL: postgres://nalara_app:${DB_APP_PASSWORD:?set DB_APP_PASSWORD}@db:5432/nalara
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?set MFA_ENCRYPTION_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PORT: '4000'
+    networks: [backend, frontend]
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:4000/health/ready']
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    depends_on:
+      db: { condition: service_healthy }
+    stop_grace_period: 15s
+    mem_limit: 384m
+
+  web:
+    <<: *hardened
+    image: nalara-web:local
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    # Next.js may write its cache even when nothing is cacheable.
+    tmpfs: [/tmp, /app/apps/web/.next/cache]
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: http://api:4000
+    networks: [frontend]
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/']
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 15s
+    depends_on:
+      api: { condition: service_started }
+    stop_grace_period: 15s
+    mem_limit: 384m
+
+networks:
+  # Database traffic never leaves this network and it has no route outside the host.
+  backend:
+    internal: true
+  frontend: {}
+
+volumes:
+  db-data:

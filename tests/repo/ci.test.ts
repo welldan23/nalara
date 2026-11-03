@@ -39,14 +39,51 @@ describe('CI workflow hardening', () => {
     expect(unpinned).toEqual([]);
   });
 
-  it('pins every container image by digest and keeps it identical to compose.yaml', () => {
-    const compose = readFileSync(join(root, 'compose.yaml'), 'utf8');
-    const images = [compose, ...workflows.map((workflow) => workflow.text)].flatMap((text) =>
-      [...text.matchAll(/^\s*image:\s*(\S+)/gm)].map((match) => match[1] ?? ''),
-    );
-    expect(images.length).toBeGreaterThan(1);
+  it('TEST-COMPOSE-04 pins every external image by tag and digest (no latest)', () => {
+    const sources = [
+      readFileSync(join(root, 'compose.yaml'), 'utf8'),
+      readFileSync(join(root, 'compose.prod.yaml'), 'utf8'),
+      ...workflows.map((workflow) => workflow.text),
+    ];
+    const images = sources
+      .flatMap((text) => [...text.matchAll(/^\s*image:\s*(\S+)/gm)].map((match) => match[1] ?? ''))
+      // Images built from this repository are tagged locally, not pulled.
+      .filter((image) => !image.startsWith('nalara-'));
+    expect(images.length).toBeGreaterThan(2);
     for (const image of images) expect(image).toMatch(/:[\w.-]+@sha256:[0-9a-f]{64}$/);
+    // One PostgreSQL version everywhere: dev, production and CI.
     expect(new Set(images).size).toBe(1);
+
+    const dockerfiles = ['apps/api/Dockerfile', 'apps/web/Dockerfile'].map((file) =>
+      readFileSync(join(root, file), 'utf8'),
+    );
+    for (const text of dockerfiles) {
+      expect(text).toMatch(/^ARG NODE_IMAGE=node:[\w.-]+@sha256:[0-9a-f]{64}$/m);
+      for (const match of text.matchAll(/^FROM\s+(\S+)/gm)) {
+        expect(match[1]).toMatch(/^(\$\{NODE_IMAGE\}|[a-z-]+)$/); // base image or an earlier stage
+      }
+      expect(text).not.toMatch(/:latest\b/);
+    }
+    const nodeImages = new Set(
+      dockerfiles.map((text) => /^ARG NODE_IMAGE=(\S+)$/m.exec(text)?.[1]),
+    );
+    expect(nodeImages.size).toBe(1);
+  });
+
+  it('keeps the production topology closed and hardened (TEST-COMPOSE-02/06 static)', () => {
+    const prod = readFileSync(join(root, 'compose.prod.yaml'), 'utf8');
+    expect(prod).not.toMatch(/^\s*ports:/m); // only the reverse proxy (P0-013) may publish ports
+    expect(prod).toMatch(/backend:\s*\n\s*internal: true/);
+    expect(prod).toMatch(/read_only: true/);
+    expect(prod).toMatch(/cap_drop: \[ALL\]/);
+    expect(prod).toMatch(/no-new-privileges:true/);
+    expect(prod).toMatch(/restart: unless-stopped/);
+    expect(prod).not.toMatch(/docker\.sock|privileged:\s*true|network_mode:\s*host/);
+    for (const dockerfile of ['apps/api/Dockerfile', 'apps/web/Dockerfile']) {
+      const text = readFileSync(join(root, dockerfile), 'utf8');
+      expect(text).toMatch(/^USER node$/m);
+      expect(text).not.toMatch(/^(ARG|ENV)\s+\S*(SECRET|PASSWORD|TOKEN|KEY)\b/im);
+    }
   });
 
   it('never uses pull_request_target (TEST-CI-10)', () => {
