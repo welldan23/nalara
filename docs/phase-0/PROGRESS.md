@@ -322,6 +322,6 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Branch `ci-proof/P00-014b-red` (PR #17, ditutup) dibiarkan sebagai bukti. Founder boleh menghapusnya kapan saja.
 - **NOT RUN:** semua yang butuh VPS, domain, atau tujuan offsite (D-04, D-08, D-09)
 - Security review: PASS
-- Founder decision: PENDING (**PHASE 0 ACCEPTED** belum ditulis)
+- Founder decision: **PHASE 0 ACCEPTED** (2026-11-03, D-16)
 
-**Next:** tidak ada tiket Phase 0 tersisa. Menunggu keputusan founder (lihat ACCEPTANCE §8). **Phase 1 diblokir.**
+**Phase 0 selesai dan diterima founder (D-16).** Langkah berikutnya: audit dan rencana Phase 1 (read-only dulu, sesuai PRD), lalu disetujui founder sebelum implementasi.

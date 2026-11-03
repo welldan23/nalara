@@ -1,8 +1,8 @@
 # NALARA — Phase 0 Acceptance Report
 
-**Status: SIAP DITINJAU FOUNDER.** Fondasi lokal dan CI lengkap serta terbukti. Gate yang butuh VPS, domain, dan backup offsite masih **NOT RUN** karena menunggu keputusan founder (D-04, D-08, D-09). Detailnya ada di §6.
+**Status: PHASE 0 ACCEPTED** oleh founder pada 2026-11-03 (D-16). Fondasi lokal dan CI lengkap serta terbukti. Gate produksi yang butuh VPS, domain, dan backup offsite (R-01, R-02) tetap terbuka dan wajib dijalankan sebelum deploy publik pertama (D-04, D-08, D-09).
 
-> **Phase 1 diblokir** sampai founder menulis persis: **PHASE 0 ACCEPTED**. Tidak ada pekerjaan Phase 1 yang dimulai otomatis.
+> Founder menulis **PHASE 0 ACCEPTED** pada 2026-11-03, memilih opsi 1 di §8: fondasi diterima, gate produksi R-01/R-02 tetap terbuka. Phase 1 kini boleh direncanakan, tapi tidak dimulai otomatis.
 
 - Tanggal audit: 2026-11-03 (UTC)
 - Commit dasar yang diaudit: `main` @ `4a64b72` (setelah PR #16), ditambah perubahan PR P0-016 ini
@@ -75,7 +75,7 @@ Run pertama juga menemukan **dua bug nyata di job CI baru**: backup-smoke kurang
 | 12 | Reverse proxy HTTPS tervalidasi di lingkungan deploy | **NOT RUN**: belum ada VPS/domain (D-08, D-09). Rehearsal CA lokal PASS | TEST-OPS-01..04 (lokal), [deploy-vps.md](../runbooks/deploy-vps.md) |
 | 13 | Log meredaksi secret dan memuat request ID | **PASS** | TEST-ENV-07/08, TEST-API-07/08, TEST-OPS-03 (log Caddy tanpa cookie) |
 | 14 | `ACCEPTANCE.md` memuat bukti perintah dan risiko | **PASS** | Dokumen ini |
-| 15 | Founder menulis **PHASE 0 ACCEPTED** | **Menunggu founder** | — |
+| 15 | Founder menulis **PHASE 0 ACCEPTED** | **PASS** (2026-11-03) | [`DECISIONS.md`](../decisions/DECISIONS.md) D-16 |
 
 ## 5. Deploy gate (PRD §9.3)
 

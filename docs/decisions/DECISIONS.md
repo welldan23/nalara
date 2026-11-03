@@ -20,12 +20,13 @@ Jangan pernah menulis password, recovery code, private key, atau token di file i
 | D-12 | 2026-11-03 | Bentuk tabel identitas dan audit | `users` + `role` (maks. 1 founder) dan `audit_events` dengan `actor_type` | Siap fase depan tanpa rename (K-03, K-04) | Satu founder dijamin di DB | Regenerasi migrasi sebelum ada data | [ADR-009](../adr/ADR-009-identity-audit-schema.md) |
 | D-14 | 2026-11-03 | Cara kerja | Founder minta proses berjalan dengan pertanyaan seminimal mungkin dan PR di-merge otomatis setelah CI hijau. Keputusan teknis kecil diambil Claude dan dicatat di sini/ADR untuk ditinjau | Mempercepat Phase 0 | Founder tetap pemegang gate fase (`PHASE 0 ACCEPTED`) | Founder bisa minta kembali ke mode review-dulu | — |
 | D-15 | 2026-11-03 | Alat migrasi | SQL tulis tangan + runner checksum sendiri, Drizzle ORM hanya untuk query (didelegasikan) | drizzle-kit membawa esbuild/tsx/loader deprecated, dan migrator Drizzle tidak cek checksum | Supply chain lebih kecil, tamper migrasi terdeteksi | ADR baru kembali ke drizzle-kit | [ADR-010](../adr/ADR-010-sql-first-migrations.md) |
+| D-16 | 2026-11-03 | Terima Phase 0? | **PHASE 0 ACCEPTED** (opsi 1 di ACCEPTANCE §8): fondasi lokal + CI diterima. Gate produksi (offsite backup, VPS/TLS/firewall) tetap terbuka | 129/130 PASS, 0 FAIL, CI terbukti memblokir kode rusak | Deploy publik tetap butuh D-04, D-08, D-09 dan TEST-OPS di VPS | Founder bisa mencabut lewat entri baru | [ACCEPTANCE](../phase-0/ACCEPTANCE.md) |
 
 ## Keputusan yang masih OPEN
 
 | ID | Pertanyaan | Dibutuhkan sebelum | Catatan |
 |---|---|---|---|
-| D-04 | Lokasi backup offsite terenkripsi dan siapa yang memegang kredensial | Gate produksi P0-015 | Backup dan restore lokal tetap dikerjakan. Upload offsite NOT RUN sampai diputuskan |
+| D-04 | Lokasi backup offsite terenkripsi dan siapa yang memegang kredensial | Deploy publik pertama (gate R-01) | Backup dan restore lokal tetap dikerjakan. Upload offsite NOT RUN sampai diputuskan |
 | D-07 | OS laptop founder dan apakah Docker terpasang | Dokumentasi P0-003 | Untuk menulis instruksi setup lokal yang tepat |
-| D-08 | Provider VPS, spek CPU/RAM/disk, versi Ubuntu, domain dan kontrol DNS | P0-013 (TLS publik) | Tanpa ini, rehearsal TLS memakai CA lokal saja |
-| D-09 | Deploy produksi masuk scope Phase 0 sekarang, atau cukup fondasi lokal? | P0-013 | Menentukan apakah TEST-OPS dijalankan di VPS di Phase 0 |
+| D-08 | Provider VPS, spek CPU/RAM/disk, versi Ubuntu, domain dan kontrol DNS | Deploy publik pertama (gate R-02) | Tanpa ini, rehearsal TLS memakai CA lokal saja |
+| D-09 | Kapan deploy produksi pertama (Phase 0 diterima tanpa deploy, D-16) | Sebelum launch publik | Menentukan apakah TEST-OPS dijalankan di VPS di Phase 0 |
