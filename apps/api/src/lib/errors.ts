@@ -6,6 +6,7 @@ export const ERROR_CODES = {
   INVALID_JSON: { status: 400, message: 'Request body is not valid JSON' },
   VALIDATION_FAILED: { status: 400, message: 'Request validation failed' },
   UNAUTHORIZED: { status: 401, message: 'Authentication required' },
+  INVALID_CREDENTIALS: { status: 401, message: 'Invalid email or password' },
   FORBIDDEN: { status: 403, message: 'Forbidden' },
   NOT_FOUND: { status: 404, message: 'Not found' },
   METHOD_NOT_ALLOWED: { status: 405, message: 'Method not allowed' },
