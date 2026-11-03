@@ -5,6 +5,11 @@
   "description": "NALARA API: sole owner of business logic, database access and authorization (ADR-002).",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "dev": "node --env-file-if-exists=../../.env src/main.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
   }
 }

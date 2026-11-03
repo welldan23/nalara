@@ -59,4 +59,23 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Known issues: required status check di branch protection `main` harus ditambahkan founder (Settings), karena tidak bisa dari sesi ini. Uji "CI merah pada kode rusak" di GitHub dilakukan di P0-014b
 - Founder decision: PENDING
 
-**Next ticket:** P0-004 — Environment validation (urutan D-02).
+### P0-004 — Environment validation
+- Commit SHA: lihat PR `feat/P00-004-env-validation`
+- Changed files: `apps/api/src/config/env.ts`, `apps/api/src/main.ts` (menggantikan placeholder `index.ts`), `apps/api/tests/unit/env.test.ts`, `apps/api/tests/integration/startup.test.ts`, `apps/api/{package.json,tsconfig.json}`, `.env.example`, `pnpm-lock.yaml` (zod 4.6.7), `docs/phase-0/PROGRESS.md`
+- Perilaku:
+  - `loadConfig()` bertipe (Zod) dan fail-fast. Semua masalah dilaporkan sekaligus, dan pesannya hanya memuat **nama variabel + aturan**, tidak pernah nilainya.
+  - `NODE_ENV` wajib (tanpa default, supaya produksi tidak diam-diam berjalan sebagai dev).
+  - Production lebih ketat: `APP_BASE_URL` wajib https, cookie wajib `__Host-`, `LOG_LEVEL` debug/trace ditolak. Di dev, http hanya boleh untuk localhost.
+  - `SESSION_SECRET` ≥ 32 karakter. `MFA_ENCRYPTION_KEY` = base64 tepat 32 byte. Nilai placeholder (`REPLACE_WITH_…`) ditolak.
+  - Penjaga typo: variabel tak dikenal dengan prefix NALARA (`SESSION_`, `DATABASE_`, `MFA_`, …) ditolak.
+  - `describeConfig()` untuk log startup: secret jadi `[REDACTED]`, kredensial DB dihapus.
+  - API bisa dijalankan langsung dari TypeScript (`node src/main.ts`, type stripping Node 24) dan dari build (`node dist/main.js`). `erasableSyntaxOnly` + `rewriteRelativeImportExtensions` aktif.
+- Tests run:
+  - `pnpm run check` → PASS, **58/58** (TEST-ENV-01..10 + startup integration)
+  - `node dist/main.js` dengan env produksi valid → exit 0, log ter-redaksi. Dengan env produksi salah → exit 1, 4 masalah dilaporkan tanpa nilai
+  - gitleaks `dir` ke `apps`, `tests`, `.env.example` → temuan hanya di `apps/web/.next/**` (output build Next, gitignored, tidak di-commit). Source bersih
+- Security review: PASS (tanpa secret nyata. Fixture tes sengaja berentropi rendah)
+- Known issues: `API_BASE_URL` belum divalidasi karena itu milik `apps/web` (P0-011). `FOUNDER_EMAIL` divalidasi oleh bootstrap CLI (P0-007)
+- Founder decision: PENDING
+
+**Next ticket:** P0-005 — Database & migrations (urutan D-02).
