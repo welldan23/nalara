@@ -1,4 +1,4 @@
-# CI baseline (P0-014a, ADR-008).
+# CI (P0-014a baseline, P0-014b complete; ADR-008).
 # Rules: least-privilege token, every action pinned to a full commit SHA,
 # no pull_request_target, no production secrets.
 name: CI
@@ -73,6 +73,132 @@ jobs:
 
       - name: Build
         run: pnpm run build
+
+  supply-chain:
+    name: Dependency audit and registry signatures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Enable pnpm (version from packageManager)
+        run: corepack enable
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # Shipped code: any known advisory blocks the merge.
+      - name: Audit production dependencies (any severity)
+        run: pnpm audit --prod --audit-level low
+
+      # Build and test tooling never ships; only high or critical advisories block.
+      - name: Audit all dependencies (high and critical)
+        run: pnpm audit --audit-level high
+
+      - name: Verify registry signatures
+        run: pnpm audit signatures
+
+  e2e:
+    name: Browser end-to-end (Chromium)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+        env:
+          POSTGRES_PASSWORD: ci-throwaway
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      TEST_DATABASE_ADMIN_URL: postgres://postgres:ci-throwaway@localhost:5432/postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Enable pnpm (version from packageManager)
+        run: corepack enable
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # The browser build matches the pinned playwright version in package.json.
+      - name: Install Chromium for Playwright
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run TEST-WEB-01..10
+        run: pnpm run test:e2e
+
+  compose-smoke:
+    name: Production Compose smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Tool versions
+        run: |
+          docker version --format '{{.Server.Version}}'
+          docker compose version
+
+      # Builds both images, starts a throwaway stack with generated secrets, checks, removes it.
+      - name: Run TEST-COMPOSE-01..10
+        run: node tests/smoke/compose.smoke.mjs
+
+  backup-smoke:
+    name: Backup and restore drill
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Install age (Ubuntu archive)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq age
+          age --version
+
+      - name: Run TEST-BACKUP-01..10
+        run: node tests/smoke/backup.smoke.mjs
 
   secret-scan:
     name: Secret scan (gitleaks)

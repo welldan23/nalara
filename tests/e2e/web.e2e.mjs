@@ -336,4 +336,5 @@ for (const result of results) {
 }
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
-process.exit(failed === 0 ? 0 : 1);
+// All ten checks must have run: a crash that skips some is a failure, never a partial pass.
+process.exit(failed === 0 && results.length === 10 ? 0 : 1);

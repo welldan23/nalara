@@ -1,5 +1,5 @@
 // Guards for GitHub Actions workflow hardening (ADR-008, PRD §14 TEST-CI-*).
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -55,6 +55,14 @@ describe('CI workflow hardening', () => {
     const postgres = images.filter((image) => image.startsWith('postgres:'));
     expect(postgres.length).toBeGreaterThanOrEqual(3);
     expect(new Set(postgres).size).toBe(1);
+    // The restore drill and its test start their own PostgreSQL: same version as everywhere else.
+    for (const file of ['infra/scripts/restore.sh', 'tests/smoke/backup.smoke.mjs']) {
+      const pins = [
+        ...readFileSync(join(root, file), 'utf8').matchAll(/postgres:[\w.-]+@sha256:[0-9a-f]{64}/g),
+      ].map((match) => match[0]);
+      expect(pins.length, file).toBeGreaterThan(0);
+      expect(new Set([...postgres, ...pins]).size, file).toBe(1);
+    }
 
     const dockerfiles = ['apps/api/Dockerfile', 'apps/web/Dockerfile'].map((file) =>
       readFileSync(join(root, file), 'utf8'),
@@ -134,5 +142,53 @@ describe('CI workflow hardening', () => {
     expect(ci).toContain('sha256sum -c -');
     expect(ci).toMatch(/fetch-depth:\s*0/);
     expect(ci).toContain('--exit-code 1');
+  });
+
+  it('runs the browser, Compose and backup suites in CI (P0-014b)', () => {
+    const ci = workflows.find((workflow) => workflow.file === 'ci.yml')?.text ?? '';
+    for (const job of [
+      'check',
+      'supply-chain',
+      'e2e',
+      'compose-smoke',
+      'backup-smoke',
+      'secret-scan',
+    ]) {
+      expect(ci, job).toMatch(new RegExp(`^ {2}${job}:\\s*$`, 'm'));
+    }
+    for (const command of [
+      'pnpm run test:e2e',
+      'pnpm exec playwright install --with-deps chromium',
+      'node tests/smoke/compose.smoke.mjs',
+      'node tests/smoke/backup.smoke.mjs',
+    ]) {
+      expect(ci).toContain(command);
+    }
+    // No step may swallow a failure.
+    expect(ci).not.toMatch(/continue-on-error:\s*true/);
+    expect(ci).not.toMatch(/\|\|\s*true/);
+  });
+
+  it('audits dependencies and registry signatures (TEST-CI-08)', () => {
+    const ci = workflows.find((workflow) => workflow.file === 'ci.yml')?.text ?? '';
+    expect(ci).toContain('pnpm audit --prod --audit-level low');
+    expect(ci).toContain('pnpm audit --audit-level high');
+    expect(ci).toContain('pnpm audit signatures');
+  });
+});
+
+describe('Dependabot', () => {
+  const path = join(root, '.github', 'dependabot.yml');
+
+  it('watches npm, GitHub Actions and Compose images with a 7-day cooldown', () => {
+    expect(existsSync(path)).toBe(true);
+    const text = stripYamlComments(readFileSync(path, 'utf8'));
+    const blocks = text.split(/^ {2}- package-ecosystem:\s*/m).slice(1);
+    const ecosystems = blocks.map((block) => block.split('\n')[0]?.trim());
+    expect(ecosystems).toEqual(['npm', 'github-actions', 'docker-compose']);
+    for (const block of blocks) {
+      const days = Number(/default-days:\s*(\d+)/.exec(block)?.[1]);
+      expect(days).toBeGreaterThanOrEqual(7);
+    }
   });
 });

@@ -1,0 +1,36 @@
+# Dependency update PRs (P0-014b, ADR-008). Every update still goes through full CI.
+# cooldown matches pnpm's minimumReleaseAge (7 days): brand-new releases are not proposed,
+# which gives the ecosystem time to catch compromised versions.
+# The Node base image is set through ARG NODE_IMAGE in both Dockerfiles, which Dependabot does
+# not resolve; it is reviewed by hand (docs/runbooks/ci-and-dependencies.md).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    groups:
+      dev-tooling:
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7

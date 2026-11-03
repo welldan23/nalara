@@ -275,4 +275,25 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Security review: PASS
 - Founder decision: PENDING
 
-**Next ticket:** P0-014b — CI lengkap (urutan D-02).
+### P0-014b — CI lengkap & dependency hygiene
+- Commit SHA: lihat PR `feat/P00-014b-ci-complete`
+- Changed files: `.github/workflows/ci.yml`, `.github/dependabot.yml`, `docs/runbooks/ci-and-dependencies.md`, `tests/repo/ci.test.ts`, `tests/e2e/web.e2e.mjs`, `package.json` + `pnpm-lock.yaml` (`playwright` 1.63.0 exact, sama dengan Chromium lokal)
+- Perilaku (ADR-008):
+  - Job baru: **supply-chain** (`pnpm audit --prod --audit-level low`, `pnpm audit --audit-level high`, `pnpm audit signatures`), **e2e** (Chromium + PostgreSQL service, TEST-WEB-01..10), **compose-smoke** (build image + stack produksi nyata), **backup-smoke** (`age` dari arsip Ubuntu, TEST-BACKUP-01..10). Semua runner gratis GitHub, tanpa secret produksi.
+  - Tidak ada lulus diam-diam: e2e kini gagal bila kurang dari 10 cek yang jalan (sama seperti smoke). Tes repo melarang `continue-on-error: true` dan `|| true`.
+  - Dependabot: npm, GitHub Actions, image di `compose.prod.yaml`, mingguan, `cooldown` 7 hari (sama dengan `minimumReleaseAge`). Base image Node (lewat `ARG`) tidak bisa dibaca Dependabot → review manual bulanan (runbook).
+  - Tes repo diperluas: versi PostgreSQL di `restore.sh` dan `backup.smoke.mjs` wajib sama dengan compose/CI.
+  - `dependency-review-action` **tidak** dipakai: untuk repo privat butuh GitHub Advanced Security (berbayar), melanggar batasan "no paid CI". Diganti `pnpm audit`.
+- Temuan audit saat ini: produksi **0** advisory. Dev-tooling: 1 moderate (`minimatch` < 11.0.1 lewat ESLint, ReDoS pada pola glob, bukan input pengguna). Tidak memblokir menurut kebijakan; diperbaiki lewat update ESLint berikutnya.
+- Tests run (lokal):
+  - `pnpm run check` → PASS **223/223**
+  - `pnpm run test:e2e` dengan `playwright` dari workspace → PASS **10/10**
+  - Mutasi: menambah `|| true` ke langkah backup → tes repo FAIL (lalu dikembalikan)
+  - `actionlint` → bersih
+  - `pnpm audit --prod --audit-level low` → 0 · `pnpm audit signatures` → 358/358 terverifikasi
+- Bukti CI merah: lihat bagian "CI red proof" di bawah (dijalankan di GitHub setelah PR ini dibuka).
+- **Butuh founder:** aktifkan ruleset `main` + required status checks (6 nama job, runbook §2). Tanpa itu CI merah terlihat tapi tidak memblokir merge secara teknis.
+- Security review: PASS
+- Founder decision: PENDING
+
+**Next ticket:** P0-016 — exit audit & acceptance.
