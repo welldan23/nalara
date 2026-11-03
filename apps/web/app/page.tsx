@@ -2,7 +2,7 @@
 export default function HomePage() {
   return (
     <>
-      <h1>Biar semua paham.</h1>
+      <h1>Biar semua paham!</h1>
       <p>
         NALARA sedang dibangun: media dan data publik Indonesia yang menjelaskan berita, kebijakan,
         dan angka dengan sumber yang bisa ditelusuri.
