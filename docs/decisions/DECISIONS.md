@@ -18,6 +18,8 @@ Jangan pernah menulis password, recovery code, private key, atau token di file i
 | D-10 | 2026-11-03 | Versi Node.js | Node 24 LTS (Krypton). Patch dipin di P0-003 | Lebih matang untuk modul native | Upgrade ke Node 26 butuh ADR baru | Ganti `.nvmrc`/`engines`/base image | [ADR-001](../adr/ADR-001-package-manager-node-workspace.md) |
 | D-11 | 2026-11-03 | Arsitektur web/API | Next.js (UI saja) + Fastify API terpisah | Batas kepercayaan tegas untuk fase Hermes/Telegram (K-01) | Satu proses tambahan di VPS | Lebur ke Next.js lewat ADR baru | [ADR-002](../adr/ADR-002-web-api-boundary-framework.md) |
 | D-12 | 2026-11-03 | Bentuk tabel identitas dan audit | `users` + `role` (maks. 1 founder) dan `audit_events` dengan `actor_type` | Siap fase depan tanpa rename (K-03, K-04) | Satu founder dijamin di DB | Regenerasi migrasi sebelum ada data | [ADR-009](../adr/ADR-009-identity-audit-schema.md) |
+| D-14 | 2026-11-03 | Cara kerja | Founder minta proses berjalan dengan pertanyaan seminimal mungkin dan PR di-merge otomatis setelah CI hijau. Keputusan teknis kecil diambil Claude dan dicatat di sini/ADR untuk ditinjau | Mempercepat Phase 0 | Founder tetap pemegang gate fase (`PHASE 0 ACCEPTED`) | Founder bisa minta kembali ke mode review-dulu | — |
+| D-15 | 2026-11-03 | Alat migrasi | SQL tulis tangan + runner checksum sendiri, Drizzle ORM hanya untuk query (didelegasikan) | drizzle-kit membawa esbuild/tsx/loader deprecated, dan migrator Drizzle tidak cek checksum | Supply chain lebih kecil, tamper migrasi terdeteksi | ADR baru kembali ke drizzle-kit | [ADR-010](../adr/ADR-010-sql-first-migrations.md) |
 
 ## Keputusan yang masih OPEN
 

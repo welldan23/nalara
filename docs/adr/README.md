@@ -15,5 +15,6 @@ Status: `Proposed` → `Accepted` → `Superseded by ADR-XXX`. ADR yang sudah di
 | [ADR-007](ADR-007-backup-restore.md) | Backup encryption, retention, restore, offsite destination | Accepted (approach) · destination pending D-04 |
 | [ADR-008](ADR-008-ci-branch-protection.md) | GitHub Actions CI, security checks, and branch protection | Accepted |
 | [ADR-009](ADR-009-identity-audit-schema.md) | Identity and audit schema shape | Accepted |
+| [ADR-010](ADR-010-sql-first-migrations.md) | SQL-first migrations with a checksum-verifying runner | Accepted (delegated) · supersedes the drizzle-kit part of ADR-003 |
 
 Konteks audit: [`../phase-0/BASELINE.md`](../phase-0/BASELINE.md) · Usulan asli: [`../phase-0/ADR-PROPOSALS.md`](../phase-0/ADR-PROPOSALS.md) · Register keputusan founder: [`../decisions/DECISIONS.md`](../decisions/DECISIONS.md).

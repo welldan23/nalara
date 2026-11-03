@@ -78,4 +78,21 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Known issues: `API_BASE_URL` belum divalidasi karena itu milik `apps/web` (P0-011). `FOUNDER_EMAIL` divalidasi oleh bootstrap CLI (P0-007)
 - Founder decision: PENDING
 
-**Next ticket:** P0-005 — Database & migrations (urutan D-02).
+### P0-005 — Database & migrations
+- Commit SHA: lihat PR `feat/P00-005-db-migrations`
+- Changed files: `db/migrations/0001_identity_and_audit.sql`, `db/init/01-roles.sh`, `db/README.md`, `compose.yaml` (service `db` saja), `apps/api/src/db/{migrate.ts,migrate-cli.ts,client.ts,schema.ts}`, `apps/api/src/config/env.ts` (`DATABASE_MIGRATOR_URL`, `loadMigratorConfig`, typo guard baru), `apps/api/tests/{integration/db.test.ts,support/database.ts,unit/env.test.ts}`, `.github/workflows/ci.yml` (service PostgreSQL), `tests/repo/ci.test.ts`, `.env.example`, `docs/adr/ADR-010-sql-first-migrations.md`, `docs/adr/{README.md,ADR-003…}`, `docs/decisions/DECISIONS.md` (D-14, D-15)
+- Keputusan:
+  - PostgreSQL **18.6** (`postgres:18.6-alpine3.24@sha256:10a5c69a…`, sama persis di compose dan CI, dijaga tes). ID memakai `uuidv7()` bawaan PG 18.
+  - **ADR-010** (didelegasikan, D-15): migrasi SQL tulis tangan + runner checksum sendiri. Drizzle ORM hanya untuk query. Alasan: drizzle-kit membawa esbuild/tsx/loader deprecated, dan migrator Drizzle tidak menolak file yang diedit atau dihapus.
+- **Temuan saat verifikasi:** penjaga typo berbasis prefix dari P0-004 menolak variabel platform `SESSION_INGRESS_URL` di cloud session. Ini bisa terjadi juga di VPS/CI. Diganti dengan deteksi *near-miss* (edit distance ≤ 2 untuk nama ≥ 8 karakter, atau beda huruf besar/kecil). Diuji tanpa false positive terhadap 175 variabel env nyata. `RESERVED_ENV_PREFIXES` dihapus.
+- Tests run:
+  - `pnpm run check` dengan PostgreSQL 18.6 → PASS, **85/85** (19 tes DB: TEST-DB-01..10 + concurrency + drift)
+  - Tanpa DB secara lokal → 18 tes DB di-skip dengan jelas. Dengan `CI=true` tanpa DB → **FAIL** (tidak ada skip diam-diam di CI)
+  - Database tes sisa setelah run: 0
+  - Jalur compose: `docker compose config` valid → `up -d db` healthy → `db:status` (pending, exit 1) → `db:migrate` → `db:migrate` lagi (no-op) → `db:status` (up to date). Grant `nalara_app` pada `audit_events` = `INSERT,SELECT`. Port hanya `127.0.0.1:5432`. Password salah → log `code 28P01` tanpa URL/password
+  - `actionlint` → PASS
+- Security review: PASS. Least privilege dites (`UPDATE`/`DELETE`/`TRUNCATE` audit → 42501, DDL oleh app → 42501, bookkeeping migrasi tidak terbaca oleh app). Error driver tidak di-log mentah. Kredensial hanya placeholder
+- Known issues: role DB produksi dibuat manual di VPS (didokumentasikan di `db/README.md`), dan dikerjakan bersama P0-012/013
+- Founder decision: PENDING
+
+**Next ticket:** P0-006 — API skeleton (urutan D-02).

@@ -39,6 +39,16 @@ describe('CI workflow hardening', () => {
     expect(unpinned).toEqual([]);
   });
 
+  it('pins every container image by digest and keeps it identical to compose.yaml', () => {
+    const compose = readFileSync(join(root, 'compose.yaml'), 'utf8');
+    const images = [compose, ...workflows.map((workflow) => workflow.text)].flatMap((text) =>
+      [...text.matchAll(/^\s*image:\s*(\S+)/gm)].map((match) => match[1] ?? ''),
+    );
+    expect(images.length).toBeGreaterThan(1);
+    for (const image of images) expect(image).toMatch(/:[\w.-]+@sha256:[0-9a-f]{64}$/);
+    expect(new Set(images).size).toBe(1);
+  });
+
   it('never uses pull_request_target (TEST-CI-10)', () => {
     for (const { text } of workflows) {
       expect(text).not.toMatch(/pull_request_target/);

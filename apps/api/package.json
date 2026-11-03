@@ -7,9 +7,16 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "dev": "node --env-file-if-exists=../../.env src/main.ts",
+    "db:migrate": "node --env-file-if-exists=../../.env src/db/migrate-cli.ts",
+    "db:status": "node --env-file-if-exists=../../.env src/db/migrate-cli.ts --check",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "drizzle-orm": "0.45.4",
+    "pg": "8.23.1",
     "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1"
   }
 }
