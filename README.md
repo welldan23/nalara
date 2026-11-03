@@ -40,7 +40,8 @@ docs/       PRD, ADR, keputusan founder, dokumen Phase 0
 
 - Semua versi dipin persis (tanpa `^`/`~`) dan dikunci di `pnpm-lock.yaml`.
 - pnpm hanya memasang versi yang sudah dirilis minimal **7 hari** (`minimumReleaseAge` di [`pnpm-workspace.yaml`](pnpm-workspace.yaml)).
-- Script install dari paket pihak ketiga tidak dijalankan kecuali diizinkan eksplisit.
+- pnpm hanya mau jalan di versi Node sesuai `engines` (`engineStrict`).
+- Script install (`postinstall` dsb.) dari dependensi **diblokir** oleh pnpm (`ERR_PNPM_IGNORED_BUILDS`). Kalau ada paket yang benar-benar butuh, izinkan secara eksplisit lewat `pnpm approve-builds` dan catat alasannya di PR.
 
 ## Dokumen
 

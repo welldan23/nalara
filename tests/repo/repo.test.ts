@@ -90,6 +90,11 @@ describe('TEST-REPO-04 node version pinned', () => {
     expect(pkg.engines?.['node']).toBe(`>=${nvmrc} <${String(Number(major) + 1)}`);
   });
 
+  it('makes pnpm refuse installs on other Node versions', () => {
+    const workspace = readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8');
+    expect(workspace).toMatch(/^engineStrict:\s*true\s*$/m);
+  });
+
   it('runs on the pinned Node major', () => {
     expect(process.versions.node.split('.')[0]).toBe(nvmrc.split('.')[0]);
   });
