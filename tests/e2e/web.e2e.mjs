@@ -299,6 +299,82 @@ try {
   });
 
   await check(
+    'TEST-P1-04',
+    'sources: aggregator refused, number linked, computed label',
+    async () => {
+      assert(signedIn !== null, 'needs the signed-in page from TEST-WEB-03b');
+      const page = signedIn;
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto(`${WEB}/os/newsroom/baru`);
+      await page.getByLabel('Judul').fill('Inflasi Oktober');
+      await page.getByLabel('Ringkasan (dek)').fill('TEST fixture, bukan artikel nyata.');
+      await page
+        .getByLabel('Isi', { exact: true })
+        .fill(
+          [
+            '## Data dan angka',
+            '',
+            ':::angka',
+            'nilai: 2,8',
+            'satuan: persen (yoy)',
+            'periode: Oktober 2026',
+            'label: Inflasi tahunan',
+            'sumber: 1',
+            ':::',
+          ].join('\n'),
+        );
+      await page.getByRole('button', { name: 'Tambah sumber' }).click();
+      await page.getByLabel('Sumber 1: URL').fill('https://news.google.com/rss/articles/abc');
+      await page.getByLabel('Penerbit').fill('Badan Pusat Statistik');
+      await page.getByRole('button', { name: 'Simpan draft' }).click();
+      await page
+        .getByText('Sumber 1, URL: Pakai URL penerbit aslinya')
+        .waitFor({ timeout: 10_000 });
+      assert(page.url().endsWith('/os/newsroom/baru'), 'aggregator citation was saved');
+
+      await page
+        .getByLabel('Sumber 1: URL')
+        .fill('https://www.bps.go.id/id/pressrelease/2026/11/01/inflasi.html');
+      await page.getByLabel('Judul halaman').fill('Inflasi Oktober 2026');
+      await page.getByLabel('Sumber primer').check();
+      await page.getByLabel('Sudah dicek').check();
+      await page.getByRole('button', { name: 'Pratinjau' }).click();
+      const label = page.getByTestId('verification');
+      await label.waitFor({ timeout: 10_000 });
+      assert((await label.textContent())?.includes('Terverifikasi'), 'label not TERVERIFIKASI');
+      const preview = page.locator('.editor-preview');
+      assert(
+        (await preview.locator('.stat-source').textContent())?.includes(
+          '[1] Badan Pusat Statistik',
+        ),
+        'number block does not show its source',
+      );
+      assert(
+        (await preview.locator('#sumber-1 a').getAttribute('rel'))?.includes('noopener'),
+        'link rel',
+      );
+      await shot(page, '8-sources-preview');
+
+      await page.getByRole('button', { name: 'Simpan draft' }).click();
+      await page.waitForURL(/\/os\/newsroom\/[0-9a-f-]{36}$/, { timeout: 10_000 });
+      assert(
+        (await page.getByTestId('verification').textContent())?.includes('Terverifikasi'),
+        'label lost',
+      );
+
+      // Un-checking the only source drops the label (computed server-side, never sent).
+      await page.getByLabel('Sudah dicek').uncheck();
+      await page.getByLabel('Catatan perubahan').fill('Sumber belum dicek ulang');
+      await page.getByRole('button', { name: 'Simpan versi 2' }).click();
+      await page.getByText('Tersimpan sebagai versi 2.').waitFor({ timeout: 10_000 });
+      assert(
+        (await page.getByTestId('verification').textContent())?.includes('Belum terverifikasi'),
+        'label did not drop',
+      );
+    },
+  );
+
+  await check(
     'TEST-WEB-04',
     'invalid or expired session cookie redirects (server-side check)',
     async () => {
@@ -419,4 +495,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 11 ? 0 : 1);
+process.exit(failed === 0 && results.length === 12 ? 0 : 1);

@@ -29,6 +29,7 @@ export default async function NewDraftPage() {
           categoryId: categories[0]?.id ?? '',
           methodNote: '',
           bodySource: ARTICLE_TEMPLATE,
+          citations: [],
         }}
       />
     </>

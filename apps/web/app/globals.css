@@ -307,6 +307,81 @@ a.button {
   color: var(--color-ink-muted);
 }
 
+/* Sources editor and verification label (P1-04). */
+.citations-editor {
+  margin-top: 0.5rem !important;
+  padding: 0.75rem 1rem 1rem !important;
+  border: 1px solid var(--color-sage) !important;
+  border-radius: 6px;
+  background: #fff;
+}
+.citations-editor legend {
+  padding: 0 0.25rem;
+  font-weight: 700;
+}
+.citations-editor ol {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+.citation-row {
+  display: grid;
+  gap: 0.4rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px dashed var(--color-sage);
+}
+.citation-flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+}
+label.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+.editor-form input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--color-forest);
+}
+.verification {
+  margin: 0 0 1rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  background: var(--color-ivory);
+  border-left: 4px solid var(--color-ink-muted);
+}
+.verification-TERVERIFIKASI {
+  border-left-color: var(--color-forest);
+}
+.verification-BELUM_TERVERIFIKASI {
+  border-left-color: var(--color-danger);
+}
+.badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--color-forest);
+  border-radius: 3px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-forest);
+}
+.citations ol {
+  padding-left: 1.25rem;
+}
+.citations li {
+  margin-bottom: 0.5rem;
+}
+.article-body .stat-source {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+}
+
 /* Article body blocks (shared by preview and, later, public pages). */
 .article-body blockquote {
   margin: 1.5rem 0;

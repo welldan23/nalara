@@ -8,6 +8,13 @@
 //   1. item               (ordered list)
 //   > quoted text
 //   > — Name, role        (attribution, required as the last quote line)
+//   :::angka              (a checkable number, P1-04; every field required)
+//   nilai: 2,8
+//   satuan: persen (yoy)
+//   periode: Oktober 2026
+//   label: Inflasi tahunan
+//   sumber: 1             (number of the citation in the article's source list)
+//   :::
 import type { Block } from './content.ts';
 
 export type ParseRule =
@@ -20,7 +27,11 @@ export type ParseRule =
   | 'link_malformed'
   | 'quote_needs_attribution'
   | 'empty_heading'
-  | 'too_many_blocks';
+  | 'too_many_blocks'
+  | 'stat_unclosed'
+  | 'stat_field_missing'
+  | 'stat_field_unknown'
+  | 'stat_source_unknown';
 
 export interface ParseIssue {
   readonly line: number;
@@ -126,8 +137,22 @@ export function parseInline(source: string): Inline[] {
   return out;
 }
 
+const STAT_FIELDS = {
+  nilai: 'value',
+  satuan: 'unit',
+  periode: 'period',
+  label: 'label',
+  sumber: 'source',
+} as const;
+
+export interface ParseOptions {
+  /** Citation ids in list order; `sumber: N` refers to the N-th (1-based). */
+  readonly citationIds?: readonly string[];
+}
+
 /** Parse the editor source. Blocks are separated by blank lines or by a change of block type. */
-export function parseMarkdown(source: string): ParseResult {
+export function parseMarkdown(source: string, options: ParseOptions = {}): ParseResult {
+  const citationIds = options.citationIds ?? [];
   const lines = source.replace(/\r\n?/g, '\n').split('\n');
   const blocks: Block[] = [];
   const issues: ParseIssue[] = [];
@@ -164,6 +189,54 @@ export function parseMarkdown(source: string): ParseResult {
     if (problem !== null) {
       issues.push({ line: lineNo, rule: problem });
       index += 1;
+      continue;
+    }
+
+    if (raw.trim() === ':::angka') {
+      const start = lineNo;
+      const fields: Partial<Record<(typeof STAT_FIELDS)[keyof typeof STAT_FIELDS], string>> = {};
+      let closed = false;
+      let broken = false;
+      index += 1;
+      while (index < lines.length) {
+        const current = (lines[index] ?? '').trim();
+        index += 1;
+        if (current === ':::') {
+          closed = true;
+          break;
+        }
+        if (current === '') continue;
+        const match = /^([a-z]+)\s*:\s*(.*)$/.exec(current);
+        const key = match?.[1] as keyof typeof STAT_FIELDS | undefined;
+        if (match === null || key === undefined || !(key in STAT_FIELDS)) {
+          issues.push({ line: index, rule: 'stat_field_unknown' });
+          broken = true;
+          continue;
+        }
+        const bad = lineIssue(current);
+        if (bad !== null) {
+          issues.push({ line: index, rule: bad });
+          broken = true;
+          continue;
+        }
+        fields[STAT_FIELDS[key]] = (match[2] ?? '').trim();
+      }
+      if (!closed) {
+        issues.push({ line: start, rule: 'stat_unclosed' });
+        continue;
+      }
+      if (broken) continue;
+      const { value, unit, period, label, source: sourceRef } = fields;
+      if (!value || !unit || !period || !label || !sourceRef) {
+        issues.push({ line: start, rule: 'stat_field_missing' });
+        continue;
+      }
+      const citationId = /^\d+$/.test(sourceRef) ? citationIds[Number(sourceRef) - 1] : undefined;
+      if (citationId === undefined) {
+        issues.push({ line: start, rule: 'stat_source_unknown' });
+        continue;
+      }
+      blocks.push({ type: 'stat', value, unit, period, label, citationId });
       continue;
     }
 

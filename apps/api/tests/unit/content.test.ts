@@ -18,6 +18,7 @@ const base: RevisionContent = {
   body: [{ type: 'paragraph', content: [{ type: 'text', text: 'Isi.' }] }],
   bodySource: 'Isi.',
   methodNote: null,
+  citations: [],
 };
 
 describe('content blocks (ADR-011)', () => {
@@ -110,7 +111,7 @@ describe('content blocks (ADR-011)', () => {
 describe('canonical content hash (ADR-012)', () => {
   it('is independent of key order and ignores the editor source text', () => {
     const reordered = JSON.parse(
-      '{"methodNote":null,"bodySource":"different","body":[{"content":[{"text":"Isi.","type":"text"}],"type":"paragraph"}],"categoryId":"01900000-0000-7000-8000-000000000001","articleType":"explainer","dek":"","title":"Judul"}',
+      '{"citations":[],"methodNote":null,"bodySource":"different","body":[{"content":[{"text":"Isi.","type":"text"}],"type":"paragraph"}],"categoryId":"01900000-0000-7000-8000-000000000001","articleType":"explainer","dek":"","title":"Judul"}',
     ) as RevisionContent;
     expect(contentSha256(reordered).equals(contentSha256(base))).toBe(true);
   });

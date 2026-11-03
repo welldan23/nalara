@@ -43,6 +43,7 @@ export default async function EditDraftPage({
         articleId={article.id}
         version={article.currentVersion}
         editable={article.status === 'draft'}
+        verification={detail.verification}
         categories={categories}
         initial={{
           title: article.current.title,
@@ -51,6 +52,7 @@ export default async function EditDraftPage({
           categoryId: article.current.categoryId,
           methodNote: article.current.methodNote ?? '',
           bodySource: article.current.bodySource,
+          citations: article.current.citations,
         }}
       />
       <section aria-labelledby="history">

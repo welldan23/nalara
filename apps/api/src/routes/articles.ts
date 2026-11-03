@@ -15,9 +15,10 @@ import {
   listRevisions,
   saveRevision,
 } from '../modules/articles/articles.ts';
-import { LIMITS } from '../modules/articles/content.ts';
-import type { Block } from '../modules/articles/content.ts';
+import { LIMITS, MAX_CITATIONS, citationSchema } from '../modules/articles/content.ts';
+import type { Block, Citation } from '../modules/articles/content.ts';
 import { parseMarkdown } from '../modules/articles/markdown.ts';
+import { verificationLevel } from '../modules/articles/verification.ts';
 import { styleWarnings } from '../modules/articles/warnings.ts';
 import type { AuthGuards } from '../plugins/auth.ts';
 
@@ -31,6 +32,7 @@ const editorFields = {
   categoryId: z.string(),
   methodNote: z.string().nullable().default(null),
   bodySource: z.string().max(LIMITS.bodySource),
+  citations: z.array(citationSchema).max(MAX_CITATIONS).default([]),
 };
 
 const createSchema = z.strictObject({
@@ -49,6 +51,7 @@ const previewSchema = z.strictObject({
   title: z.string().max(LIMITS.title).default(''),
   dek: z.string().max(LIMITS.dek).default(''),
   bodySource: z.string().max(LIMITS.bodySource),
+  citations: z.array(citationSchema).max(MAX_CITATIONS).default([]),
 });
 
 const listQuery = z.strictObject({
@@ -60,8 +63,8 @@ const idParams = z.strictObject({ id: z.string() });
 const uuid = z.uuid();
 
 /** Markdown → blocks; parse problems come back as field issues with the line number. */
-function bodyFromSource(bodySource: string) {
-  const { blocks, issues } = parseMarkdown(bodySource);
+function bodyFromSource(bodySource: string, citationIds: readonly string[]) {
+  const { blocks, issues } = parseMarkdown(bodySource, { citationIds });
   if (issues.length > 0) {
     throw new AppError(
       'VALIDATION_FAILED',
@@ -121,6 +124,8 @@ export function registerArticleRoutes(
         // Stored bodies were validated against the block schema when they were written.
         body: article.current.body as Block[],
       }),
+      // Stored citations were validated against the citation schema when they were written.
+      verification: verificationLevel(article.current.citations as Citation[]),
     };
   });
 
@@ -133,7 +138,10 @@ export function registerArticleRoutes(
     },
     async (request, reply) => {
       const input = parseOrThrow(createSchema, request.body);
-      const body = bodyFromSource(input.bodySource);
+      const body = bodyFromSource(
+        input.bodySource,
+        input.citations.map((citation) => citation.id),
+      );
       const content = {
         title: input.title,
         dek: input.dek,
@@ -142,13 +150,18 @@ export function registerArticleRoutes(
         body,
         bodySource: input.bodySource,
         methodNote: input.methodNote,
+        citations: input.citations,
       };
       const saved = await createDraft(db, actor(request), {
         content,
         ...(input.slug !== undefined ? { slug: input.slug } : {}),
         ...(input.changeNote !== undefined ? { changeNote: input.changeNote } : {}),
       });
-      return reply.code(201).send({ ...saved, warnings: styleWarnings(content) });
+      return reply.code(201).send({
+        ...saved,
+        warnings: styleWarnings(content),
+        verification: verificationLevel(content.citations),
+      });
     },
   );
 
@@ -162,7 +175,10 @@ export function registerArticleRoutes(
     async (request) => {
       const id = articleId(request.params);
       const input = parseOrThrow(updateSchema, request.body);
-      const body = bodyFromSource(input.bodySource);
+      const body = bodyFromSource(
+        input.bodySource,
+        input.citations.map((citation) => citation.id),
+      );
       const content = {
         title: input.title,
         dek: input.dek,
@@ -171,13 +187,18 @@ export function registerArticleRoutes(
         body,
         bodySource: input.bodySource,
         methodNote: input.methodNote,
+        citations: input.citations,
       };
       const saved = await saveRevision(db, actor(request), id, {
         expectedVersion: input.expectedVersion,
         content,
         changeNote: input.changeNote,
       });
-      return { ...saved, warnings: styleWarnings(content) };
+      return {
+        ...saved,
+        warnings: styleWarnings(content),
+        verification: verificationLevel(content.citations),
+      };
     },
   );
 
@@ -191,10 +212,13 @@ export function registerArticleRoutes(
     },
     (request) => {
       const input = parseOrThrow(previewSchema, request.body);
-      const { blocks, issues } = parseMarkdown(input.bodySource);
+      const { blocks, issues } = parseMarkdown(input.bodySource, {
+        citationIds: input.citations.map((citation) => citation.id),
+      });
       return Promise.resolve({
         blocks,
         issues,
+        verification: verificationLevel(input.citations),
         warnings: styleWarnings({ title: input.title, dek: input.dek, body: blocks }),
       });
     },
