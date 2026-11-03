@@ -31,5 +31,7 @@ Jangan pernah menulis password, recovery code, private key, atau token di file i
 | D-08 | Provider VPS, spek CPU/RAM/disk, versi Ubuntu, domain dan kontrol DNS | Deploy publik pertama (gate R-02) | Tanpa ini, rehearsal TLS memakai CA lokal saja |
 | D-09 | Kapan deploy produksi pertama (Phase 0 diterima tanpa deploy, D-16) | Sebelum launch publik | Menentukan apakah TEST-OPS dijalankan di VPS di Phase 0 |
 | D-17 | Topik (kategori) awal NALARA Media | P01-004 (seed migrasi) | Usulan: Ekonomi, Teknologi, Kebijakan ([Phase 1 BASELINE](../phase-1/BASELINE.md) KP1-10) |
-| D-18 | Go-live terbatas setelah Phase 1, atau tetap internal? | Exit Phase 1 | Go-live butuh D-04, D-08, D-09. Usulan: internal dulu, diputuskan saat exit Phase 1 (KP1-14) |
-| D-19 | Setujui rencana Phase 1 dan ADR-011..017 | Tiket pertama Phase 1 (P02-001) | [BASELINE](../phase-1/BASELINE.md) · [ADR-PROPOSALS](../phase-1/ADR-PROPOSALS.md) |
+| D-18 | Go-live terbatas setelah Phase 1, atau tetap internal? | Exit Phase 1 | Bila D-20 disetujui, terjawab oleh PRD v4: soft launch = exit Phase 1 (P1-10), butuh D-04, D-08, D-09 |
+| D-19 | Setujui rencana Phase 1 (revisi 2) dan ADR-011..019 | Tiket pertama Phase 1 (P1-01) | [BASELINE](../phase-1/BASELINE.md) · [ADR-PROPOSALS](../phase-1/ADR-PROPOSALS.md) |
+| D-20 | PRD v4 ringkas jadi acuan utama mulai Phase 1, dengan pengecualian tetap memakai API Fastify + skema Phase 0 (ADR-018)? | P1-01 | [PRD v4](../prd/NALARA_PRD_v4_ringkas.md), [BASELINE rev 2](../phase-1/BASELINE.md) KP1-22/23 |
+| D-21 | Validasi pembaca (PRD v4 §2) jalan paralel; P1-01..P1-09 dikerjakan sekarang, soft launch menunggu hasil validasi? | P1-01 | KP1-21 |

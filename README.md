@@ -83,9 +83,9 @@ docs/       PRD, ADR, keputusan founder, dokumen Phase 0
 
 ## Dokumen
 
-- [PRD master](docs/prd/NALARA_Master_PRD_Full_Phases_0-9_v3.md)
+- [PRD v4 ringkas](docs/prd/NALARA_PRD_v4_ringkas.md) (acuan Phase 1, menunggu D-20) · [PRD master v3](docs/prd/NALARA_Master_PRD_Full_Phases_0-9_v3.md)
 - [ADR](docs/adr/README.md) · [Keputusan founder](docs/decisions/DECISIONS.md)
 - [Baseline audit Phase 0](docs/phase-0/BASELINE.md) · [Progress Phase 0](docs/phase-0/PROGRESS.md) · [**Acceptance Phase 0**](docs/phase-0/ACCEPTANCE.md)
-- [Rencana Phase 1 (usulan)](docs/phase-1/BASELINE.md) · [ADR Phase 1 (usulan)](docs/phase-1/ADR-PROPOSALS.md)
+- [Rencana Phase 1 (usulan)](docs/phase-1/BASELINE.md) · [ADR Phase 1 (usulan)](docs/phase-1/ADR-PROPOSALS.md) · [Referensi VORSA](docs/phase-1/REFERENCE-VORSA.md)
 - [Arsitektur & batas kepercayaan](docs/architecture/phase-0.md) · [Threat model](docs/security/threat-model.md) · [Kebijakan keamanan](SECURITY.md)
 - Runbook: [deploy VPS](docs/runbooks/deploy-vps.md) · [backup & restore](docs/runbooks/backup-restore.md) · [insiden & rollback](docs/runbooks/incident.md) · [CI & dependensi](docs/runbooks/ci-and-dependencies.md)
