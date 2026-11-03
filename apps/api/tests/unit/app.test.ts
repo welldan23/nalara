@@ -258,3 +258,49 @@ describe('TEST-API-10 rate limit response', () => {
     }
   });
 });
+
+describe('client IP behind the edge proxy (P0-013)', () => {
+  const hit = (app: FastifyInstance, remoteAddress: string, forwardedFor: string) =>
+    app.inject({
+      method: 'GET',
+      url: '/health/live',
+      remoteAddress,
+      headers: { 'x-forwarded-for': forwardedFor },
+    });
+
+  async function appWith(trustedProxies?: readonly string[]) {
+    const app = await buildApp(
+      { ...config, ...(trustedProxies !== undefined ? { trustedProxies } : {}) },
+      { readiness: () => Promise.resolve(true), rateLimitMax: 2 },
+    );
+    apps.push(app);
+    return app;
+  }
+
+  it('ignores X-Forwarded-For when no proxy is trusted, so spoofing cannot dodge limits', async () => {
+    const app = await appWith();
+    const statuses = [];
+    for (const spoofed of ['1.1.1.1', '2.2.2.2', '3.3.3.3']) {
+      statuses.push((await hit(app, '203.0.113.5', spoofed)).statusCode);
+    }
+    expect(statuses).toEqual([200, 200, 429]);
+  });
+
+  it('limits per real client when the request comes through the trusted proxy', async () => {
+    const app = await appWith(['172.31.250.10']);
+    expect((await hit(app, '172.31.250.10', '198.51.100.1')).statusCode).toBe(200);
+    expect((await hit(app, '172.31.250.10', '198.51.100.1')).statusCode).toBe(200);
+    expect((await hit(app, '172.31.250.10', '198.51.100.1')).statusCode).toBe(429);
+    // Another visitor behind the same proxy is not punished for the first one.
+    expect((await hit(app, '172.31.250.10', '198.51.100.2')).statusCode).toBe(200);
+  });
+
+  it('ignores X-Forwarded-For from anyone other than the trusted proxy', async () => {
+    const app = await appWith(['172.31.250.10']);
+    const statuses = [];
+    for (const spoofed of ['1.1.1.1', '2.2.2.2', '3.3.3.3']) {
+      statuses.push((await hit(app, '203.0.113.9', spoofed)).statusCode);
+    }
+    expect(statuses).toEqual([200, 200, 429]);
+  });
+});

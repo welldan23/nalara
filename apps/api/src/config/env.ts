@@ -4,6 +4,7 @@
 // - loadConfig() either returns a fully validated Config or throws ConfigError.
 // - ConfigError messages name the variable and the rule that failed, never the value.
 // - Production is stricter than development/test (HTTPS origin, __Host- cookie, no debug logs).
+import { isIP } from 'node:net';
 import { z } from 'zod';
 
 export type NodeEnv = 'development' | 'test' | 'production';
@@ -23,6 +24,11 @@ export interface Config {
   readonly mfaEncryptionKey: Buffer;
   readonly logLevel: LogLevel;
   readonly port: number;
+  /**
+   * Reverse proxies whose X-Forwarded-For is trusted (IPs or CIDRs). Empty: trust nobody, so the
+   * client IP used for rate limiting is the TCP peer.
+   */
+  readonly trustedProxies: readonly string[];
 }
 
 /** Variables whose values must never appear in logs or error messages. */
@@ -45,6 +51,7 @@ export const KNOWN_ENV_KEYS = [
   'MFA_ENCRYPTION_KEY',
   'LOG_LEVEL',
   'PORT',
+  'TRUSTED_PROXIES',
   'FOUNDER_EMAIL',
   'BACKUP_DESTINATION',
 ] as const;
@@ -57,6 +64,8 @@ export const COMPOSE_ENV_KEYS = [
   'POSTGRES_PASSWORD',
   'DB_MIGRATOR_PASSWORD',
   'DB_APP_PASSWORD',
+  'SITE_ADDRESS',
+  'CADDY_TLS',
 ] as const;
 
 export const DEFAULT_SESSION_COOKIE_NAME = '__Host-nalara_session';
@@ -121,6 +130,7 @@ const schema = z.object({
       error: 'PORT must be an integer between 1 and 65535',
     })
     .default(4000),
+  TRUSTED_PROXIES: z.string().trim().default(''),
 });
 
 type RawEnv = Readonly<Record<string, string | undefined>>;
@@ -181,6 +191,12 @@ export function loadConfig(env: RawEnv = process.env): Config {
     issues.push('LOG_LEVEL debug/trace is not allowed in production');
   }
 
+  const trustedProxies =
+    raw.TRUSTED_PROXIES === '' ? [] : raw.TRUSTED_PROXIES.split(',').map((entry) => entry.trim());
+  if (!trustedProxies.every(isIpOrCidr)) {
+    issues.push('TRUSTED_PROXIES must be a comma-separated list of IP addresses or CIDR ranges');
+  }
+
   if (issues.length > 0 || appUrl === undefined || mfaKey === undefined) {
     throw new ConfigError(issues);
   }
@@ -193,6 +209,7 @@ export function loadConfig(env: RawEnv = process.env): Config {
     mfaEncryptionKey: mfaKey,
     logLevel: raw.LOG_LEVEL,
     port: raw.PORT,
+    trustedProxies,
   };
 }
 
@@ -314,6 +331,15 @@ function checkDatabaseUrl(key: string, value: string, issues: string[]): void {
   }
   const problem = notPlaceholder(key)(value);
   if (problem !== undefined) issues.push(problem);
+}
+
+function isIpOrCidr(entry: string): boolean {
+  const [address = '', prefix, extra] = entry.split('/');
+  const family = isIP(address);
+  if (family === 0 || extra !== undefined) return false;
+  if (prefix === undefined) return true;
+  if (!/^\d{1,3}$/.test(prefix)) return false;
+  return Number(prefix) <= (family === 4 ? 32 : 128);
 }
 
 function decodeBase64Key(value: string): Buffer | undefined {

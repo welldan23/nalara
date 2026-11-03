@@ -1,5 +1,5 @@
-# Production topology (P0-012, ADR-002/003/006). The reverse proxy (Caddy, P0-013) is the only
-# service that will publish ports; nothing here does.
+# Production topology (P0-012/P0-013, ADR-002/003/006). Caddy is the only service that publishes
+# ports (80/443); everything else is reachable only on the private networks.
 #
 #   docker compose -f compose.prod.yaml --env-file /srv/nalara/.env run --rm migrate
 #   docker compose -f compose.prod.yaml --env-file /srv/nalara/.env up -d
@@ -70,6 +70,8 @@ services:
       MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?set MFA_ENCRYPTION_KEY}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       PORT: '4000'
+      # Only Caddy (fixed address below) may set the client IP via X-Forwarded-For.
+      TRUSTED_PROXIES: 172.31.250.10
     networks: [backend, frontend]
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:4000/health/ready']
@@ -103,11 +105,40 @@ services:
     stop_grace_period: 15s
     mem_limit: 384m
 
+  caddy:
+    <<: *hardened
+    image: caddy:2.11.7-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
+    # Runs as root inside the container only to bind 80/443; every other capability is dropped.
+    cap_add: [NET_BIND_SERVICE]
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS}
+      CADDY_TLS: ${CADDY_TLS:?set CADDY_TLS to an ACME email, or internal for a rehearsal}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      frontend:
+        ipv4_address: 172.31.250.10
+    depends_on:
+      api: { condition: service_started }
+      web: { condition: service_started }
+    mem_limit: 128m
+
 networks:
   # Database traffic never leaves this network and it has no route outside the host.
   backend:
     internal: true
-  frontend: {}
+  frontend:
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24
 
 volumes:
   db-data:
+  caddy-data:
+  caddy-config:

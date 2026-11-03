@@ -25,9 +25,12 @@ const secrets = {
   SESSION_SECRET: randomBytes(48).toString('base64'),
   MFA_ENCRYPTION_KEY: randomBytes(32).toString('base64'),
 };
+// Not secrets: kept apart so TEST-COMPOSE-10 does not hunt for common words in image metadata.
+const SITE = 'nalara.test';
+const settings = { ...secrets, SITE_ADDRESS: SITE, CADDY_TLS: 'internal' };
 writeFileSync(
   envFile,
-  Object.entries(secrets)
+  Object.entries(settings)
     .map(([k, v]) => `${k}=${v}`)
     .join('\n') + '\n',
   { mode: 0o600 },
@@ -56,6 +59,10 @@ const containerId = (service) => docker(compose('ps', '-a', '-q', service));
 const inspect = (service, format) => docker(['inspect', '-f', format, containerId(service)]);
 const exec = (service, ...cmd) => tryDocker(compose('exec', '-T', service, ...cmd));
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// Local checks must hit this host directly, never an outbound proxy configured in the shell.
+const directEnv = Object.fromEntries(
+  Object.entries(process.env).filter(([key]) => !/^(https?|all|no)_proxy$/i.test(key)),
+);
 
 async function waitHealthy(services, timeoutMs = 120_000) {
   const deadline = Date.now() + timeoutMs;
@@ -128,7 +135,7 @@ try {
   await waitHealthy(['db']);
   const migrate = tryDocker(compose('run', '--rm', 'migrate'));
   if (migrate.status !== 0) throw new Error(`migrate failed: ${migrate.stderr}`);
-  docker(compose('up', '-d', 'api', 'web'));
+  docker(compose('up', '-d', 'api', 'web', 'caddy'));
 
   await check('TEST-COMPOSE-05', 'every service becomes healthy', async () => {
     await waitHealthy(['db', 'api', 'web']);
@@ -228,6 +235,247 @@ try {
         ]);
         assert(found.stdout.trim() === '', `${image} contains: ${found.stdout.trim()}`);
       }
+    },
+  );
+
+  // --- Edge proxy (P0-013): HTTPS rehearsal with Caddy's local CA. ---
+  const caFile = join(workDir, 'caddy-root.crt');
+  const curl = (...args) =>
+    spawnSync(
+      'curl',
+      [
+        '-sS',
+        '--max-time',
+        '10',
+        '--resolve',
+        `${SITE}:443:127.0.0.1`,
+        '--resolve',
+        `${SITE}:80:127.0.0.1`,
+        ...args,
+      ],
+      {
+        encoding: 'utf8',
+        env: directEnv,
+      },
+    );
+  {
+    const deadline = Date.now() + 60_000;
+    let ca = '';
+    while (Date.now() < deadline) {
+      ca = exec('caddy', 'cat', '/data/caddy/pki/authorities/local/root.crt').stdout;
+      if (
+        ca.includes('BEGIN CERTIFICATE') &&
+        curl('-k', '-o', '/dev/null', `https://${SITE}/health/live`).status === 0
+      )
+        break;
+      await sleep(1_000);
+    }
+    writeFileSync(caFile, ca);
+  }
+
+  await check('TEST-OPS-01', 'HTTP redirects to HTTPS', async () => {
+    const result = curl(
+      '-o',
+      '/dev/null',
+      '-w',
+      '%{http_code} %{redirect_url}',
+      `http://${SITE}/os?x=1`,
+    );
+    assert(
+      result.stdout === `308 https://${SITE}/os?x=1`,
+      `got "${result.stdout}" ${result.stderr}`,
+    );
+  });
+
+  await check(
+    'TEST-OPS-02',
+    'TLS certificate validates against the issuing CA and names the site',
+    async () => {
+      const trusted = curl(
+        '--cacert',
+        caFile,
+        '-o',
+        '/dev/null',
+        '-w',
+        '%{http_code}',
+        `https://${SITE}/health/live`,
+      );
+      assert(
+        trusted.status === 0 && trusted.stdout === '200',
+        `with CA: ${trusted.stdout} ${trusted.stderr}`,
+      );
+      const untrusted = curl('-o', '/dev/null', `https://${SITE}/health/live`);
+      assert(untrusted.status !== 0, 'an unknown CA was accepted');
+      const wrongName = spawnSync(
+        'curl',
+        [
+          '-sS',
+          '--max-time',
+          '10',
+          '--cacert',
+          caFile,
+          '--resolve',
+          'evil.test:443:127.0.0.1',
+          'https://evil.test/',
+        ],
+        { encoding: 'utf8', env: directEnv },
+      );
+      assert(wrongName.status !== 0, 'a certificate was served for an unconfigured host name');
+    },
+  );
+
+  await check(
+    'TEST-OPS-03',
+    'security headers, hidden readiness, proxy-owned request IDs, clean logs',
+    async () => {
+      const page = curl(
+        '--cacert',
+        caFile,
+        '-D',
+        '-',
+        '-o',
+        '/dev/null',
+        `https://${SITE}/`,
+      ).stdout.toLowerCase();
+      for (const header of [
+        'strict-transport-security: max-age=31536000',
+        'x-content-type-options: nosniff',
+        'x-frame-options: deny',
+        'referrer-policy: strict-origin-when-cross-origin',
+        "frame-ancestors 'none'",
+      ]) {
+        assert(page.includes(header), `missing ${header}`);
+      }
+      assert(
+        !/^server:/m.test(page) && !/^x-powered-by:/m.test(page),
+        'server identification header leaked',
+      );
+      const ready = curl(
+        '--cacert',
+        caFile,
+        '-o',
+        '/dev/null',
+        '-w',
+        '%{http_code}',
+        `https://${SITE}/health/ready`,
+      );
+      assert(ready.stdout === '404', `/health/ready via proxy answered ${ready.stdout}`);
+      const spoofed = curl(
+        '--cacert',
+        caFile,
+        '-H',
+        'X-Request-ID: attacker-chosen-id-123',
+        `https://${SITE}/api/v1/nope`,
+      );
+      const requestId = JSON.parse(spoofed.stdout).error.requestId;
+      assert(
+        /^[0-9a-f-]{36}$/.test(requestId),
+        `request id ${requestId} was not generated by the proxy`,
+      );
+      const login = curl(
+        '--cacert',
+        caFile,
+        '-o',
+        '/dev/null',
+        '-w',
+        '%{http_code}',
+        '-H',
+        `Origin: https://${SITE}`,
+        '-H',
+        'content-type: application/json',
+        '-H',
+        'Cookie: probe-cookie-secret=abc123',
+        '--data',
+        '{"email":"nobody@example.invalid","password":"wrong password here"}',
+        `https://${SITE}/api/v1/auth/login`,
+      );
+      assert(
+        login.stdout === '401',
+        `same-origin login through the proxy answered ${login.stdout} (expected 401)`,
+      );
+      const logs = docker(compose('logs', 'caddy'));
+      assert(logs.includes('/api/v1/auth/login'), 'proxy access log is missing');
+      assert(!logs.includes('probe-cookie-secret'), 'proxy access log contains cookies');
+    },
+  );
+
+  await check(
+    'TEST-OPS-04',
+    'only 80/443 are exposed; API, web and Postgres ports are closed on the host',
+    async () => {
+      const published = docker(['port', containerId('caddy')]);
+      assert(
+        /^80\/tcp -> /m.test(published) && /^443\/tcp -> /m.test(published),
+        `caddy ports: ${published}`,
+      );
+      for (const port of [3000, 4000, 5432]) {
+        const probe = spawnSync(
+          'curl',
+          ['-sS', '--noproxy', '*', '--max-time', '3', `http://127.0.0.1:${port}/`],
+          {
+            encoding: 'utf8',
+            env: directEnv,
+          },
+        );
+        assert(probe.status !== 0, `host port ${port} is open`);
+      }
+    },
+  );
+
+  await check(
+    'RUNBOOK',
+    'founder bootstrap works in the production image (Argon2 on musl, read-only FS)',
+    async () => {
+      const password = `smoke ${randomBytes(12).toString('hex')} passphrase`;
+      const run = (email) =>
+        spawnSync(
+          'docker',
+          compose(
+            'run',
+            '--rm',
+            '-T',
+            '-e',
+            `FOUNDER_EMAIL=${email}`,
+            'api',
+            'node',
+            'dist/cli/bootstrap-founder.js',
+            '--production',
+          ),
+          { cwd: root, encoding: 'utf8', input: `${password}\n` },
+        );
+      const first = run('founder@nalara.test');
+      assert(
+        first.status === 0 && first.stdout.includes('founder created'),
+        `bootstrap failed: ${first.stdout}${first.stderr}`,
+      );
+      assert(!`${first.stdout}${first.stderr}`.includes(password), 'password printed');
+      const second = run('other@nalara.test');
+      assert(second.status === 2, `second bootstrap exit ${String(second.status)}`);
+      const login = spawnSync(
+        'curl',
+        [
+          '-sS',
+          '--max-time',
+          '10',
+          '--resolve',
+          `${SITE}:443:127.0.0.1`,
+          '--cacert',
+          caFile,
+          '-o',
+          '/dev/null',
+          '-w',
+          '%{http_code}',
+          '-H',
+          `Origin: https://${SITE}`,
+          '-H',
+          'content-type: application/json',
+          '--data',
+          JSON.stringify({ email: 'founder@nalara.test', password }),
+          `https://${SITE}/api/v1/auth/login`,
+        ],
+        { encoding: 'utf8', env: directEnv },
+      );
+      assert(login.stdout === '200', `login through the proxy answered ${login.stdout}`);
     },
   );
 

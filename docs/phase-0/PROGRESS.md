@@ -239,4 +239,23 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Security review: PASS
 - Founder decision: PENDING
 
-**Next ticket:** P0-013 — Reverse proxy & TLS (urutan D-02).
+### P0-013 — Reverse proxy & TLS
+- Commit SHA: lihat PR `feat/P00-013-reverse-proxy-tls`
+- Changed files: `infra/caddy/Caddyfile`, `compose.prod.yaml` (service `caddy`, subnet tetap `frontend`, `TRUSTED_PROXIES`), `apps/api/src/config/env.ts` (`TRUSTED_PROXIES`, `SITE_ADDRESS`/`CADDY_TLS` sebagai kunci compose), `apps/api/src/app.ts` (`trustProxy`), `.env.example`, `docs/runbooks/deploy-vps.md`, `tests/smoke/compose.smoke.mjs`, `tests/repo/ci.test.ts`, `apps/api/tests/unit/{app,env}.test.ts`
+- Perilaku (ADR-006):
+  - **Caddy 2.11.7** (digest pin) adalah satu-satunya service dengan port publik (80, 443/tcp+udp). Admin API dimatikan.
+  - `CADDY_TLS` = email ACME untuk sertifikat publik, atau `internal` untuk rehearsal CA lokal.
+  - Routing: `/api/*` dan `/health/live` → api, sisanya → web. `/health/ready` → 404 di proxy.
+  - Header: HSTS, nosniff, `X-Frame-Options: DENY`, Referrer-Policy, Permissions-Policy, CSP dasar (`frame-ancestors 'none'`). `Server` dan `X-Powered-By` dihapus.
+  - `X-Request-ID` **selalu** dibuat Caddy (UUID). Nilai dari klien diabaikan.
+  - Access log JSON tanpa Cookie, Authorization, X-Csrf-Token, Set-Cookie, `?token`, atau `?code`.
+- **Ditemukan dan dicegah:** di belakang proxy, semua request terlihat dari IP Caddy, sehingga rate limit per-IP akan berubah menjadi limit global (satu penyerang bisa mengunci founder). Kini API hanya memercayai `X-Forwarded-For` dari IP tetap Caddy (`172.31.250.10`, `TRUSTED_PROXIES`). Header dari siapa pun yang lain diabaikan.
+- Catatan: CSP masih memakai `'unsafe-inline'` untuk script/style karena Next.js. CSP berbasis nonce ditinjau di Phase 8 (hardening).
+- Tests run:
+  - `pnpm run check` → PASS **219/219**: spoofing `X-Forwarded-For` tanpa proxy tepercaya tetap kena limit · lewat proxy tepercaya limit per klien asli · XFF dari IP lain diabaikan · validasi `TRUSTED_PROXIES` · statis: hanya `caddy` yang punya `ports:`
+  - `pnpm run test:compose` (stack nyata + Caddy CA lokal) → PASS **14/14**: TEST-OPS-01 HTTP → 308 HTTPS (path + query utuh) · OPS-02 sertifikat valid terhadap CA penerbit, CA asing ditolak, host lain ditolak · OPS-03 header keamanan, `/health/ready` 404, request ID klien diganti UUID proxy, login same-origin lewat proxy sampai ke API (401), log Caddy tanpa cookie · OPS-04 hanya 80/443 terbuka, port host 3000/4000/5432 tertutup · RUNBOOK: bootstrap founder via `compose run` di image produksi (Argon2 musl, FS read-only), bootstrap kedua exit 2, login lewat HTTPS → 200 · plus seluruh TEST-COMPOSE
+- **NOT RUN (butuh VPS + domain, D-08/D-09):** sertifikat ACME publik, firewall/UFW, akses SSH (TEST-OPS-05..10). Prosedurnya ada di `docs/runbooks/deploy-vps.md`
+- Security review: PASS
+- Founder decision: PENDING
+
+**Next ticket:** P0-015 — Backup & recovery (urutan D-02).
