@@ -61,6 +61,6 @@ Never restore over the live database.
 1. Stop public traffic: `docker compose -f compose.prod.yaml --env-file /srv/nalara/.env stop caddy`.
 2. Restore the chosen archive into a new volume or database and verify it (steps above).
 3. Point the stack at the restored data (new volume), run `migrate` (it must report up to date), start `api`/`web`, then `caddy`.
-4. Rotate `SESSION_SECRET` so every old session dies. Write an incident note.
+4. Revoke every session that existed in the restored data (`UPDATE sessions SET revoked_at = now() WHERE revoked_at IS NULL`). Rotating `SESSION_SECRET` alone is **not** enough: it only signs CSRF tokens, while sessions are checked against the database. Write an incident note ([incident runbook](incident.md)).
 
 Targets (ADR-007, not SLAs): RPO ≤ 24 h, RTO ≤ 8 h.

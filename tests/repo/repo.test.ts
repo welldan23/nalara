@@ -1,5 +1,5 @@
 // Repository hygiene checks for Phase 0 (PRD §14.1 TEST-REPO-*).
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, normalize, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -172,12 +172,38 @@ describe('ops scripts', () => {
       .split('\n')
       .filter(Boolean)
       .map((line) => line.split(/\s+/));
-    expect(entries.length).toBeGreaterThanOrEqual(4);
+    expect(entries.length).toBeGreaterThanOrEqual(5);
     for (const [mode, , , path = ''] of entries) {
       expect(mode, path).toBe('100755');
       const text = readFileSync(join(root, path), 'utf8');
       expect(text.startsWith('#!/usr/bin/env bash'), path).toBe(true);
       expect(text, path).toContain('set -euo pipefail');
     }
+  });
+
+  it('TEST-OPS-07 check-disk.sh alerts at the threshold and fails closed', () => {
+    const script = join(root, 'infra', 'scripts', 'check-disk.sh');
+    const run = (limit: string, ...paths: string[]) =>
+      spawnSync(script, paths, {
+        encoding: 'utf8',
+        env: { ...process.env, MAX_USED_PERCENT: limit },
+      });
+
+    const ok = run('100', '/');
+    expect(ok.status, ok.stderr).toBe(0);
+    expect(ok.stdout).toMatch(/^ok: \/ is \d+% full/);
+
+    // A limit of 0 % is always reached: the alert must fire with a non-zero exit.
+    const full = run('0', '/');
+    expect(full.status).toBe(1);
+    expect(full.stderr).toMatch(/^ALERT: \/ is \d+% full \(limit 0%\)/);
+
+    // An unreadable path is an alert, never a silent pass.
+    const missing = run('100', '/', join(root, 'no-such-directory-for-disk-check'));
+    expect(missing.status).toBe(1);
+    expect(missing.stderr).toContain('ALERT: cannot read disk usage');
+
+    expect(run('101').status).toBe(2);
+    expect(run('ten').status).toBe(2);
   });
 });
