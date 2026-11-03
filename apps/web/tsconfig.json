@@ -8,13 +8,20 @@
     "allowJs": false,
     "noEmit": true,
     "incremental": true,
-    "plugins": [{ "name": "next" }]
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
   "include": [
     "next-env.d.ts",
     "next.config.ts",
+    "proxy.ts",
     "app/**/*.ts",
     "app/**/*.tsx",
+    "lib/**/*.ts",
+    "tests/**/*.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": ["node_modules"]

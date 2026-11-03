@@ -1,0 +1,137 @@
+/* Phase 0 shell styles (PRD B §10): tokens come from lib/tokens.ts via layout.tsx. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--color-ivory);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+a {
+  color: var(--color-forest);
+  text-underline-offset: 0.2em;
+}
+
+/* Visible keyboard focus everywhere (TEST-WEB-07). */
+:focus-visible {
+  outline: 3px solid var(--color-forest);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -3rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-forest);
+  color: var(--color-ivory);
+}
+.skip-link:focus {
+  top: 1rem;
+}
+
+.masthead {
+  border-bottom: 2px solid var(--color-forest);
+  padding: 1.25rem clamp(1rem, 5vw, 3rem);
+}
+.masthead-name {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(1.75rem, 6vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-forest);
+}
+
+main {
+  max-width: 40rem;
+  padding: 2rem clamp(1rem, 5vw, 3rem) 4rem;
+}
+
+h1,
+h2 {
+  font-family: var(--font-serif);
+  line-height: 1.2;
+  color: var(--color-forest);
+}
+
+.muted {
+  color: var(--color-ink-muted);
+}
+
+form {
+  display: grid;
+  gap: 1rem;
+  max-width: 24rem;
+}
+label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+input {
+  font: inherit;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--color-ink-muted);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--color-ink);
+}
+button {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.65rem 1rem;
+  border: 2px solid var(--color-forest);
+  border-radius: 4px;
+  background: var(--color-forest);
+  color: var(--color-ivory);
+  cursor: pointer;
+}
+button.secondary {
+  background: transparent;
+  color: var(--color-forest);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.error {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+code,
+.codes {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  word-break: break-all;
+}
+.codes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.25rem 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

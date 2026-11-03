@@ -199,4 +199,24 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Security review: PASS
 - Founder decision: PENDING
 
-**Next ticket:** P0-011 — Protected web shell (urutan D-02).
+### P0-011 — Protected web shell
+- Commit SHA: lihat PR `feat/P00-011-web-shell`
+- Changed files: `apps/web/app/{layout.tsx,page.tsx,globals.css,error.tsx,not-found.tsx}`, `apps/web/app/os/{page.tsx,logout-button.tsx}`, `apps/web/app/os/login/{page.tsx,login-flow.tsx}`, `apps/web/lib/{tokens.ts,api.ts}`, `apps/web/proxy.ts`, `apps/web/next.config.ts`, `apps/web/tests/tokens.test.ts`, `tests/e2e/web.e2e.mjs`, `eslint.config.mjs`, `package.json` (`test:e2e`), `apps/web/package.json` (`server-only`)
+- Perilaku:
+  - `/`: placeholder publik.
+  - `/os/login`: alur password → (pertama kali) aktivasi TOTP + recovery code sekali tampil → `/os`, atau (berikutnya) TOTP/recovery code → `/os`.
+  - `/os`: server-side bertanya ke API `/auth/me` dengan meneruskan cookie (web tanpa kredensial DB, tanpa keputusan auth sendiri), lalu redirect ke login bila 401. Tombol keluar memakai CSRF token.
+  - `proxy.ts` hanya redirect UX. **K-10 terverifikasi**: Next 16 menamai ulang `middleware` menjadi `proxy` (`middleware-to-proxy`).
+  - Token brand dari satu sumber (`lib/tokens.ts` → CSS variables). Font sistem saja (tanpa file font berlisensi).
+  - Aksesibilitas: `lang="id"`, skip link, fokus terlihat, label input, `role="alert"` untuk error, 320px, `prefers-reduced-motion`.
+- Temuan:
+  - `brass` (2.03) dan `sage` (1.81) **gagal AA di atas ivory**, jadi hanya dipakai di atas forest atau sebagai dekorasi (dijaga tes).
+  - Rewrites `/api` di Next dievaluasi saat **build**. Di produksi `/api` dilayani Caddy (P0-013), jadi ini hanya penting untuk dev/e2e.
+- Tests run:
+  - `pnpm run check` (PostgreSQL 18.6) → PASS **208/208**: TEST-WEB-08 kontras 7 pasangan teks · TEST-WEB-09 tanpa `dangerouslySetInnerHTML`/`innerHTML`
+  - `pnpm run test:e2e` (Chromium + API asli + build produksi web) → PASS **10/10**: TEST-WEB-01 landing (`lang=id`, tanpa `x-powered-by`) · 02 anonim → login · 03 login pertama + aktivasi MFA + 10 recovery code + `/os` + logout · 03b login berikutnya dengan TOTP · 04 cookie palsu → login (cek server-side, bukan proxy) · 05/07 Tab → skip link → email, outline fokus ≥ 2px, Enter submit · 06 tanpa scroll horizontal di 320px · 09 payload XSS tidak dieksekusi atau dirender · 10 API mati → halaman error tanpa detail internal · console browser bersih (kecuali laporan React minified yang memang diharapkan saat TEST-WEB-10)
+- **Belum di CI:** e2e butuh Playwright dan Chromium. Dijalankan lokal sekarang, dan masuk CI di P0-014b.
+- Security review: PASS
+- Founder decision: PENDING
+
+**Next ticket:** P0-012 — Compose topology (urutan D-02).

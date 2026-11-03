@@ -37,6 +37,11 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    // Playwright scripts: page.evaluate callbacks run in the browser.
+    files: ['tests/e2e/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
+  {
     files: ['apps/api/**/*.ts', 'tests/**/*.ts', 'vitest.config.ts'],
     languageOptions: { globals: globals.node },
   },
