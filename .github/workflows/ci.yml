@@ -166,10 +166,17 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
+      # The runbook check runs infra/scripts/backup.sh against the production database.
+      - name: Install age (Ubuntu archive)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq age
+
       - name: Tool versions
         run: |
           docker version --format '{{.Server.Version}}'
           docker compose version
+          age --version
 
       # Builds both images, starts a throwaway stack with generated secrets, checks, removes it.
       - name: Run TEST-COMPOSE-01..10
