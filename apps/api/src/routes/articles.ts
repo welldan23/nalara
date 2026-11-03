@@ -18,7 +18,10 @@ import {
 import { LIMITS, MAX_CITATIONS, citationSchema } from '../modules/articles/content.ts';
 import type { Block, Citation } from '../modules/articles/content.ts';
 import { parseMarkdown } from '../modules/articles/markdown.ts';
+import { publishGate } from '../modules/articles/gate.ts';
 import { verificationLevel } from '../modules/articles/verification.ts';
+import { TRANSITIONS, listPublicationEvents, transition } from '../modules/articles/workflow.ts';
+import type { TransitionAction } from '../modules/articles/workflow.ts';
 import { styleWarnings } from '../modules/articles/warnings.ts';
 import type { AuthGuards } from '../plugins/auth.ts';
 
@@ -57,6 +60,12 @@ const previewSchema = z.strictObject({
 const listQuery = z.strictObject({
   status: z.enum(ARTICLE_STATUSES).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+const transitionSchema = z.strictObject({
+  expectedVersion: z.number().int(),
+  note: z.string().max(500).optional(),
+  sourceException: z.string().max(500).optional(),
 });
 
 const idParams = z.strictObject({ id: z.string() });
@@ -126,8 +135,38 @@ export function registerArticleRoutes(
       }),
       // Stored citations were validated against the citation schema when they were written.
       verification: verificationLevel(article.current.citations as Citation[]),
+      gate: publishGate(
+        {
+          body: article.current.body as Block[],
+          citations: article.current.citations as Citation[],
+        },
+        { sourceException: article.sourceException },
+      ).blockers,
+      events: await listPublicationEvents(db, id),
     };
   });
+
+  for (const action of Object.keys(TRANSITIONS) as TransitionAction[]) {
+    const publishing = action === 'approve' || action === 'publish';
+    app.post(
+      `/articles/:id/${action}`,
+      {
+        config: { permission: publishing ? 'articles.publish' : 'articles.write' },
+        preHandler: guards.requireCsrf,
+      },
+      async (request) => {
+        const id = articleId(request.params);
+        const input = parseOrThrow(transitionSchema, request.body);
+        return transition(db, actor(request), id, action, {
+          expectedVersion: input.expectedVersion,
+          ...(input.note !== undefined ? { note: input.note } : {}),
+          ...(input.sourceException !== undefined
+            ? { sourceException: input.sourceException }
+            : {}),
+        });
+      },
+    );
+  }
 
   app.post(
     '/articles',

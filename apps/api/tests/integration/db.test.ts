@@ -15,6 +15,7 @@ import {
   auditEvents,
   categories,
   loginChallenges,
+  publicationEvents,
   recoveryCodes,
   sessions,
   users,
@@ -101,6 +102,7 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         'categories',
         'login_challenges',
         MIGRATIONS_TABLE,
+        'publication_events',
         'recovery_codes',
         'sessions',
         'users',
@@ -193,6 +195,7 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         categories,
         articles,
         articleRevisions,
+        publicationEvents,
       ]) {
         const { name, columns } = getTableConfig(table);
         const actual = await migrator.query<{ column_name: string; is_nullable: string }>(

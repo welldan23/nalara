@@ -85,6 +85,7 @@ export function Editor(props: {
   readonly version?: number;
   readonly editable?: boolean;
   readonly verification?: VerificationLevel;
+  readonly status?: string;
 }) {
   const router = useRouter();
   const ids = useId();
@@ -99,6 +100,13 @@ export function Editor(props: {
   const [errors, setErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  // A notice belongs to the status it was shown for. When review/approve/publish moves the
+  // article on, drop it (adjusting state during render, as React recommends, not in an effect).
+  const [noticeStatus, setNoticeStatus] = useState(props.status);
+  if (props.status !== noticeStatus) {
+    setNoticeStatus(props.status);
+    if (props.status !== 'draft') setNotice('');
+  }
   const editable = props.editable ?? true;
   const isNew = props.articleId === undefined;
 
@@ -187,6 +195,7 @@ export function Editor(props: {
         version?: number;
         warnings?: Warning[];
         verification?: VerificationLevel;
+        returnedToDraft?: boolean;
         error?: { code: string; fields?: { path: string; rule: string }[] };
       };
       if (response.ok) {
@@ -198,7 +207,11 @@ export function Editor(props: {
         }
         setVersion(body.version ?? version);
         setChangeNote('');
-        setNotice(`Tersimpan sebagai versi ${String(body.version ?? version)}.`);
+        setNotice(
+          body.returnedToDraft === true
+            ? `Tersimpan sebagai versi ${String(body.version ?? version)}. Artikel kembali ke draft; review atau persetujuan sebelumnya batal.`
+            : `Tersimpan sebagai versi ${String(body.version ?? version)}.`,
+        );
         router.refresh();
       } else if (body.error?.code === 'VERSION_CONFLICT') {
         setErrors([
@@ -439,7 +452,14 @@ export function Editor(props: {
         </fieldset>
         {!editable && (
           <p className="muted">
-            Artikel ini tidak dalam status draft, jadi isinya tidak bisa diubah.
+            Artikel yang sudah terbit atau diarsipkan tidak diedit langsung. Perubahan isi artikel
+            terbit lewat koreksi (menyusul di P1-07).
+          </p>
+        )}
+        {editable && props.status !== undefined && props.status !== 'draft' && (
+          <p className="notice-warn">
+            Menyimpan perubahan akan mengembalikan artikel ke draft dan membatalkan review atau
+            persetujuan yang ada.
           </p>
         )}
         <div aria-live="polite">

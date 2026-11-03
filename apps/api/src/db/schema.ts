@@ -122,6 +122,7 @@ export const articles = pgTable('articles', {
   approvedAt: timestamp('approved_at', { withTimezone: true }),
   publishedAt: timestamp('published_at', { withTimezone: true }),
   firstPublishedAt: timestamp('first_published_at', { withTimezone: true }),
+  sourceException: text('source_exception'),
   createdBy: uuid('created_by')
     .notNull()
     .references(() => users.id),
@@ -155,6 +156,30 @@ export const articleRevisions = pgTable('article_revisions', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const PUBLICATION_ACTIONS = ['submit', 'return', 'approve', 'publish', 'archive'] as const;
+
+export const publicationEvents = pgTable('publication_events', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  articleId: uuid('article_id')
+    .notNull()
+    .references(() => articles.id),
+  revisionId: uuid('revision_id').notNull(),
+  action: text('action', { enum: PUBLICATION_ACTIONS }).notNull(),
+  fromStatus: text('from_status').notNull(),
+  toStatus: text('to_status').notNull(),
+  contentSha256: bytea('content_sha256').notNull(),
+  verification: text('verification', {
+    enum: ['TERVERIFIKASI', 'SEBAGIAN', 'BELUM_TERVERIFIKASI'],
+  }).notNull(),
+  note: text('note'),
+  actorId: uuid('actor_id')
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
   users,
   sessions,
@@ -164,4 +189,5 @@ export const schema = {
   categories,
   articles,
   articleRevisions,
+  publicationEvents,
 };

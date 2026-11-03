@@ -1,0 +1,44 @@
+// Publish gate (PRD v4 §7, ADR-012, ADR-019). Pure: given one revision's content it lists every
+// reason it may not be approved or published. The workflow checks it at approve AND again at
+// publish, inside the same transaction that changes the status.
+import type { Citation, RevisionContent } from './content.ts';
+import { verificationLevel } from './verification.ts';
+import type { VerificationLevel } from './verification.ts';
+
+export type GateBlocker =
+  /** No verified source and no written exception from the founder. */
+  | 'no_verified_source'
+  /** A number points at a citation that has not been checked. */
+  | 'stat_source_unverified'
+  /** Nothing to publish. */
+  | 'empty_body'
+  /** Publish only: the current revision is not exactly the approved one (set by the workflow). */
+  | 'revision_changed_after_approval';
+
+export interface GateResult {
+  readonly verification: VerificationLevel;
+  readonly blockers: readonly GateBlocker[];
+}
+
+export function publishGate(
+  content: Pick<RevisionContent, 'body' | 'citations'>,
+  options: { readonly sourceException?: string | null } = {},
+): GateResult {
+  const verification = verificationLevel(content.citations);
+  const blockers: GateBlocker[] = [];
+  if (content.body.length === 0) blockers.push('empty_body');
+  const hasException = (options.sourceException ?? '').trim().length >= 20;
+  if (verification === 'BELUM_TERVERIFIKASI' && !hasException) {
+    blockers.push('no_verified_source');
+  }
+  const byId = new Map<string, Citation>(
+    content.citations.map((citation) => [citation.id, citation]),
+  );
+  const unverifiedStat = content.body.some(
+    (block) => block.type === 'stat' && byId.get(block.citationId)?.verified !== true,
+  );
+  // Unverified statistics are blocked even with an exception: the exception covers "no source",
+  // never "a number we have not checked" (PRD v4 §7).
+  if (unverifiedStat) blockers.push('stat_source_unverified');
+  return { verification, blockers };
+}

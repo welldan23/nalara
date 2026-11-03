@@ -5,7 +5,13 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { AppError } from '../lib/errors.ts';
 import type { ActiveSession } from '../modules/auth/session.ts';
 
-export const PERMISSIONS = ['os.access', 'articles.read', 'articles.write'] as const;
+export const PERMISSIONS = [
+  'os.access',
+  'articles.read',
+  'articles.write',
+  // Approve and publish: kept separate so a future editor role can write without publishing.
+  'articles.publish',
+] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 type Role = ActiveSession['role'];

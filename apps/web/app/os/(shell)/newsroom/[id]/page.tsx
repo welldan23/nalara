@@ -3,8 +3,9 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { ApiUnauthorized, getArticle, listCategories } from '../../../../../lib/api';
-import { STATUS_LABELS } from '../../../../../lib/editor-messages';
+import { EVENT_LABELS, STATUS_LABELS } from '../../../../../lib/editor-messages';
 import { Editor } from '../editor';
+import { WorkflowPanel } from '../workflow';
 
 export const metadata: Metadata = { title: 'Editor' };
 export const dynamic = 'force-dynamic';
@@ -42,7 +43,8 @@ export default async function EditDraftPage({
       <Editor
         articleId={article.id}
         version={article.currentVersion}
-        editable={article.status === 'draft'}
+        editable={['draft', 'in_review', 'approved'].includes(article.status)}
+        status={article.status}
         verification={detail.verification}
         categories={categories}
         initial={{
@@ -55,6 +57,26 @@ export default async function EditDraftPage({
           citations: article.current.citations,
         }}
       />
+      <WorkflowPanel
+        articleId={article.id}
+        status={article.status}
+        version={article.currentVersion}
+        gate={detail.gate}
+      />
+      {detail.events.length > 0 && (
+        <section aria-labelledby="events">
+          <h2 id="events">Riwayat status</h2>
+          <ol className="revision-list">
+            {detail.events.map((event, index) => (
+              <li key={`${event.createdAt}-${String(index)}`}>
+                <strong>{EVENT_LABELS[event.action] ?? event.action}</strong>
+                {event.note !== null && <> · {event.note}</>}{' '}
+                <span className="muted">· {dateFormat.format(new Date(event.createdAt))} WIB</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
       <section aria-labelledby="history">
         <h2 id="history">Riwayat revisi</h2>
         <ol className="revision-list" reversed>

@@ -13,7 +13,12 @@ export const AUDIT_ACTIONS = {
   'mfa.enrol': [],
   'mfa.recovery_rotate': [],
   'article.create': ['version'],
-  'article.revise': ['version'],
+  'article.revise': ['version', 'returned_to_draft'],
+  'article.submit': ['version'],
+  'article.return': ['version'],
+  'article.approve': ['version', 'verification', 'source_exception'],
+  'article.publish': ['version', 'verification'],
+  'article.archive': ['version'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
