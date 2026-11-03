@@ -52,7 +52,9 @@ describe('CI workflow hardening', () => {
     expect(images.length).toBeGreaterThan(2);
     for (const image of images) expect(image).toMatch(/:[\w.-]+@sha256:[0-9a-f]{64}$/);
     // One PostgreSQL version everywhere: dev, production and CI.
-    expect(new Set(images).size).toBe(1);
+    const postgres = images.filter((image) => image.startsWith('postgres:'));
+    expect(postgres.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(postgres).size).toBe(1);
 
     const dockerfiles = ['apps/api/Dockerfile', 'apps/web/Dockerfile'].map((file) =>
       readFileSync(join(root, file), 'utf8'),
@@ -72,7 +74,12 @@ describe('CI workflow hardening', () => {
 
   it('keeps the production topology closed and hardened (TEST-COMPOSE-02/06 static)', () => {
     const prod = readFileSync(join(root, 'compose.prod.yaml'), 'utf8');
-    expect(prod).not.toMatch(/^\s*ports:/m); // only the reverse proxy (P0-013) may publish ports
+    // Only the edge proxy publishes ports (P0-013): exactly one ports: block, inside caddy.
+    const services = prod.split(/^ {2}(?=[a-z-]+:\s*$)/m);
+    const withPorts = services.filter((block) => /^\s{4}ports:/m.test(block));
+    expect(withPorts.map((block) => block.split(':')[0])).toEqual(['caddy']);
+    expect(prod).toMatch(/TRUSTED_PROXIES: 172\.31\.250\.10/);
+    expect(prod).toMatch(/ipv4_address: 172\.31\.250\.10/);
     expect(prod).toMatch(/backend:\s*\n\s*internal: true/);
     expect(prod).toMatch(/read_only: true/);
     expect(prod).toMatch(/cap_drop: \[ALL\]/);

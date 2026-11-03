@@ -327,3 +327,22 @@ describe('loadMigratorConfig', () => {
     expect(placeholder.join(' ')).not.toContain('REPLACE_WITH_PW');
   });
 });
+
+describe('TRUSTED_PROXIES', () => {
+  it('defaults to trusting nobody', () => {
+    expect(loadConfig(validEnv).trustedProxies).toEqual([]);
+  });
+
+  it('accepts IPv4/IPv6 addresses and CIDR ranges', () => {
+    expect(
+      loadConfig({ ...validEnv, TRUSTED_PROXIES: '172.31.250.10, 10.0.0.0/8,::1,fd00::/8' })
+        .trustedProxies,
+    ).toEqual(['172.31.250.10', '10.0.0.0/8', '::1', 'fd00::/8']);
+  });
+
+  it.each(['caddy', '10.0.0.0/33', '1.2.3.4/8/1', '*', '10.0.0.0/x'])('rejects %s', (value) => {
+    expect(issuesFor({ ...validEnv, TRUSTED_PROXIES: value })).toContain(
+      'TRUSTED_PROXIES must be a comma-separated list of IP addresses or CIDR ranges',
+    );
+  });
+});

@@ -1,0 +1,66 @@
+# NALARA edge proxy (P0-013, ADR-006). The only component with published ports (80/443).
+#
+#   SITE_ADDRESS  public host name, e.g. nalara.example (no scheme)
+#   CADDY_TLS     ACME contact email for public certificates, or "internal" for Caddy's local
+#                 CA (HTTPS rehearsal without DNS, never for the public site)
+{
+	admin off
+	# Production: HSTS below is safe only once the real domain serves valid certificates.
+}
+
+{$SITE_ADDRESS} {
+	tls {$CADDY_TLS}
+
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+		# Phase 0 baseline. Next.js needs inline scripts/styles until nonce-based CSP lands.
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		-Server
+		-X-Powered-By
+	}
+
+	request_body {
+		max_size 1MB
+	}
+
+	# Readiness is for the internal healthcheck only (ADR-006, K-16).
+	@internal path /health/ready
+	respond @internal 404
+
+	# Never trust a client-supplied request ID: the API will log Caddy's per-request UUID.
+	@api path /api/* /health/live
+	handle @api {
+		reverse_proxy api:4000 {
+			header_up X-Request-ID {http.request.uuid}
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000 {
+			header_up X-Request-ID {http.request.uuid}
+		}
+	}
+
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>headers>Cookie delete
+				request>headers>Authorization delete
+				request>headers>X-Csrf-Token delete
+				resp_headers>Set-Cookie delete
+				request>uri query {
+					delete token
+					delete code
+				}
+			}
+		}
+	}
+}

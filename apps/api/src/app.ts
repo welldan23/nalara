@@ -36,7 +36,8 @@ export interface AppDependencies {
 export type AppConfig = Pick<
   Config,
   'logLevel' | 'nodeEnv' | 'appOrigin' | 'session' | 'mfaEncryptionKey'
->;
+> &
+  Partial<Pick<Config, 'trustedProxies'>>;
 
 export const BODY_LIMIT_BYTES = 16 * 1024;
 export const REQUEST_TIMEOUT_MS = 10_000;
@@ -76,8 +77,12 @@ export async function buildApp(config: AppConfig, deps: AppDependencies): Promis
     bodyLimit: BODY_LIMIT_BYTES,
     requestTimeout: REQUEST_TIMEOUT_MS,
     return503OnClosing: true,
-    // Direct exposure is never expected; the proxy trust list is set in P0-013 (ADR-006).
-    trustProxy: false,
+    // Only the configured edge proxy may set the client IP (X-Forwarded-For); everyone else's
+    // header is ignored, so rate limits cannot be dodged or turned against other users.
+    trustProxy:
+      config.trustedProxies !== undefined && config.trustedProxies.length > 0
+        ? [...config.trustedProxies]
+        : false,
   });
 
   // JSON only (ADR-004): drop Fastify's default text/plain parser so anything else is 415.
