@@ -72,6 +72,8 @@ services:
       PORT: '4000'
       # Only Caddy (fixed address below) may set the client IP via X-Forwarded-For.
       TRUSTED_PROXIES: 172.31.250.10
+      # Launch switch (ADR-015): published articles stay off the public site until set to true.
+      PUBLIC_SITE_ENABLED: ${PUBLIC_SITE_ENABLED:-false}
     networks: [backend, frontend]
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:4000/health/ready']

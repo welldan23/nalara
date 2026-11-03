@@ -128,4 +128,41 @@ Format per tiket mengikuti PRD v4 §13. Rencana: [BASELINE.md](BASELINE.md) · K
 - Security review: PASS. Status tidak bisa dikirim lewat edit; transisi idempoten terhadap balapan; jejak publikasi tidak bisa diubah siapa pun.
 - Keputusan founder: PENDING
 
-**Next:** P1-06 — Halaman publik.
+### P1-06 — Halaman publik
+- Commit: lihat PR `feat/P1-06-public-pages`
+- File berubah:
+  - API: `apps/api/src/modules/public/articles.ts`, `apps/api/src/routes/public.ts`, `apps/api/src/app.ts`, `apps/api/src/config/env.ts` (`PUBLIC_SITE_ENABLED`), `.env.example`, `compose.prod.yaml`
+  - Web: `apps/web/app/{page,layout}.tsx`, `apps/web/app/{topik,artikel}/[slug]/page.tsx`, `apps/web/app/tentang/page.tsx`, `apps/web/components/public.tsx`, `apps/web/lib/public-api.ts`, `globals.css`
+  - Tes: `apps/api/tests/integration/public-api.test.ts`, `tests/e2e/web.e2e.mjs`
+- Perilaku:
+  - **API publik** `GET /api/v1/public/{categories,articles,articles/:slug}`: tanpa auth, tidak membaca cookie, hanya GET.
+    - Semua query lewat **satu filter** `status = 'published'`, dan isinya diambil dari **revisi yang disetujui**.
+    - Catatan klaim editor, id orang, hash, dan `bodySource` tidak pernah dikirim.
+    - Paginasi keyset dengan cursor buram (`published_at`, `id`). Cursor rusak atau limit di luar batas → 400.
+  - Draft, ditinjau, disetujui-belum-terbit, diarsip, slug tak dikenal, dan slug rusak dijawab **404 yang identik** (S1-03).
+  - **Flag peluncuran `PUBLIC_SITE_ENABLED`** (ADR-015, default `false`): selama mati, semua endpoint publik 404 dan beranda menampilkan placeholder. Go-live = ubah satu variabel.
+  - **Web:**
+    - beranda (artikel terbaru), `/topik/[slug]` dengan "Artikel sebelumnya", `/artikel/[slug]`, `/tentang` (misi, cara menulis, arti label verifikasi);
+    - halaman artikel memuat: topik, label Analisis/Opini, judul, dek, tanggal terbit/diperbarui (WIB), label verifikasi + tautan metode, catatan redaksi bila terbit dengan pengecualian, isi, catatan metode, daftar sumber bernomor;
+    - client API publik **tidak meneruskan cookie**, jadi halaman publik sama untuk semua orang, founder sekalipun;
+    - masthead jadi tautan beranda + navigasi topik; navigasi tetap tampil tanpa topik bila API mati.
+  - `noindex` tetap aktif sampai P1-08.
+- Test:
+  - `pnpm exec vitest run apps/api` → PASS, termasuk 6 tes API publik:
+    - hanya artikel terbit, urutan terbaru;
+    - tidak ada kebocoran: catatan klaim, judul draft, id founder, email, field internal;
+    - filter topik, paginasi cursor, cursor/limit/slug topik rusak → 400;
+    - artikel terbit tanpa catatan editor;
+    - 4 status tak terbit = 404 identik, juga dengan cookie founder;
+    - flag mati → semua 404.
+  - `pnpm run test:e2e` → PASS **14/14**. Cek baru TEST-P1-06 sebagai pengunjung anonim:
+    - beranda → artikel (label, sumber, tautan) → topik → tentang;
+    - 4 jalur tak terbit/rusak 404 tanpa bocor;
+    - 4 halaman tanpa scroll horizontal di 320 px.
+  - **Ditemukan dan diperbaiki saat e2e:**
+    - URL sumber panjang membuat halaman artikel melebar 190 px di HP;
+    - navigasi baru menggeser urutan Tab, jadi tes keyboard kini menguji skip link yang sebenarnya (Tab → Enter → Tab sampai ke form) dan `main` dijadikan target fokus.
+- Security review: PASS. Pemisahan publik/privat ditegakkan di API (satu filter), tidak hanya di UI.
+- Keputusan founder: PENDING
+
+**Next:** P1-07 — Koreksi.

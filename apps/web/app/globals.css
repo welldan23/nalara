@@ -47,7 +47,9 @@ a {
   padding: 1.25rem clamp(1rem, 5vw, 3rem);
 }
 .masthead-name {
+  display: inline-block;
   margin: 0;
+  text-decoration: none;
   font-family: var(--font-serif);
   font-size: clamp(1.75rem, 6vw, 2.5rem);
   font-weight: 700;
@@ -124,6 +126,96 @@ code,
   gap: 0.25rem 1rem;
   padding: 0;
   list-style: none;
+}
+
+/* --- Public reading pages (P1-06) --- */
+.site-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-weight: 600;
+}
+.tagline {
+  font-size: clamp(1.75rem, 6vw, 2.5rem);
+}
+.section-title {
+  margin-top: 2rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--color-forest);
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cards {
+  display: grid;
+  gap: 1.5rem;
+}
+.card {
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-sage);
+}
+.card-title {
+  margin: 0.25rem 0;
+  font-size: 1.4rem;
+}
+.card-title a {
+  color: var(--color-ink);
+  text-decoration: none;
+}
+.card-title a:hover {
+  text-decoration: underline;
+}
+.card-dek {
+  margin: 0.25rem 0;
+}
+.card-meta,
+.article-meta {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+.kicker {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.kicker a {
+  text-decoration: none;
+}
+.reading h1 {
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  margin: 0.25rem 0 0.5rem;
+  overflow-wrap: anywhere;
+}
+.dek {
+  font-size: 1.2rem;
+  color: var(--color-ink-muted);
+}
+.reading .article-body h2 {
+  margin-top: 2rem;
+}
+.method {
+  margin-top: 2rem;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--color-sage);
+}
+.labels dt {
+  font-weight: 700;
+  margin-top: 0.75rem;
+}
+.labels dd {
+  margin: 0.25rem 0 0;
+}
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  font-weight: 600;
 }
 
 /* --- Founder OS shell and newsroom editor (P1-02) --- */
@@ -376,6 +468,11 @@ label.checkbox {
 }
 .citations li {
   margin-bottom: 0.5rem;
+  /* Long source URLs used as link text must wrap at 320 px. */
+  overflow-wrap: anywhere;
+}
+main:focus {
+  outline: none;
 }
 .article-body .stat-source {
   margin: 0.25rem 0 0;

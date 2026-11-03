@@ -29,6 +29,11 @@ export interface Config {
    * client IP used for rate limiting is the TCP peer.
    */
   readonly trustedProxies: readonly string[];
+  /**
+   * Rollout flag (ADR-015): false keeps every published article off the public API (404), so a
+   * fresh deployment never shows content before the founder decides to launch.
+   */
+  readonly publicSiteEnabled: boolean;
 }
 
 /** Variables whose values must never appear in logs or error messages. */
@@ -52,6 +57,7 @@ export const KNOWN_ENV_KEYS = [
   'LOG_LEVEL',
   'PORT',
   'TRUSTED_PROXIES',
+  'PUBLIC_SITE_ENABLED',
   'FOUNDER_EMAIL',
   'BACKUP_DESTINATION',
 ] as const;
@@ -131,6 +137,9 @@ const schema = z.object({
     })
     .default(4000),
   TRUSTED_PROXIES: z.string().trim().default(''),
+  PUBLIC_SITE_ENABLED: z
+    .enum(['true', 'false'], { error: 'PUBLIC_SITE_ENABLED must be true or false' })
+    .default('false'),
 });
 
 type RawEnv = Readonly<Record<string, string | undefined>>;
@@ -210,6 +219,7 @@ export function loadConfig(env: RawEnv = process.env): Config {
     logLevel: raw.LOG_LEVEL,
     port: raw.PORT,
     trustedProxies,
+    publicSiteEnabled: raw.PUBLIC_SITE_ENABLED === 'true',
   };
 }
 
@@ -359,5 +369,6 @@ export function describeConfig(config: Config): Record<string, unknown> {
     mfaEncryptionKey: '[REDACTED]',
     logLevel: config.logLevel,
     port: config.port,
+    publicSiteEnabled: config.publicSiteEnabled,
   };
 }
