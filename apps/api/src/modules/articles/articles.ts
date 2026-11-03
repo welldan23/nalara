@@ -113,6 +113,7 @@ async function insertRevision(
       body: content.body,
       bodySource: content.bodySource,
       methodNote: content.methodNote,
+      citations: content.citations,
       changeNote,
       contentSha256: contentSha256(content),
       createdBy: actor.userId,
@@ -245,6 +246,7 @@ export interface RevisionView {
   readonly body: unknown[];
   readonly bodySource: string;
   readonly methodNote: string | null;
+  readonly citations: unknown[];
   readonly changeNote: string;
   readonly contentSha256: string;
   readonly createdBy: string;
@@ -272,6 +274,7 @@ function toRevisionView(row: typeof articleRevisions.$inferSelect): RevisionView
     body: row.body,
     bodySource: row.bodySource,
     methodNote: row.methodNote,
+    citations: row.citations,
     changeNote: row.changeNote,
     contentSha256: row.contentSha256.toString('hex'),
     createdBy: row.createdBy,

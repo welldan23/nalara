@@ -4,12 +4,14 @@
 import { useRouter } from 'next/navigation';
 import { useId, useState } from 'react';
 import type { SyntheticEvent } from 'react';
-import { ArticleBody } from '../../../../components/article-body';
+import { ArticleBody, CitationList } from '../../../../components/article-body';
+import type { Citation, VerificationLevel } from '../../../../lib/api';
 import type { Block } from '../../../../components/article-body';
 import {
   TYPE_LABELS,
   WARNING_MESSAGES,
   RULE_MESSAGES,
+  VERIFICATION_LABELS,
   describeField,
 } from '../../../../lib/editor-messages';
 
@@ -25,6 +27,7 @@ export interface EditorValues {
   readonly categoryId: string;
   readonly methodNote: string;
   readonly bodySource: string;
+  readonly citations: readonly Citation[];
 }
 
 interface Warning {
@@ -35,6 +38,24 @@ interface Warning {
 interface Preview {
   readonly blocks: Block[];
   readonly issues: { line: number; rule: string }[];
+}
+
+function today(): string {
+  // Calendar date in Asia/Jakarta, as YYYY-MM-DD.
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+}
+
+function newCitation(): Citation {
+  return {
+    id: crypto.randomUUID(),
+    url: '',
+    publisher: '',
+    title: '',
+    accessedAt: today(),
+    claimNote: '',
+    primary: false,
+    verified: false,
+  };
 }
 
 async function csrfToken(): Promise<string> {
@@ -63,6 +84,7 @@ export function Editor(props: {
   readonly articleId?: string;
   readonly version?: number;
   readonly editable?: boolean;
+  readonly verification?: VerificationLevel;
 }) {
   const router = useRouter();
   const ids = useId();
@@ -71,6 +93,9 @@ export function Editor(props: {
   const [version, setVersion] = useState(props.version ?? 0);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [warnings, setWarnings] = useState<Warning[]>([]);
+  const [verification, setVerification] = useState<VerificationLevel | null>(
+    props.verification ?? null,
+  );
   const [errors, setErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -84,6 +109,25 @@ export function Editor(props: {
       setNotice('');
     };
 
+  const setCitation = (index: number, patch: Partial<Citation>) => {
+    setValues((current) => ({
+      ...current,
+      citations: current.citations.map((citation, at) =>
+        at === index ? { ...citation, ...patch } : citation,
+      ),
+    }));
+    setNotice('');
+  };
+  const addCitation = () => {
+    setValues((current) => ({ ...current, citations: [...current.citations, newCitation()] }));
+  };
+  const removeCitation = (index: number) => {
+    setValues((current) => ({
+      ...current,
+      citations: current.citations.filter((_, at) => at !== index),
+    }));
+  };
+
   async function showPreview() {
     setBusy(true);
     setErrors([]);
@@ -92,11 +136,23 @@ export function Editor(props: {
         title: values.title,
         dek: values.dek,
         bodySource: values.bodySource,
+        citations: values.citations,
       });
+      if (response.status === 400) {
+        const body = (await response.json()) as {
+          error: { fields?: { path: string; rule: string }[] };
+        };
+        setErrors((body.error.fields ?? []).map((item) => describeField(item.path, item.rule)));
+        return;
+      }
       if (!response.ok) throw new Error(String(response.status));
-      const body = (await response.json()) as Preview & { warnings: Warning[] };
+      const body = (await response.json()) as Preview & {
+        warnings: Warning[];
+        verification: VerificationLevel;
+      };
       setPreview({ blocks: body.blocks, issues: body.issues });
       setWarnings(body.warnings);
+      setVerification(body.verification);
     } catch {
       setErrors(['Pratinjau gagal. Periksa koneksi lalu coba lagi.']);
     } finally {
@@ -116,6 +172,7 @@ export function Editor(props: {
       categoryId: values.categoryId,
       methodNote: values.methodNote.trim() === '' ? null : values.methodNote,
       bodySource: values.bodySource,
+      citations: values.citations,
     };
     try {
       const response = isNew
@@ -129,10 +186,12 @@ export function Editor(props: {
         articleId?: string;
         version?: number;
         warnings?: Warning[];
+        verification?: VerificationLevel;
         error?: { code: string; fields?: { path: string; rule: string }[] };
       };
       if (response.ok) {
         setWarnings(body.warnings ?? []);
+        if (body.verification !== undefined) setVerification(body.verification);
         if (isNew && body.articleId !== undefined) {
           router.push(`/os/newsroom/${body.articleId}`);
           return;
@@ -225,7 +284,8 @@ export function Editor(props: {
           <label htmlFor={field('body')}>Isi</label>
           <p className="hint" id={field('body-hint')}>
             ## subjudul · **tebal** · *miring* · [teks](https://…) · - daftar · &gt; kutipan lalu
-            &gt; — Nama, jabatan
+            &gt; — Nama, jabatan · angka: :::angka lalu baris nilai, satuan, periode, label, sumber:
+            N, tutup dengan :::
           </p>
           <textarea
             id={field('body')}
@@ -238,6 +298,109 @@ export function Editor(props: {
             rows={20}
             spellCheck
           />
+
+          <fieldset className="citations-editor">
+            <legend>Sumber</legend>
+            <p className="hint">
+              URL penerbit asli (https), bukan agregator. Centang “sumber primer” untuk rilis resmi,
+              dokumen, atau data resmi. Centang “sudah dicek” hanya setelah kamu membuka sumbernya
+              dan mencocokkan klaimnya. Di blok :::angka, tulis “sumber: N” sesuai nomor di bawah.
+            </p>
+            {values.citations.length === 0 && <p className="muted">Belum ada sumber.</p>}
+            <ol>
+              {values.citations.map((citation, index) => (
+                <li key={citation.id} className="citation-row">
+                  <label htmlFor={field(`c${String(index)}-url`)}>Sumber {index + 1}: URL</label>
+                  <input
+                    id={field(`c${String(index)}-url`)}
+                    type="url"
+                    inputMode="url"
+                    value={citation.url}
+                    onChange={(event) => {
+                      setCitation(index, { url: event.target.value });
+                    }}
+                    placeholder="https://"
+                  />
+                  <div className="editor-row">
+                    <div>
+                      <label htmlFor={field(`c${String(index)}-publisher`)}>Penerbit</label>
+                      <input
+                        id={field(`c${String(index)}-publisher`)}
+                        value={citation.publisher}
+                        onChange={(event) => {
+                          setCitation(index, { publisher: event.target.value });
+                        }}
+                        maxLength={120}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor={field(`c${String(index)}-date`)}>Tanggal akses</label>
+                      <input
+                        id={field(`c${String(index)}-date`)}
+                        type="date"
+                        value={citation.accessedAt}
+                        onChange={(event) => {
+                          setCitation(index, { accessedAt: event.target.value });
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <label htmlFor={field(`c${String(index)}-title`)}>Judul halaman</label>
+                  <input
+                    id={field(`c${String(index)}-title`)}
+                    value={citation.title}
+                    onChange={(event) => {
+                      setCitation(index, { title: event.target.value });
+                    }}
+                    maxLength={300}
+                  />
+                  <label htmlFor={field(`c${String(index)}-claim`)}>Klaim yang didukung</label>
+                  <input
+                    id={field(`c${String(index)}-claim`)}
+                    value={citation.claimNote}
+                    onChange={(event) => {
+                      setCitation(index, { claimNote: event.target.value });
+                    }}
+                    maxLength={500}
+                  />
+                  <div className="citation-flags">
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={citation.primary}
+                        onChange={(event) => {
+                          setCitation(index, { primary: event.target.checked });
+                        }}
+                      />
+                      Sumber primer
+                    </label>
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={citation.verified}
+                        onChange={(event) => {
+                          setCitation(index, { verified: event.target.checked });
+                        }}
+                      />
+                      Sudah dicek
+                    </label>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => {
+                        removeCitation(index);
+                      }}
+                    >
+                      Hapus sumber {index + 1}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <button type="button" className="secondary" onClick={addCitation}>
+              Tambah sumber
+            </button>
+          </fieldset>
 
           <label htmlFor={field('method')}>Catatan metode (opsional)</label>
           <textarea
@@ -303,6 +466,11 @@ export function Editor(props: {
 
       <section className="editor-preview" aria-label="Pratinjau">
         <h2>Pratinjau</h2>
+        {verification !== null && (
+          <p className={`verification verification-${verification}`} data-testid="verification">
+            Status sumber: <strong>{VERIFICATION_LABELS[verification] ?? verification}</strong>
+          </p>
+        )}
         {preview === null ? (
           <p className="muted">Tekan “Pratinjau” untuk melihat hasil seperti yang akan disimpan.</p>
         ) : (
@@ -319,7 +487,8 @@ export function Editor(props: {
             <article className="preview-article">
               <h1>{values.title === '' ? 'Tanpa judul' : values.title}</h1>
               {values.dek !== '' && <p className="dek">{values.dek}</p>}
-              <ArticleBody blocks={preview.blocks} />
+              <ArticleBody blocks={preview.blocks} citations={values.citations} />
+              <CitationList citations={values.citations} />
             </article>
           </>
         )}

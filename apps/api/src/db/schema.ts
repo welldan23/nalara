@@ -146,6 +146,7 @@ export const articleRevisions = pgTable('article_revisions', {
   body: jsonb('body').$type<unknown[]>().notNull(),
   bodySource: text('body_source').notNull(),
   methodNote: text('method_note'),
+  citations: jsonb('citations').$type<unknown[]>().notNull().default([]),
   changeNote: text('change_note').notNull(),
   contentSha256: bytea('content_sha256').notNull(),
   createdBy: uuid('created_by')

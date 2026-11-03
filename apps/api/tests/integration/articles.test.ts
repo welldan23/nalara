@@ -58,6 +58,7 @@ describe.skipIf(!databaseAvailable)('articles and revisions', { timeout: 60_000 
     ],
     bodySource: '## Apa yang terjadi\n\nTEST fixture, bukan artikel nyata.',
     methodNote: null,
+    citations: [],
     ...overrides,
   });
 

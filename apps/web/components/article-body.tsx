@@ -56,7 +56,22 @@ function InlineContent({ content }: { readonly content: readonly Inline[] }): Re
   });
 }
 
-function BlockView({ block }: { readonly block: Block }): ReactNode {
+export interface CitationView {
+  readonly id: string;
+  readonly url: string;
+  readonly publisher: string;
+  readonly title: string;
+  readonly accessedAt: string;
+  readonly primary: boolean;
+}
+
+function BlockView({
+  block,
+  citations,
+}: {
+  readonly block: Block;
+  readonly citations: readonly CitationView[];
+}): ReactNode {
   switch (block.type) {
     case 'paragraph':
       return (
@@ -99,17 +114,76 @@ function BlockView({ block }: { readonly block: Block }): ReactNode {
             {block.value} <span className="stat-unit">{block.unit}</span>
           </p>
           <p className="stat-period">{block.period}</p>
+          <StatSource citationId={block.citationId} citations={citations} />
         </figure>
       );
   }
 }
 
-export function ArticleBody({ blocks }: { readonly blocks: readonly Block[] }): ReactNode {
+function StatSource({
+  citationId,
+  citations,
+}: {
+  readonly citationId: string;
+  readonly citations: readonly CitationView[];
+}): ReactNode {
+  const index = citations.findIndex((citation) => citation.id === citationId);
+  const citation = citations[index];
+  if (citation === undefined) return <p className="stat-source">Sumber tidak ditemukan</p>;
+  return (
+    <p className="stat-source">
+      Sumber: <a href={`#sumber-${String(index + 1)}`}>[{index + 1}]</a> {citation.publisher}
+    </p>
+  );
+}
+
+export function ArticleBody({
+  blocks,
+  citations = [],
+}: {
+  readonly blocks: readonly Block[];
+  readonly citations?: readonly CitationView[];
+}): ReactNode {
   return (
     <div className="article-body">
       {blocks.map((block, index) => (
-        <BlockView key={index} block={block} />
+        <BlockView key={index} block={block} citations={citations} />
       ))}
     </div>
+  );
+}
+
+const accessFormat = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long', timeZone: 'UTC' });
+
+/** Numbered source list; ids `sumber-N` are the anchors that number blocks link to. */
+export function CitationList({
+  citations,
+}: {
+  readonly citations: readonly CitationView[];
+}): ReactNode {
+  if (citations.length === 0) return null;
+  return (
+    <section className="citations" aria-labelledby="sumber-judul">
+      <h2 id="sumber-judul">Sumber</h2>
+      <ol>
+        {citations.map((citation, index) => (
+          <li key={citation.id} id={`sumber-${String(index + 1)}`}>
+            {isSafeHref(citation.url) ? (
+              <a href={citation.url} rel="noopener noreferrer nofollow">
+                {citation.title === '' ? citation.url : citation.title}
+              </a>
+            ) : (
+              <span>{citation.title}</span>
+            )}{' '}
+            — {citation.publisher}
+            {citation.primary && <span className="badge">sumber primer</span>}
+            <span className="muted">
+              {' '}
+              · diakses {accessFormat.format(new Date(`${citation.accessedAt}T00:00:00Z`))}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

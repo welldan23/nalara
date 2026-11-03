@@ -36,7 +36,7 @@ export const httpsUrl = z
     } catch {
       return false;
     }
-  }, 'must be an absolute https URL without credentials');
+  }, 'https_required');
 
 /** Control characters other than tab, newline and carriage return have no place in text. */
 function hasControlCharacters(value: string): boolean {
@@ -53,7 +53,7 @@ const plainText = (max: number) =>
   z
     .string()
     .max(max)
-    .refine((value) => !hasControlCharacters(value), 'control characters');
+    .refine((value) => !hasControlCharacters(value), 'control_characters');
 
 const inline = z.discriminatedUnion('type', [
   z.strictObject({
@@ -104,16 +104,94 @@ export type Block = z.infer<typeof blockSchema>;
 
 export const bodySchema = z.array(blockSchema).max(LIMITS.blocks);
 
-/** Everything that makes up one revision's content. The hash covers exactly these fields. */
-export const revisionContentSchema = z.strictObject({
-  title: plainText(LIMITS.title).trim().min(1),
-  dek: plainText(LIMITS.dek).trim(),
-  articleType: z.enum(ARTICLE_TYPES),
-  categoryId: z.uuid(),
-  body: bodySchema,
-  bodySource: z.string().max(LIMITS.bodySource),
-  methodNote: plainText(LIMITS.methodNote).trim().nullable(),
+/**
+ * Hosts that only redirect to or repackage someone else's reporting. A citation must point at
+ * the original publisher (ADR-019, pattern from VORSA x SENTINEL).
+ */
+export const AGGREGATOR_HOSTS = [
+  'news.google.com',
+  'google.com',
+  'www.google.com',
+  't.co',
+  'bit.ly',
+  'tinyurl.com',
+  'lnkd.in',
+  'ow.ly',
+  'buff.ly',
+  's.id',
+  'linktr.ee',
+  'flipboard.com',
+] as const;
+
+export function isAggregatorUrl(value: string): boolean {
+  try {
+    return (AGGREGATOR_HOSTS as readonly string[]).includes(new URL(value).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+export const citationSchema = z.strictObject({
+  id: z.uuid(),
+  url: httpsUrl.refine((value) => !isAggregatorUrl(value), 'aggregator_url'),
+  publisher: plainText(120).trim().min(1),
+  title: plainText(300).trim(),
+  /** Day the founder opened the source (Asia/Jakarta calendar date). */
+  accessedAt: z.iso.date(),
+  claimNote: plainText(500).trim(),
+  /** Primary source: official release, document, dataset or direct statement. */
+  primary: z.boolean(),
+  /** The founder opened the source and checked the claim against it. */
+  verified: z.boolean(),
 });
+
+export type Citation = z.infer<typeof citationSchema>;
+
+export const MAX_CITATIONS = 30;
+
+/** Everything that makes up one revision's content. The hash covers exactly these fields. */
+export const revisionContentSchema = z
+  .strictObject({
+    title: plainText(LIMITS.title).trim().min(1),
+    dek: plainText(LIMITS.dek).trim(),
+    articleType: z.enum(ARTICLE_TYPES),
+    categoryId: z.uuid(),
+    body: bodySchema,
+    bodySource: z.string().max(LIMITS.bodySource),
+    methodNote: plainText(LIMITS.methodNote).trim().nullable(),
+    citations: z.array(citationSchema).max(MAX_CITATIONS),
+  })
+  .superRefine((content, context) => {
+    const ids = new Set<string>();
+    const urls = new Set<string>();
+    content.citations.forEach((citation, index) => {
+      if (ids.has(citation.id)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['citations', index, 'id'],
+          message: 'duplicate',
+        });
+      }
+      if (urls.has(citation.url)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['citations', index, 'url'],
+          message: 'duplicate',
+        });
+      }
+      ids.add(citation.id);
+      urls.add(citation.url);
+    });
+    content.body.forEach((block, index) => {
+      if (block.type === 'stat' && !ids.has(block.citationId)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['body', index, 'citationId'],
+          message: 'unknown_citation',
+        });
+      }
+    });
+  });
 
 export type RevisionContent = z.infer<typeof revisionContentSchema>;
 
@@ -142,6 +220,7 @@ export function contentSha256(content: RevisionContent): Buffer {
     categoryId: content.categoryId,
     body: content.body,
     methodNote: content.methodNote,
+    citations: content.citations,
   };
   return createHash('sha256').update(canonicalJson(hashed), 'utf8').digest();
 }

@@ -67,4 +67,24 @@ Format per tiket mengikuti PRD v4 §13. Rencana: [BASELINE.md](BASELINE.md) · K
 - Masalah diketahui: blok angka (`stat`) baru bisa ditulis lewat editor di P1-04 (butuh sitasi). Hanya status `draft` yang bisa diedit sampai P1-03.
 - Keputusan founder: PENDING
 
-**Next:** P1-04 — Sumber per artikel (lalu P1-03).
+### P1-04 — Sumber per artikel
+- Commit: lihat PR `feat/P1-04-article-sources`
+- File berubah:
+  - `db/migrations/0005_revision_citations.sql`, `apps/api/src/db/schema.ts`
+  - `apps/api/src/modules/articles/{content,markdown,verification,articles}.ts`, `apps/api/src/routes/articles.ts`, `apps/api/src/lib/validation.ts`
+  - Web: `apps/web/app/os/(shell)/newsroom/editor.tsx` + halaman, `apps/web/components/article-body.tsx`, `apps/web/lib/{api,editor-messages}.ts`, `globals.css`
+  - Tes: `apps/api/tests/unit/citations.test.ts`, `integration/newsroom-api.test.ts`, `tests/e2e/web.e2e.mjs`
+- Keputusan desain: **sitasi disimpan di dalam revisi** (kolom `citations`), bukan tabel yang bisa diubah terpisah. Sitasi ikut hash isi, jadi menambah, mengubah, atau mencentang/membatalkan "sudah dicek" setelah approval otomatis membatalkan approval itu (PRD v4 §7). Tabel `article_sources` di PRD v4 §6.2 diwujudkan sebagai bagian revisi; tautan ke Source Registry (P1-05) bisa ditambahkan nanti tanpa mengubah aturan ini.
+- Perilaku:
+  - Sitasi: URL https lengkap tanpa kredensial, **agregator dan penyingkat link ditolak** (Google News, `google.com/url`, t.co, bit.ly, s.id, dll.); penerbit, judul halaman, tanggal akses (tanggal valid), catatan klaim, `primary`, `verified`. Maksimal 30. URL atau id ganda ditolak.
+  - **Label verifikasi dihitung server** (ADR-019): TERVERIFIKASI bila ≥1 sumber primer yang sudah dicek **atau** ≥2 penerbit independen yang sudah dicek (dinormalisasi per domain, mis. `webapi.bps.go.id` = `bps.go.id`); SEBAGIAN bila ada yang dicek; selain itu BELUM_TERVERIFIKASI. Klien tidak bisa mengirim label.
+  - **Blok angka** `:::angka` (nilai, satuan, periode, label, `sumber: N`): field kurang, nomor sumber tidak ada, field asing, atau HTML → ditolak dengan nomor baris. Di skema, blok `stat` wajib menunjuk sitasi yang ada di revisi yang sama.
+  - Web: bagian Sumber di editor (tambah/hapus, centang primer/dicek), label di pratinjau dan halaman draft, angka menampilkan "Sumber: [N] penerbit" yang menaut ke daftar sumber bernomor.
+- Test:
+  - `pnpm run check` → PASS **308/308**; `pnpm run test:backup` → PASS **10/10** (migrasi 0005 ikut restore). Termasuk 22 tes sitasi/label/angka dan 3 tes HTTP: label dari sitasi, label turun saat sumber batal dicek, agregator ditolak dengan path `citations.0.url`, angka tanpa sumber ditolak, label dari klien ditolak.
+  - `pnpm run test:e2e` → PASS **12/12**. Cek baru TEST-P1-04: URL Google News ditolak di UI, angka menaut ke sumber, label Terverifikasi lalu turun ke Belum terverifikasi setelah centang dicek dilepas.
+- Security review: PASS. Tautan sumber `rel="noopener noreferrer nofollow"` dan dicek ulang https saat render. Tidak ada fetch ke URL sumber (tanpa SSRF; vault bukti menunggu Fase 2).
+- Catatan: hash revisi lama (sebelum kolom `citations`) dihitung tanpa sitasi. Belum ada data nyata, jadi tidak ada dampak.
+- Keputusan founder: PENDING
+
+**Next:** P1-03 — State machine + gate publish.

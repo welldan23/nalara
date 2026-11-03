@@ -14,6 +14,18 @@ export const RULE_MESSAGES: Readonly<Record<string, string>> = {
   unchanged: 'Tidak ada perubahan dibanding versi terakhir.',
   unknown: 'Topik tidak ditemukan.',
   invalid_format: 'Format slug tidak valid (huruf kecil, angka, tanda hubung).',
+  stat_unclosed: 'Blok :::angka belum ditutup dengan baris :::',
+  stat_field_missing: 'Blok angka wajib berisi nilai, satuan, periode, label, dan sumber.',
+  stat_field_unknown:
+    'Isian tidak dikenal di blok angka (pakai nilai, satuan, periode, label, sumber).',
+  stat_source_unknown: 'Nomor sumber di blok angka tidak ada di daftar sumber.',
+  unknown_citation: 'Blok angka menunjuk sumber yang tidak ada.',
+  aggregator_url: 'Pakai URL penerbit aslinya, bukan agregator atau penyingkat link.',
+  https_required: 'URL harus https:// lengkap, tanpa username atau password.',
+  duplicate: 'Sumber ganda (URL atau id sama).',
+  too_small: 'Wajib diisi.',
+  invalid_format_date: 'Tanggal akses tidak valid.',
+  control_characters: 'Ada karakter kontrol yang tidak diizinkan.',
 };
 
 export const WARNING_MESSAGES: Readonly<Record<string, string>> = {
@@ -57,7 +69,28 @@ export const ARTICLE_TEMPLATE = [
   '',
 ].join('\n');
 
+export const VERIFICATION_LABELS: Readonly<Record<string, string>> = {
+  TERVERIFIKASI: 'Terverifikasi',
+  SEBAGIAN: 'Sebagian terverifikasi',
+  BELUM_TERVERIFIKASI: 'Belum terverifikasi',
+};
+
+const CITATION_FIELDS: Readonly<Record<string, string>> = {
+  url: 'URL',
+  publisher: 'Penerbit',
+  title: 'Judul',
+  accessedAt: 'Tanggal akses',
+  claimNote: 'Catatan klaim',
+  id: 'Id',
+};
+
 export function describeField(path: string, rule: string): string {
+  const citation = /^citations\.(\d+)\.(\w+)$/.exec(path);
+  if (citation !== null) {
+    const [, index = '0', key = ''] = citation;
+    const message = RULE_MESSAGES[rule] ?? `Isian tidak valid (${rule}).`;
+    return `Sumber ${String(Number(index) + 1)}, ${CITATION_FIELDS[key] ?? key}: ${message}`;
+  }
   const line = /^bodySource\.line\.(\d+)$/.exec(path)?.[1];
   const message = RULE_MESSAGES[rule] ?? `Isian tidak valid (${rule}).`;
   return line === undefined ? `${path}: ${message}` : `Baris ${line}: ${message}`;

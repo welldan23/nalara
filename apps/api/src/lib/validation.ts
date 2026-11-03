@@ -9,7 +9,8 @@ export function parseOrThrow<T extends z.ZodType>(schema: T, input: unknown): z.
     'VALIDATION_FAILED',
     result.error.issues.map((issue) => ({
       path: issue.path.map(String).join('.') || '(root)',
-      rule: issue.code,
+      // Custom refinements carry a fixed rule identifier as their message (never input).
+      rule: issue.code === 'custom' ? issue.message : issue.code,
     })),
   );
 }

@@ -66,8 +66,10 @@ export interface ArticleDetail {
       readonly categoryId: string;
       readonly bodySource: string;
       readonly methodNote: string | null;
+      readonly citations: readonly Citation[];
     };
   };
+  readonly verification: VerificationLevel;
   readonly revisions: readonly {
     readonly id: string;
     readonly version: number;
@@ -75,6 +77,19 @@ export interface ArticleDetail {
     readonly changeNote: string;
     readonly createdAt: string;
   }[];
+}
+
+export type VerificationLevel = 'TERVERIFIKASI' | 'SEBAGIAN' | 'BELUM_TERVERIFIKASI';
+
+export interface Citation {
+  readonly id: string;
+  readonly url: string;
+  readonly publisher: string;
+  readonly title: string;
+  readonly accessedAt: string;
+  readonly claimNote: string;
+  readonly primary: boolean;
+  readonly verified: boolean;
 }
 
 export class ApiUnauthorized extends Error {}

@@ -255,4 +255,97 @@ describe.skipIf(!databaseAvailable)('newsroom API', { timeout: 60_000 }, () => {
       (await send('POST', '/api/v1/os/articles', draft({ bodySource: huge }))).statusCode,
     ).toBe(413);
   });
+
+  describe('citations and verification (P1-04)', () => {
+    const citation = (n: number, host: string, extra: Record<string, unknown> = {}) => ({
+      id: `01900000-0000-7000-8000-00000000000${String(n)}`,
+      url: `https://${host}/rilis/${String(n)}`,
+      publisher: host,
+      title: `Sumber ${String(n)}`,
+      accessedAt: '2026-11-03',
+      claimNote: '',
+      primary: false,
+      verified: true,
+      ...extra,
+    });
+    const statSource = [
+      '## Data dan angka',
+      '',
+      ':::angka',
+      'nilai: 2,8',
+      'satuan: persen (yoy)',
+      'periode: Oktober 2026',
+      'label: Inflasi tahunan',
+      'sumber: 1',
+      ':::',
+    ].join('\n');
+
+    it('stores citations in the revision, resolves number sources and computes the label', async () => {
+      const created = await send(
+        'POST',
+        '/api/v1/os/articles',
+        draft({
+          bodySource: statSource,
+          citations: [citation(1, 'www.bps.go.id', { primary: true })],
+        }),
+      );
+      expect(created.statusCode).toBe(201);
+      const saved = parse<{ articleId: string; verification: string }>(created);
+      expect(saved.verification).toBe('TERVERIFIKASI');
+      const detail = parse<{
+        article: {
+          current: { body: { type: string; citationId?: string }[]; citations: { id: string }[] };
+        };
+        verification: string;
+      }>(await send('GET', `/api/v1/os/articles/${saved.articleId}`));
+      expect(detail.verification).toBe('TERVERIFIKASI');
+      expect(detail.article.current.citations.map((c) => c.id)).toEqual([citation(1, 'x').id]);
+      expect(detail.article.current.body.find((block) => block.type === 'stat')?.citationId).toBe(
+        citation(1, 'x').id,
+      );
+
+      // Un-verifying the only source drops the label; the client never sends it.
+      const revised = await send('PATCH', `/api/v1/os/articles/${saved.articleId}`, {
+        ...draft({
+          bodySource: statSource,
+          citations: [citation(1, 'www.bps.go.id', { primary: true, verified: false })],
+        }),
+        expectedVersion: 1,
+        changeNote: 'Sumber belum dicek ulang',
+      });
+      expect(parse<{ verification: string }>(revised).verification).toBe('BELUM_TERVERIFIKASI');
+    });
+
+    it('refuses aggregator links, unknown number sources and a client-declared label', async () => {
+      const aggregator = await send(
+        'POST',
+        '/api/v1/os/articles',
+        draft({ citations: [citation(1, 'news.google.com')] }),
+      );
+      expect(aggregator.statusCode).toBe(400);
+      expect(parse<{ error: { fields: unknown[] } }>(aggregator).error.fields).toEqual([
+        { path: 'citations.0.url', rule: 'aggregator_url' },
+      ]);
+
+      const orphan = await send('POST', '/api/v1/os/articles', draft({ bodySource: statSource }));
+      expect(parse<{ error: { fields: unknown[] } }>(orphan).error.fields).toEqual([
+        { path: 'bodySource.line.3', rule: 'stat_source_unknown' },
+      ]);
+
+      const declared = await send('POST', '/api/v1/os/articles', {
+        ...draft(),
+        verification: 'TERVERIFIKASI',
+      });
+      expect(declared.statusCode).toBe(400);
+    });
+
+    it('previews the label from the citations being edited', async () => {
+      const preview = await send('POST', '/api/v1/os/articles/preview', {
+        bodySource: statSource,
+        citations: [citation(1, 'www.kompas.com'), citation(2, 'katadata.co.id')],
+      });
+      const body = parse<{ verification: string; issues: unknown[] }>(preview);
+      expect(body).toMatchObject({ verification: 'TERVERIFIKASI', issues: [] });
+    });
+  });
 });
