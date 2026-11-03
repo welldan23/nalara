@@ -4,7 +4,7 @@
 
 Repo ini monorepo untuk website publik, NALARA OS (dashboard founder), dan API. Status saat ini: **Phase 0 (fondasi)**. Belum ada fitur produk.
 
-> **Phase 1 diblokir** sampai founder menulis **PHASE 0 ACCEPTED** setelah meninjau [`docs/phase-0/ACCEPTANCE.md`](docs/phase-0/ACCEPTANCE.md).
+> **Phase 0 diterima founder** (2026-11-03). Bukti dan risiko yang masih terbuka: [`docs/phase-0/ACCEPTANCE.md`](docs/phase-0/ACCEPTANCE.md). Gate produksi (backup offsite, VPS/TLS) wajib selesai sebelum deploy publik.
 
 ## Prasyarat
 

@@ -319,9 +319,10 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
   - `pnpm run test:e2e` → PASS **10/10** · `pnpm run test:compose` (image baru) → PASS **15/15** · `pnpm run test:backup` → PASS **10/10**
   - Mutasi: menghapus satu baris SQL dari `incident.md` membuat `runbook.test.ts` FAIL (lalu dikembalikan)
 - Dependabot langsung aktif setelah P0-014b: PR #18 (playwright 1.64.1, menunggu founder) dan PR #19 (`@types/node` 26). PR #19 ditutup karena runtime-nya Node 24, dan update major `@types/node` kini di-ignore di `dependabot.yml` (dijaga tes).
+- Setelah merge: TEST-COMPOSE-01 sempat merah di CI (PR #21) karena tes hanya menerima 3 nama variabel, padahal Compose boleh menyebut variabel wajib mana pun yang hilang, dengan urutan dan jumlah yang beda antar versi. Kini tes menurunkan daftar variabel wajib dari `compose.prod.yaml` dan cek "secret tidak ikut tercetak" dijalankan lebih dulu. Lokal 15/15.
 - Branch `ci-proof/P00-014b-red` (PR #17, ditutup) dibiarkan sebagai bukti. Founder boleh menghapusnya kapan saja.
 - **NOT RUN:** semua yang butuh VPS, domain, atau tujuan offsite (D-04, D-08, D-09)
 - Security review: PASS
-- Founder decision: PENDING (**PHASE 0 ACCEPTED** belum ditulis)
+- Founder decision: **PHASE 0 ACCEPTED** (2026-11-03, D-16)
 
-**Next:** tidak ada tiket Phase 0 tersisa. Menunggu keputusan founder (lihat ACCEPTANCE §8). **Phase 1 diblokir.**
+**Phase 0 selesai dan diterima founder (D-16).** Langkah berikutnya: audit dan rencana Phase 1 (read-only dulu, sesuai PRD), lalu disetujui founder sebelum implementasi.
