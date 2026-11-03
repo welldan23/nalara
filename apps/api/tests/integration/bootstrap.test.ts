@@ -139,7 +139,12 @@ describe.skipIf(!databaseAvailable)('founder bootstrap CLI', { timeout: 60_000 }
 
   it('has no HTTP bootstrap or signup endpoint', async () => {
     const app = await buildApp(
-      { logLevel: 'fatal', nodeEnv: 'test' },
+      {
+        logLevel: 'fatal',
+        nodeEnv: 'test',
+        appOrigin: 'http://localhost:3000',
+        session: { cookieName: '__Host-nalara_session', secret: 'x'.repeat(40) },
+      },
       { readiness: () => Promise.resolve(true) },
     );
     const routes = app.printRoutes({ commonPrefix: false });

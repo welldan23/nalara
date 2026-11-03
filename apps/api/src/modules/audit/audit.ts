@@ -7,6 +7,7 @@ import type { schema } from '../../db/schema.ts';
 /** Every audit action and the only metadata keys it may carry. */
 export const AUDIT_ACTIONS = {
   'founder.bootstrap': [],
+  'session.logout': [],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;

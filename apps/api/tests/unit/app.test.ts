@@ -7,7 +7,12 @@ import { BODY_LIMIT_BYTES, buildApp } from '../../src/app.ts';
 import { AppError } from '../../src/lib/errors.ts';
 import { parseOrThrow } from '../../src/lib/validation.ts';
 
-const config = { logLevel: 'info', nodeEnv: 'test' } as const;
+const config = {
+  logLevel: 'info',
+  nodeEnv: 'test',
+  appOrigin: 'http://localhost:3000',
+  session: { cookieName: '__Host-nalara_session', secret: 'test-session-secret-'.padEnd(40, 'a') },
+} as const;
 const apps: FastifyInstance[] = [];
 
 class LogCapture extends Writable {
