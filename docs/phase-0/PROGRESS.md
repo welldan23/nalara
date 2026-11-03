@@ -10,6 +10,6 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Security review: PASS (secret scan tanpa temuan, tanpa perubahan kode)
 - Manual validation: NOT RUN (menunggu review founder)
 - Known issues: migrasi `master` → `main` selesai (default branch `main`, `master` dihapus, protection dipasang founder; `BASELINE.md` §8). 16 konflik spesifikasi menunggu keputusan (`BASELINE.md` §4)
-- Founder decision: PENDING
+- Founder decision: ACCEPTED (2026-11-03, chat: "approve semua"; mencakup ADR-001..009 dan urutan tiket §6.1)
 
-**Next ticket:** P0-002 — ADR, baru dimulai setelah founder menyetujui `ADR-PROPOSALS.md` dan urutan tiket (`BASELINE.md` §6.1).
+**Next ticket:** P0-002 — ADR.

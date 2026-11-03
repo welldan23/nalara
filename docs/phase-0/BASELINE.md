@@ -7,7 +7,7 @@
 | Source PRD | `NALARA_Master_PRD_Full_Phases_0-9_v3.md` (v3.0, 2026-11-03), file dari founder, **belum** ada di repo |
 | Repository | `github.com/welldan23/nalara` |
 | Audited commit | `5ddf36b` (`main` = `master`) |
-| Status | **PENDING founder review**: implementasi P0-002 dan seterusnya belum boleh dimulai |
+| Status | **ACCEPTED** oleh founder (2026-11-03, chat: "approve semua"). Keputusan dicatat di `docs/decisions/DECISIONS.md` (P0-002) |
 
 > Dokumen ini hasil audit read-only. Tidak ada kode aplikasi yang dibuat atau diubah.
 > Semua status di sini berasal dari perintah yang benar-benar dijalankan (lihat §9 Evidence).
