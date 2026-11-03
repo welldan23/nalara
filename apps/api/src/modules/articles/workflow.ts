@@ -8,13 +8,15 @@
 // version, re-hashes the stored revision, and writes an immutable publication event + audit.
 import { asc, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { articleRevisions, articles, publicationEvents } from '../../db/schema.ts';
+import { articleRevisions, articles, corrections, publicationEvents } from '../../db/schema.ts';
 import type { schema } from '../../db/schema.ts';
 import { AppError } from '../../lib/errors.ts';
+import { parseOrThrow } from '../../lib/validation.ts';
 import { recordAudit } from '../audit/audit.ts';
 import type { AuditAction } from '../audit/audit.ts';
+import { insertRevision } from './articles.ts';
 import type { Actor } from './articles.ts';
-import { contentSha256, revisionContentSchema } from './content.ts';
+import { changeNoteSchema, contentSha256, revisionContentSchema } from './content.ts';
 import type { RevisionContent } from './content.ts';
 import { publishGate } from './gate.ts';
 import type { GateBlocker } from './gate.ts';
@@ -207,7 +209,7 @@ export async function transition(
 }
 
 export interface PublicationEventView {
-  readonly action: TransitionAction;
+  readonly action: TransitionAction | 'correct';
   readonly fromStatus: string;
   readonly toStatus: string;
   readonly revisionId: string;
@@ -233,4 +235,135 @@ export async function listPublicationEvents(
     .from(publicationEvents)
     .where(eq(publicationEvents.articleId, articleId))
     .orderBy(asc(publicationEvents.createdAt), asc(publicationEvents.id));
+}
+
+export interface CorrectionInput {
+  readonly expectedVersion: number;
+  readonly content: unknown;
+  readonly changeNote: string;
+  /** What was wrong and what is right now (10–500 characters). */
+  readonly description: string;
+  /** Substantial corrections are shown to readers; minor ones (typos) stay internal. */
+  readonly substantial: boolean;
+}
+
+export interface CorrectionResult {
+  readonly version: number;
+  readonly verification: VerificationLevel;
+  readonly substantial: boolean;
+}
+
+/**
+ * Correct a published article (P1-07). One founder action that, in a single transaction,
+ * stores the corrected content as a new immutable revision, runs the publish gate on it,
+ * approves exactly those bytes and publishes them, so the article never leaves the public site
+ * and never shows unapproved content. The previous revision stays in the history.
+ */
+export async function correctPublished(
+  db: Db,
+  actor: Actor,
+  articleId: string,
+  input: CorrectionInput,
+): Promise<CorrectionResult> {
+  const content = parseOrThrow(revisionContentSchema, input.content);
+  const changeNote = parseOrThrow(changeNoteSchema, input.changeNote);
+  const description = input.description.trim();
+  if (description.length < 10 || description.length > 500) {
+    throw new AppError('VALIDATION_FAILED', [{ path: 'description', rule: 'invalid' }]);
+  }
+  if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1) {
+    throw new AppError('VALIDATION_FAILED', [{ path: 'expectedVersion', rule: 'invalid' }]);
+  }
+
+  return db.transaction(async (tx) => {
+    const [article] = await tx
+      .select()
+      .from(articles)
+      .where(eq(articles.id, articleId))
+      .for('update');
+    if (article === undefined) throw new AppError('NOT_FOUND');
+    if (article.currentVersion !== input.expectedVersion) throw new AppError('VERSION_CONFLICT');
+    if (article.status !== 'published') throw new AppError('INVALID_TRANSITION');
+    if (article.currentRevisionId === null) throw new Error('article has no current revision');
+    const [previous] = await tx
+      .select({ contentSha256: articleRevisions.contentSha256 })
+      .from(articleRevisions)
+      .where(eq(articleRevisions.id, article.currentRevisionId));
+    const hash = contentSha256(content);
+    if (previous?.contentSha256.equals(hash) === true) {
+      throw new AppError('VALIDATION_FAILED', [{ path: 'content', rule: 'unchanged' }]);
+    }
+    const gate = publishGate(content, { sourceException: article.sourceException });
+    if (gate.blockers.length > 0) throw new GateBlockedError(gate.blockers);
+
+    const version = article.currentVersion + 1;
+    const revisionId = await insertRevision(tx, actor, article.id, version, content, changeNote);
+    const now = new Date();
+    await tx
+      .update(articles)
+      .set({
+        currentVersion: version,
+        currentRevisionId: revisionId,
+        approvedRevisionId: revisionId,
+        approvedContentSha256: hash,
+        approvedBy: actor.userId,
+        approvedAt: now,
+        // Keep an exception only while it is still needed.
+        sourceException:
+          gate.verification === 'BELUM_TERVERIFIKASI' ? article.sourceException : null,
+        publishedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(articles.id, article.id));
+    await tx.insert(corrections).values({
+      articleId: article.id,
+      revisionId,
+      description,
+      substantial: input.substantial,
+      visibleAt: input.substantial ? now : null,
+      createdBy: actor.userId,
+    });
+    await tx.insert(publicationEvents).values({
+      articleId: article.id,
+      revisionId,
+      action: 'correct',
+      fromStatus: 'published',
+      toStatus: 'published',
+      contentSha256: hash,
+      verification: gate.verification,
+      note: description,
+      actorId: actor.userId,
+    });
+    await recordAudit(tx, {
+      action: 'article.correct',
+      actorType: 'founder',
+      actorId: actor.userId,
+      result: 'success',
+      resourceType: 'article',
+      resourceId: article.id,
+      ...(actor.requestId !== undefined ? { requestId: actor.requestId } : {}),
+      metadata: { version, verification: gate.verification, substantial: input.substantial },
+    });
+    return { version, verification: gate.verification, substantial: input.substantial };
+  });
+}
+
+export interface CorrectionView {
+  readonly description: string;
+  readonly substantial: boolean;
+  readonly visibleAt: Date | null;
+  readonly createdAt: Date;
+}
+
+export async function listCorrections(db: Db, articleId: string): Promise<CorrectionView[]> {
+  return db
+    .select({
+      description: corrections.description,
+      substantial: corrections.substantial,
+      visibleAt: corrections.visibleAt,
+      createdAt: corrections.createdAt,
+    })
+    .from(corrections)
+    .where(eq(corrections.articleId, articleId))
+    .orderBy(asc(corrections.createdAt), asc(corrections.id));
 }

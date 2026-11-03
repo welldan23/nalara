@@ -13,7 +13,7 @@ import { changeNoteSchema, contentSha256, revisionContentSchema } from './conten
 import type { RevisionContent } from './content.ts';
 
 type Db = NodePgDatabase<typeof schema>;
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 export interface Actor {
   readonly userId: string;
@@ -99,7 +99,7 @@ export interface SavedRevision {
   readonly returnedToDraft?: boolean;
 }
 
-async function insertRevision(
+export async function insertRevision(
   tx: Tx,
   actor: Actor,
   articleId: string,

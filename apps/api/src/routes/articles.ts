@@ -20,7 +20,13 @@ import type { Block, Citation } from '../modules/articles/content.ts';
 import { parseMarkdown } from '../modules/articles/markdown.ts';
 import { publishGate } from '../modules/articles/gate.ts';
 import { verificationLevel } from '../modules/articles/verification.ts';
-import { TRANSITIONS, listPublicationEvents, transition } from '../modules/articles/workflow.ts';
+import {
+  TRANSITIONS,
+  correctPublished,
+  listCorrections,
+  listPublicationEvents,
+  transition,
+} from '../modules/articles/workflow.ts';
 import type { TransitionAction } from '../modules/articles/workflow.ts';
 import { styleWarnings } from '../modules/articles/warnings.ts';
 import type { AuthGuards } from '../plugins/auth.ts';
@@ -60,6 +66,14 @@ const previewSchema = z.strictObject({
 const listQuery = z.strictObject({
   status: z.enum(ARTICLE_STATUSES).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+const correctionSchema = z.strictObject({
+  ...editorFields,
+  expectedVersion: z.number().int(),
+  changeNote: z.string(),
+  description: z.string().max(500),
+  substantial: z.boolean(),
 });
 
 const transitionSchema = z.strictObject({
@@ -143,8 +157,43 @@ export function registerArticleRoutes(
         { sourceException: article.sourceException },
       ).blockers,
       events: await listPublicationEvents(db, id),
+      corrections: await listCorrections(db, id),
     };
   });
+
+  // Correct a published article: new revision approved and published in one action (P1-07).
+  app.post(
+    '/articles/:id/correct',
+    {
+      config: { permission: 'articles.publish' },
+      bodyLimit: EDITOR_BODY_LIMIT_BYTES,
+      preHandler: guards.requireCsrf,
+    },
+    async (request) => {
+      const id = articleId(request.params);
+      const input = parseOrThrow(correctionSchema, request.body);
+      const body = bodyFromSource(
+        input.bodySource,
+        input.citations.map((citation) => citation.id),
+      );
+      return correctPublished(db, actor(request), id, {
+        expectedVersion: input.expectedVersion,
+        changeNote: input.changeNote,
+        description: input.description,
+        substantial: input.substantial,
+        content: {
+          title: input.title,
+          dek: input.dek,
+          articleType: input.articleType,
+          categoryId: input.categoryId,
+          body,
+          bodySource: input.bodySource,
+          methodNote: input.methodNote,
+          citations: input.citations,
+        },
+      });
+    },
+  );
 
   for (const action of Object.keys(TRANSITIONS) as TransitionAction[]) {
     const publishing = action === 'approve' || action === 'publish';

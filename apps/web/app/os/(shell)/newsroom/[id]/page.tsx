@@ -1,4 +1,5 @@
-// Edit a draft (P1-02): editor with the latest revision and the full revision history.
+// Edit a draft (P1-02) or correct a published article (P1-07): editor with the latest revision,
+// corrections, status events and the full revision history.
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
@@ -44,6 +45,7 @@ export default async function EditDraftPage({
         articleId={article.id}
         version={article.currentVersion}
         editable={['draft', 'in_review', 'approved'].includes(article.status)}
+        mode={article.status === 'published' ? 'correct' : 'edit'}
         status={article.status}
         verification={detail.verification}
         categories={categories}
@@ -63,6 +65,23 @@ export default async function EditDraftPage({
         version={article.currentVersion}
         gate={detail.gate}
       />
+      {detail.corrections.length > 0 && (
+        <section aria-labelledby="corrections">
+          <h2 id="corrections">Riwayat koreksi</h2>
+          <ol className="revision-list" data-testid="corrections">
+            {detail.corrections.map((correction, index) => (
+              <li key={`${correction.createdAt}-${String(index)}`}>
+                <strong>{correction.substantial ? 'Substansial' : 'Kecil'}</strong> ·{' '}
+                {correction.description}{' '}
+                <span className="muted">
+                  · {dateFormat.format(new Date(correction.createdAt))} WIB
+                  {correction.substantial ? ' · tampil ke pembaca' : ' · hanya internal'}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
       {detail.events.length > 0 && (
         <section aria-labelledby="events">
           <h2 id="events">Riwayat status</h2>

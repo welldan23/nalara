@@ -1,11 +1,11 @@
 // Public reading API data (P1-06, ADR-013, S1-02/S1-03). Every public query goes through
 // `publishedOnly`: status = 'published' and the content of the APPROVED revision. Nothing here
 // can return a draft, a review, an archived article, editor-only fields or internal ids of people.
-import { and, asc, desc, eq, lt, or } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, lt, or } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { z } from 'zod';
-import { articleRevisions, articles, categories } from '../../db/schema.ts';
+import { articleRevisions, articles, categories, corrections } from '../../db/schema.ts';
 import type { schema } from '../../db/schema.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { Block, Citation } from '../articles/content.ts';
@@ -51,6 +51,17 @@ export interface PublicArticle extends PublicArticleSummary {
   /** The founder's reason when published without a verified source (PRD v4 §7). */
   readonly sourceException: string | null;
   readonly firstPublishedAt: Date;
+  /** Substantial corrections only, oldest first (PRD v4 §7, AC-MEDIA-05). */
+  readonly corrections: PublicCorrection[];
+}
+
+export interface PublicCorrection {
+  readonly description: string;
+  readonly visibleAt: Date;
+}
+
+export interface PublicCorrectionEntry extends PublicCorrection {
+  readonly article: { readonly slug: string; readonly title: string };
 }
 
 export async function publicCategories(db: Db): Promise<PublicCategory[]> {
@@ -172,6 +183,11 @@ export async function publicArticle(db: Db, slug: string): Promise<PublicArticle
     .where(and(publishedOnly(), eq(articles.slug, slug)));
   if (row === undefined) return null;
   const citations = row.citations as Citation[];
+  const visible = await db
+    .select({ description: corrections.description, visibleAt: corrections.visibleAt })
+    .from(corrections)
+    .where(and(eq(corrections.articleId, row.id), isNotNull(corrections.visibleAt)))
+    .orderBy(asc(corrections.visibleAt), asc(corrections.id));
   return {
     ...toSummary(row),
     body: row.body as Block[],
@@ -186,5 +202,38 @@ export async function publicArticle(db: Db, slug: string): Promise<PublicArticle
     methodNote: row.methodNote,
     sourceException: row.sourceException,
     firstPublishedAt: row.firstPublishedAt ?? row.publishedAt ?? new Date(0),
+    corrections: visible.flatMap((correction) =>
+      correction.visibleAt === null
+        ? []
+        : [{ description: correction.description, visibleAt: correction.visibleAt }],
+    ),
   };
+}
+
+/** Public corrections page (/koreksi): substantial corrections of published articles. */
+export async function publicCorrections(db: Db, limit = 50): Promise<PublicCorrectionEntry[]> {
+  const rows = await db
+    .select({
+      description: corrections.description,
+      visibleAt: corrections.visibleAt,
+      slug: articles.slug,
+      title: articleRevisions.title,
+    })
+    .from(corrections)
+    .innerJoin(articles, eq(articles.id, corrections.articleId))
+    .innerJoin(articleRevisions, eq(articleRevisions.id, articles.approvedRevisionId))
+    .where(and(publishedOnly(), isNotNull(corrections.visibleAt)))
+    .orderBy(desc(corrections.visibleAt), desc(corrections.id))
+    .limit(Math.min(Math.max(limit, 1), 100));
+  return rows.flatMap((row) =>
+    row.visibleAt === null
+      ? []
+      : [
+          {
+            description: row.description,
+            visibleAt: row.visibleAt,
+            article: { slug: row.slug, title: row.title },
+          },
+        ],
+  );
 }

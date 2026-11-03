@@ -1,5 +1,5 @@
 // Article reading page (P1-06, PRD v4 §4.1): title, summary, body, numbered sources, dates and
-// the verification label. Only published articles exist here; everything else is a 404.
+// the verification label, and any substantial corrections (P1-07). Only published articles exist here; everything else is a 404.
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -59,6 +59,22 @@ export default async function ArticlePage({
           <strong>{verification.label}.</strong> {verification.detail}{' '}
           <Link href="/tentang#verifikasi">Cara kami memverifikasi</Link>
         </p>
+      )}
+      {article.corrections.length > 0 && (
+        <aside className="corrections" aria-labelledby="koreksi" data-testid="corrections">
+          <h2 id="koreksi">Koreksi</h2>
+          <ul>
+            {article.corrections.map((correction, index) => (
+              <li key={`${correction.visibleAt}-${String(index)}`}>
+                <time dateTime={correction.visibleAt}>{formatDate(correction.visibleAt)}</time>:{' '}
+                {correction.description}
+              </li>
+            ))}
+          </ul>
+          <p className="muted">
+            <Link href="/koreksi">Semua koreksi</Link>
+          </p>
+        </aside>
       )}
       {article.sourceException !== null && (
         <p className="notice-warn">
