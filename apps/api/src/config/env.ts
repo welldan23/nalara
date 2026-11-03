@@ -220,6 +220,39 @@ export function loadMigratorConfig(env: RawEnv = process.env): MigratorConfig {
   return { nodeEnv: parsed.data.NODE_ENV, migratorDatabaseUrl: parsed.data.DATABASE_MIGRATOR_URL };
 }
 
+export interface BootstrapConfig {
+  readonly nodeEnv: NodeEnv;
+  /** Application-role connection; nalara_app may insert the founder and the audit row. */
+  readonly databaseUrl: string;
+  /** Lower-cased founder email. */
+  readonly founderEmail: string;
+}
+
+const bootstrapSchema = z.object({
+  NODE_ENV: schema.shape.NODE_ENV,
+  DATABASE_URL: required('DATABASE_URL'),
+  FOUNDER_EMAIL: required('FOUNDER_EMAIL')
+    .max(254, { error: 'FOUNDER_EMAIL must be at most 254 characters' })
+    .pipe(z.email({ error: 'FOUNDER_EMAIL must be a valid email address' })),
+});
+
+/** Config for the one-time founder bootstrap CLI (P0-007). The password is never read from env. */
+export function loadBootstrapConfig(env: RawEnv = process.env): BootstrapConfig {
+  const issues = typoIssues(env);
+  const parsed = bootstrapSchema.safeParse(nonEmpty(env));
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) issues.push(issue.message);
+    throw new ConfigError(issues);
+  }
+  checkDatabaseUrl('DATABASE_URL', parsed.data.DATABASE_URL, issues);
+  if (issues.length > 0) throw new ConfigError(issues);
+  return {
+    nodeEnv: parsed.data.NODE_ENV,
+    databaseUrl: parsed.data.DATABASE_URL,
+    founderEmail: parsed.data.FOUNDER_EMAIL.toLowerCase(),
+  };
+}
+
 /**
  * Typo guard (TEST-ENV-06). A variable that is not ours but is a near miss of one of ours
  * (edit distance <= 2 for names of 8+ characters, or same name in another case) is almost certainly a misspelling, e.g.
