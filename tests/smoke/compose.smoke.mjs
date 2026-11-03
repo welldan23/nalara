@@ -46,13 +46,16 @@ const compose = (...args) => [
   project,
   ...args,
 ];
+// With stdio 'inherit' (live build output) execFileSync returns null, not a string.
 const docker = (args, options = {}) =>
-  execFileSync('docker', args, {
-    cwd: root,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    ...options,
-  }).trim();
+  (
+    execFileSync('docker', args, {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      ...options,
+    }) ?? ''
+  ).trim();
 const tryDocker = (args) => spawnSync('docker', args, { cwd: root, encoding: 'utf8' });
 // -a: include stopped containers (TEST-COMPOSE-07 inspects a stopped api).
 const containerId = (service) => docker(compose('ps', '-a', '-q', service));
