@@ -1,3 +1,6 @@
+// CI-PROOF (TEST-CI-05): a client layout cannot export metadata; only next build catches it.
+'use client';
+
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { tokenCss } from '../lib/tokens';
