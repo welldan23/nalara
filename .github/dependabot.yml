@@ -14,6 +14,11 @@ updates:
       default-days: 7
     open-pull-requests-limit: 5
     versioning-strategy: increase
+    ignore:
+      # Types must match the Node runtime major (.nvmrc, Node 24 LTS). A Node major upgrade
+      # is an ADR decision, done together with .nvmrc, engines and the base image.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       dev-tooling:
         dependency-type: development

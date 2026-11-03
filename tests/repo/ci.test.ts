@@ -190,6 +190,10 @@ describe('Dependabot', () => {
     const blocks = text.split(/^ {2}- package-ecosystem:\s*/m).slice(1);
     const ecosystems = blocks.map((block) => block.split('\n')[0]?.trim());
     expect(ecosystems).toEqual(['npm', 'github-actions', 'docker-compose']);
+    // @types/node follows the runtime major, never ahead of it.
+    expect(blocks[0]).toMatch(
+      /dependency-name: '@types\/node'\s*\n\s*update-types: \['version-update:semver-major'\]/,
+    );
     for (const block of blocks) {
       const days = Number(/default-days:\s*(\d+)/.exec(block)?.[1]);
       expect(days).toBeGreaterThanOrEqual(7);
