@@ -7,7 +7,7 @@
 | Commit dasar | `main` @ `eeba6e2` |
 | Sumber utama | [PRD v4 ringkas](../prd/NALARA_PRD_v4_ringkas.md) §1–§10 (menggantikan v3 untuk Phase 1, menunggu D-20) |
 | Referensi | [VORSA × SENTINEL](REFERENCE-VORSA.md) (source code + database lama dari founder) |
-| Status | **USULAN**: menunggu founder. Belum ada kode |
+| Status | **DISETUJUI** founder 2026-11-04 (D-17, D-19, D-20, D-21) |
 
 > Read-only: tidak ada kode aplikasi, migrasi, atau dependensi yang berubah.
 > Implementasi dimulai setelah founder menyetujui dokumen ini dan [ADR-PROPOSALS.md](ADR-PROPOSALS.md) (D-19).

@@ -21,6 +21,11 @@ Jangan pernah menulis password, recovery code, private key, atau token di file i
 | D-14 | 2026-11-03 | Cara kerja | Founder minta proses berjalan dengan pertanyaan seminimal mungkin dan PR di-merge otomatis setelah CI hijau. Keputusan teknis kecil diambil Claude dan dicatat di sini/ADR untuk ditinjau | Mempercepat Phase 0 | Founder tetap pemegang gate fase (`PHASE 0 ACCEPTED`) | Founder bisa minta kembali ke mode review-dulu | — |
 | D-15 | 2026-11-03 | Alat migrasi | SQL tulis tangan + runner checksum sendiri, Drizzle ORM hanya untuk query (didelegasikan) | drizzle-kit membawa esbuild/tsx/loader deprecated, dan migrator Drizzle tidak cek checksum | Supply chain lebih kecil, tamper migrasi terdeteksi | ADR baru kembali ke drizzle-kit | [ADR-010](../adr/ADR-010-sql-first-migrations.md) |
 | D-16 | 2026-11-03 | Terima Phase 0? | **PHASE 0 ACCEPTED** (opsi 1 di ACCEPTANCE §8): fondasi lokal + CI diterima. Gate produksi (offsite backup, VPS/TLS/firewall) tetap terbuka | 129/130 PASS, 0 FAIL, CI terbukti memblokir kode rusak | Deploy publik tetap butuh D-04, D-08, D-09 dan TEST-OPS di VPS | Founder bisa mencabut lewat entri baru | [ACCEPTANCE](../phase-0/ACCEPTANCE.md) |
+| D-17 | 2026-11-04 | Topik awal NALARA Media | **Ekonomi, Teknologi, Kebijakan** (usulan default) | Sesuai persona PRD v4 §1.3 | Seed di migrasi P1-01. Topik baru lewat migrasi atau CRUD nanti | Migrasi baru | [Phase 1 BASELINE](../phase-1/BASELINE.md) KP1-10 |
+| D-18 | 2026-11-04 | Go-live setelah Phase 1? | Mengikuti PRD v4: soft launch = exit Phase 1 (P1-10), setelah validasi pembaca (D-21) | Bagian dari D-20 | Butuh D-04, D-08, D-09 sebelum P1-10 | Tunda P1-10 | KP1-14 |
+| D-19 | 2026-11-04 | Rencana Phase 1 (revisi 2) dan ADR-011..019 | **Disetujui** | Founder: "yaudah lanjutin bro" sebagai jawaban atas 4 pertanyaan (opsi "setuju semua") | ADR dipindah ke `docs/adr/` saat tiket pertama memakainya | ADR pengganti | [ADR-PROPOSALS](../phase-1/ADR-PROPOSALS.md) |
+| D-20 | 2026-11-04 | Acuan Phase 1 | **PRD v4 ringkas**, dengan pengecualian: tetap API Fastify (ADR-018) dan skema Phase 0 (ADR-009) | Pekerjaan Phase 0 yang sudah teruji dipertahankan | PRD v3 tetap disimpan sebagai riwayat | Entri baru di register ini | [PRD v4](../prd/NALARA_PRD_v4_ringkas.md) |
+| D-21 | 2026-11-04 | Validasi pembaca vs pembangunan CMS | **Paralel**: founder menjalankan validasi (PRD v4 §2), Claude mengerjakan P1-01..P1-09. Soft launch menunggu hasil validasi | Artikel validasi dipakai ulang sebagai konten awal | Target validasi (R-07) ditentukan founder | Hentikan pembangunan bila validasi gagal | KP1-21 |
 
 ## Keputusan yang masih OPEN
 
@@ -30,8 +35,3 @@ Jangan pernah menulis password, recovery code, private key, atau token di file i
 | D-07 | OS laptop founder dan apakah Docker terpasang | Dokumentasi P0-003 | Untuk menulis instruksi setup lokal yang tepat |
 | D-08 | Provider VPS, spek CPU/RAM/disk, versi Ubuntu, domain dan kontrol DNS | Deploy publik pertama (gate R-02) | Tanpa ini, rehearsal TLS memakai CA lokal saja |
 | D-09 | Kapan deploy produksi pertama (Phase 0 diterima tanpa deploy, D-16) | Sebelum launch publik | Menentukan apakah TEST-OPS dijalankan di VPS di Phase 0 |
-| D-17 | Topik (kategori) awal NALARA Media | P01-004 (seed migrasi) | Usulan: Ekonomi, Teknologi, Kebijakan ([Phase 1 BASELINE](../phase-1/BASELINE.md) KP1-10) |
-| D-18 | Go-live terbatas setelah Phase 1, atau tetap internal? | Exit Phase 1 | Bila D-20 disetujui, terjawab oleh PRD v4: soft launch = exit Phase 1 (P1-10), butuh D-04, D-08, D-09 |
-| D-19 | Setujui rencana Phase 1 (revisi 2) dan ADR-011..019 | Tiket pertama Phase 1 (P1-01) | [BASELINE](../phase-1/BASELINE.md) · [ADR-PROPOSALS](../phase-1/ADR-PROPOSALS.md) |
-| D-20 | PRD v4 ringkas jadi acuan utama mulai Phase 1, dengan pengecualian tetap memakai API Fastify + skema Phase 0 (ADR-018)? | P1-01 | [PRD v4](../prd/NALARA_PRD_v4_ringkas.md), [BASELINE rev 2](../phase-1/BASELINE.md) KP1-22/23 |
-| D-21 | Validasi pembaca (PRD v4 §2) jalan paralel; P1-01..P1-09 dikerjakan sekarang, soft launch menunggu hasil validasi? | P1-01 | KP1-21 |

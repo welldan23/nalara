@@ -1,6 +1,6 @@
 # NALARA Phase 1 — Usulan ADR (ADR-011..019)
 
-Status semua usulan: **PROPOSED**, menunggu founder (D-19). Revisi 2 (2026-11-04): disesuaikan dengan PRD v4 dan referensi [VORSA × SENTINEL](REFERENCE-VORSA.md). Setelah disetujui, masing-masing dipindah ke `docs/adr/ADR-0XX-*.md` di tiket pertama yang memakainya. Konflik yang dirujuk ada di [BASELINE.md](BASELINE.md) §3.
+Status: **ACCEPTED** (D-19, 2026-11-04). Revisi 2 (2026-11-04): disesuaikan dengan PRD v4 dan referensi [VORSA × SENTINEL](REFERENCE-VORSA.md). Setelah disetujui, masing-masing dipindah ke `docs/adr/ADR-0XX-*.md` di tiket pertama yang memakainya. Konflik yang dirujuk ada di [BASELINE.md](BASELINE.md) §3.
 
 ---
 
