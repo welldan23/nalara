@@ -1,6 +1,8 @@
 # NALARA Phase 0 — ADR Proposals (input untuk P0-002)
 
-**Status semua ADR: PROPOSED.** Belum ada yang diterima. Setelah founder menyetujui atau mengubah, P0-002 menulis versi final per file di `docs/adr/ADR-00X-*.md` memakai template PRD §17 (ID, status, tanggal, konteks, alternatif, keputusan, konsekuensi +/−, dampak keamanan, dampak biaya/performa, rollback, approver).
+> **Arsip usulan.** Semua usulan di bawah diterima founder pada 2026-11-03 ("approve semua"). Versi final dan yang berlaku ada di [`docs/adr/`](../adr/README.md). Kalau ada perbedaan, yang dipakai adalah versi di `docs/adr/`.
+
+Dokumen ini dulunya berisi usulan untuk direview. Template final mengikuti PRD §17 (ID, status, tanggal, konteks, alternatif, keputusan, konsekuensi +/−, dampak keamanan, dampak biaya/performa, rollback, approver).
 
 Versi paket di bawah adalah versi registry saat audit (2026-11-03) dan **belum dipin**. Pin final dilakukan di P0-003 setelah diverifikasi.
 
