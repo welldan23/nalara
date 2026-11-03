@@ -93,6 +93,10 @@ describe('CI workflow hardening', () => {
     expect(prod).toMatch(/cap_drop: \[ALL\]/);
     expect(prod).toMatch(/no-new-privileges:true/);
     expect(prod).toMatch(/restart: unless-stopped/);
+    // TEST-OPS-06 (static): every service inherits bounded json-file logs.
+    // db, migrate, api, web, caddy
+    expect(prod.match(/^ {4}<<: \*hardened$/gm)?.length).toBe(5);
+    expect(prod).toMatch(/driver: json-file\s*\n\s*options: \{ max-size: 10m, max-file: '3' \}/);
     expect(prod).not.toMatch(/docker\.sock|privileged:\s*true|network_mode:\s*host/);
     for (const dockerfile of ['apps/api/Dockerfile', 'apps/web/Dockerfile']) {
       const text = readFileSync(join(root, dockerfile), 'utf8');
@@ -186,6 +190,10 @@ describe('Dependabot', () => {
     const blocks = text.split(/^ {2}- package-ecosystem:\s*/m).slice(1);
     const ecosystems = blocks.map((block) => block.split('\n')[0]?.trim());
     expect(ecosystems).toEqual(['npm', 'github-actions', 'docker-compose']);
+    // @types/node follows the runtime major, never ahead of it.
+    expect(blocks[0]).toMatch(
+      /dependency-name: '@types\/node'\s*\n\s*update-types: \['version-update:semver-major'\]/,
+    );
     for (const block of blocks) {
       const days = Number(/default-days:\s*(\d+)/.exec(block)?.[1]);
       expect(days).toBeGreaterThanOrEqual(7);

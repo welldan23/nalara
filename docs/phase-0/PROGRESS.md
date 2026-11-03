@@ -295,9 +295,33 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
   - `backup-smoke` butuh `pnpm install` karena drill menjalankan CLI migrasi asli (driver `pg`).
   - `compose-smoke` juga butuh `age` (cek runbook menjalankan `backup.sh` ke DB produksi); run kedua 14/15 karena `age-keygen` tidak ada.
   - `compose.smoke.mjs` crash setelah build image: `execFileSync` dengan `stdio: 'inherit'` mengembalikan `null`, lalu `.trim()` gagal. Lokal tidak pernah kena karena selalu memakai `SMOKE_SKIP_BUILD=1`. Bug ini direproduksi lokal sebelum diperbaiki.
-- Bukti CI merah: lihat bagian "CI red proof" di bawah (dijalankan di GitHub setelah PR ini dibuka).
+- Bukti CI merah: draft PR #17, 6 ronde, semuanya merah di langkah yang benar. Rinciannya di [`ACCEPTANCE.md`](ACCEPTANCE.md) §3.
 - **Butuh founder:** aktifkan ruleset `main` + required status checks (6 nama job, runbook §2). Tanpa itu CI merah terlihat tapi tidak memblokir merge secara teknis.
 - Security review: PASS
 - Founder decision: PENDING
 
-**Next ticket:** P0-016 — exit audit & acceptance.
+### P0-016 — Exit audit & handoff
+- Commit SHA: lihat PR `feat/P00-016-exit-audit`
+- Changed files: `docs/phase-0/ACCEPTANCE.md`, `docs/architecture/phase-0.md`, `docs/security/threat-model.md`, `docs/runbooks/incident.md`, `docs/runbooks/backup-restore.md`, `infra/scripts/check-disk.sh`, `apps/api/tests/integration/runbook.test.ts`, `tests/repo/{repo,ci}.test.ts`, `SECURITY.md`, `.github/PULL_REQUEST_TEMPLATE.md`, `README.md`
+- Hasil audit:
+  - Matriks 130 kasus PRD §14: **129 PASS** (7 dengan catatan lokal/statis/container), **1 NOT RUN** (TEST-OPS-09, butuh VPS), **0 FAIL**
+  - Sign-off §12: 12 PASS, 1 NOT RUN (HTTPS di lingkungan deploy), 2 menunggu founder
+  - 11 risiko tercatat dengan severity, owner, dan remediasi
+- **Ditemukan dan diperbaiki saat audit:** runbook backup menyebut "ganti `SESSION_SECRET` supaya semua sesi mati". Itu **salah**: `SESSION_SECRET` hanya menandatangani token CSRF, sedangkan sesi dicek ke database. Runbook kini memakai `UPDATE sessions SET revoked_at = now()`, dan perintah itu diuji sungguhan.
+- Tambahan:
+  - `check-disk.sh` (TEST-OPS-07): alert di ambang batas, gagal tertutup bila path tidak terbaca
+  - Runbook insiden (TEST-OPS-10): kompromi akun, secret bocor, layanan mati, kehilangan MFA, disk penuh, backup basi, rollback. SQL darurat di dalamnya **diambil langsung dari Markdown dan dijalankan** oleh `runbook.test.ts`, jadi runbook tidak bisa diam-diam basi
+  - Tes statis rotasi log (TEST-OPS-06) di semua 5 service
+  - Dokumen arsitektur + batas kepercayaan, threat model (23 ancaman), SECURITY.md, template PR, README handoff
+- Tests run:
+  - Clone bersih `main` 4a64b72 → install beku → `pnpm run check` → PASS **223/223**, worktree bersih (TEST-REPO-09)
+  - `pnpm run check` (branch ini) → PASS **226/226**
+  - `pnpm run test:e2e` → PASS **10/10** · `pnpm run test:compose` (image baru) → PASS **15/15** · `pnpm run test:backup` → PASS **10/10**
+  - Mutasi: menghapus satu baris SQL dari `incident.md` membuat `runbook.test.ts` FAIL (lalu dikembalikan)
+- Dependabot langsung aktif setelah P0-014b: PR #18 (playwright 1.64.1, menunggu founder) dan PR #19 (`@types/node` 26). PR #19 ditutup karena runtime-nya Node 24, dan update major `@types/node` kini di-ignore di `dependabot.yml` (dijaga tes).
+- Branch `ci-proof/P00-014b-red` (PR #17, ditutup) dibiarkan sebagai bukti. Founder boleh menghapusnya kapan saja.
+- **NOT RUN:** semua yang butuh VPS, domain, atau tujuan offsite (D-04, D-08, D-09)
+- Security review: PASS
+- Founder decision: PENDING (**PHASE 0 ACCEPTED** belum ditulis)
+
+**Next:** tidak ada tiket Phase 0 tersisa. Menunggu keputusan founder (lihat ACCEPTANCE §8). **Phase 1 diblokir.**

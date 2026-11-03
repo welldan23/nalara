@@ -4,12 +4,16 @@
 
 Repo ini monorepo untuk website publik, NALARA OS (dashboard founder), dan API. Status saat ini: **Phase 0 (fondasi)**. Belum ada fitur produk.
 
+> **Phase 1 diblokir** sampai founder menulis **PHASE 0 ACCEPTED** setelah meninjau [`docs/phase-0/ACCEPTANCE.md`](docs/phase-0/ACCEPTANCE.md).
+
 ## Prasyarat
 
 | Tool | Versi | Cara pasang |
 |---|---|---|
 | Node.js | sesuai [`.nvmrc`](.nvmrc) (24 LTS) | `nvm install` atau unduh dari nodejs.org |
 | pnpm | sesuai `packageManager` di [`package.json`](package.json) | `corepack enable` (Node 24 masih membawa Corepack), atau `npm install -g pnpm@<versi>` |
+| Docker + Compose v2 | terbaru yang stabil | Untuk database lokal, tes compose, dan backup |
+| age | 1.1+ | `apt install age` / `brew install age` (hanya untuk backup dan restore) |
 
 ## Perintah
 
@@ -21,6 +25,15 @@ pnpm run test                    # Vitest
 pnpm run build                   # build semua workspace
 pnpm run format:check            # Prettier
 pnpm run check                   # semua cek di atas berurutan
+```
+
+Suite yang butuh Docker atau browser (semuanya juga jalan di CI):
+
+```bash
+TEST_DATABASE_ADMIN_URL=postgres://postgres:<pw>@127.0.0.1:5432/postgres pnpm run test   # + tes integrasi DB
+TEST_DATABASE_ADMIN_URL=... pnpm run test:e2e   # browser (Playwright Chromium)
+pnpm run test:compose                           # stack produksi + Caddy (build image)
+pnpm run test:backup                            # backup terenkripsi + restore drill
 ```
 
 Next.js mengirim telemetri anonim secara default. Untuk mematikannya, jalankan `pnpm --filter @nalara/web exec next telemetry disable` atau set `NEXT_TELEMETRY_DISABLED=1`.
@@ -46,7 +59,7 @@ docker compose -f compose.prod.yaml --env-file /srv/nalara/.env run --rm migrate
 docker compose -f compose.prod.yaml --env-file /srv/nalara/.env up -d
 ```
 
-Tidak ada port yang dibuka ke host. Reverse proxy (Caddy, P0-013) akan menjadi satu-satunya pintu masuk. Database hanya ada di jaringan `backend` yang `internal`. Semua container berjalan non-root dengan filesystem read-only. Uji otomatisnya: `pnpm run test:compose`.
+Hanya Caddy yang membuka port ke host (80/443). Reverse proxy itulah satu-satunya pintu masuk. Database hanya ada di jaringan `backend` yang `internal`. Semua container berjalan non-root dengan filesystem read-only. Uji otomatisnya: `pnpm run test:compose`.
 
 Di balik proxy TLS-inspecting (misalnya sandbox), build dengan `docker build --network host --build-arg HTTPS_PROXY=... --secret id=npm_ca,src=<ca-bundle> -f apps/api/Dockerfile .`. CA dan proxy tidak tersimpan di image (dicek TEST-COMPOSE-10).
 
@@ -72,4 +85,6 @@ docs/       PRD, ADR, keputusan founder, dokumen Phase 0
 
 - [PRD master](docs/prd/NALARA_Master_PRD_Full_Phases_0-9_v3.md)
 - [ADR](docs/adr/README.md) · [Keputusan founder](docs/decisions/DECISIONS.md)
-- [Baseline audit Phase 0](docs/phase-0/BASELINE.md) · [Progress Phase 0](docs/phase-0/PROGRESS.md)
+- [Baseline audit Phase 0](docs/phase-0/BASELINE.md) · [Progress Phase 0](docs/phase-0/PROGRESS.md) · [**Acceptance Phase 0**](docs/phase-0/ACCEPTANCE.md)
+- [Arsitektur & batas kepercayaan](docs/architecture/phase-0.md) · [Threat model](docs/security/threat-model.md) · [Kebijakan keamanan](SECURITY.md)
+- Runbook: [deploy VPS](docs/runbooks/deploy-vps.md) · [backup & restore](docs/runbooks/backup-restore.md) · [insiden & rollback](docs/runbooks/incident.md) · [CI & dependensi](docs/runbooks/ci-and-dependencies.md)

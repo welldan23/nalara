@@ -32,6 +32,7 @@ Until this is set, a red check is visible but does not technically stop a merge.
 
 - Dependabot opens weekly PRs (Monday) for npm packages, GitHub Actions (pinned SHAs) and the images in `compose.prod.yaml`.
 - `cooldown: 7 days` matches pnpm's `minimumReleaseAge` (7 days), so freshly published versions, the usual window for a hijacked release, are never proposed.
+- Major updates of `@types/node` are ignored: the types follow the Node runtime major (`.nvmrc`), and a Node major upgrade is an ADR decision.
 - Each update PR must pass the full CI above before merging. Read the changelog for major versions.
 - **PostgreSQL** appears in `compose.yaml`, `compose.prod.yaml`, `ci.yml` (two jobs), `infra/scripts/restore.sh` and `tests/smoke/backup.smoke.mjs`. The repo test that requires one PostgreSQL version everywhere fails until all of them match, so update them together in the same PR.
 - **Node base image** (`ARG NODE_IMAGE` in both Dockerfiles) and the Node version in `.nvmrc` are not handled by Dependabot. Review monthly: pick the newest LTS patch image that is at least 7 days old, pin tag **and** digest, update both Dockerfiles, `.nvmrc` and `engines`.
