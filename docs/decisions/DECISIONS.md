@@ -30,3 +30,6 @@ Jangan pernah menulis password, recovery code, private key, atau token di file i
 | D-07 | OS laptop founder dan apakah Docker terpasang | Dokumentasi P0-003 | Untuk menulis instruksi setup lokal yang tepat |
 | D-08 | Provider VPS, spek CPU/RAM/disk, versi Ubuntu, domain dan kontrol DNS | Deploy publik pertama (gate R-02) | Tanpa ini, rehearsal TLS memakai CA lokal saja |
 | D-09 | Kapan deploy produksi pertama (Phase 0 diterima tanpa deploy, D-16) | Sebelum launch publik | Menentukan apakah TEST-OPS dijalankan di VPS di Phase 0 |
+| D-17 | Topik (kategori) awal NALARA Media | P01-004 (seed migrasi) | Usulan: Ekonomi, Teknologi, Kebijakan ([Phase 1 BASELINE](../phase-1/BASELINE.md) KP1-10) |
+| D-18 | Go-live terbatas setelah Phase 1, atau tetap internal? | Exit Phase 1 | Go-live butuh D-04, D-08, D-09. Usulan: internal dulu, diputuskan saat exit Phase 1 (KP1-14) |
+| D-19 | Setujui rencana Phase 1 dan ADR-011..017 | Tiket pertama Phase 1 (P02-001) | [BASELINE](../phase-1/BASELINE.md) · [ADR-PROPOSALS](../phase-1/ADR-PROPOSALS.md) |
