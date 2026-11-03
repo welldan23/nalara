@@ -14,7 +14,7 @@ export function generateTotpSecret(): Buffer {
 }
 
 export function timeStep(at: Date): number {
-  return String(Math.floor(at.getTime() / 1000 / TOTP_PERIOD_SECONDS)); // CI-PROOF (TEST-CI-02)
+  return Math.floor(at.getTime() / 1000 / TOTP_PERIOD_SECONDS);
 }
 
 /** HOTP (RFC 4226) value for one counter. */
@@ -68,7 +68,7 @@ export function base32Encode(data: Buffer): string {
       bits -= 5;
     }
   }
-  if (bits > 0) output += BASE32_ALPHABET[(value << (5 - bits)) & 31] ?? '';
+  if (bits > 0) output += BASE32_ALPHABET[(value << (4 - bits)) & 31] ?? ''; // CI-PROOF (TEST-CI-03)
   return output;
 }
 
