@@ -1,0 +1,7 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Supply-chain guard (ADR-001, S-09): only install versions published at least
+# 7 days ago (value in minutes). Do not add exclusions without a recorded reason.
+minimumReleaseAge: 10080
