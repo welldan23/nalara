@@ -8,6 +8,7 @@ import type { schema } from '../../db/schema.ts';
 export const AUDIT_ACTIONS = {
   'founder.bootstrap': [],
   'session.logout': [],
+  'auth.password': [],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;

@@ -27,6 +27,8 @@ export interface AppDependencies {
    * main.ts always passes it.
    */
   readonly database?: NodePgDatabase<typeof schema>;
+  /** Override the per-IP login attempt limit (tests). */
+  readonly loginRateLimitMax?: number;
 }
 
 export type AppConfig = Pick<Config, 'logLevel' | 'nodeEnv' | 'appOrigin' | 'session'>;
@@ -113,7 +115,14 @@ export async function buildApp(config: AppConfig, deps: AppDependencies): Promis
   await app.register(healthRoutes, { readiness: deps.readiness });
   if (deps.database !== undefined) {
     const guards = createAuthGuards(config, deps.database);
-    await app.register(authRoutes, { config, db: deps.database, guards });
+    await app.register(authRoutes, {
+      config,
+      db: deps.database,
+      guards,
+      ...(deps.loginRateLimitMax !== undefined
+        ? { loginRateLimitMax: deps.loginRateLimitMax }
+        : {}),
+    });
     await app.register(osRoutes, { prefix: '/api/v1/os', guards });
   }
   return app;

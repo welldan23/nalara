@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDatabase } from '../../src/db/client.ts';
 import { MIGRATIONS_TABLE, migrate, migrationStatus } from '../../src/db/migrate.ts';
 import { databaseReadiness } from '../../src/db/readiness.ts';
-import { auditEvents, sessions, users } from '../../src/db/schema.ts';
+import { auditEvents, loginChallenges, sessions, users } from '../../src/db/schema.ts';
 import {
   connect,
   createTestDatabase,
@@ -87,6 +87,7 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
       );
       expect(tables.rows.map((row) => row.table_name)).toEqual([
         'audit_events',
+        'login_challenges',
         MIGRATIONS_TABLE,
         'sessions',
         'users',
@@ -162,15 +163,15 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
     it('rejects a new migration numbered below the latest applied one', async () => {
       await freshDatabase(async (client) => {
         const dir = await copyMigrations();
-        await writeFile(join(dir, '0003_later.sql'), 'SELECT 1;');
+        await writeFile(join(dir, '9003_later.sql'), 'SELECT 1;');
         await migrate(client, dir);
-        await writeFile(join(dir, '0002_backfilled.sql'), 'SELECT 1;');
-        await expect(migrate(client, dir)).rejects.toThrow(/older than applied 0003/);
+        await writeFile(join(dir, '9002_backfilled.sql'), 'SELECT 1;');
+        await expect(migrate(client, dir)).rejects.toThrow(/older than applied 9003/);
       });
     });
 
     it('keeps the Drizzle schema in sync with the migrated database', async () => {
-      for (const table of [users, sessions, auditEvents]) {
+      for (const table of [users, sessions, loginChallenges, auditEvents]) {
         const { name, columns } = getTableConfig(table);
         const actual = await migrator.query<{ column_name: string; is_nullable: string }>(
           `SELECT column_name, is_nullable FROM information_schema.columns
@@ -317,16 +318,16 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
     it('rolls back a failing migration completely', async () => {
       const dir = await copyMigrations();
       await writeFile(
-        join(dir, '0002_broken.sql'),
+        join(dir, '9002_broken.sql'),
         'CREATE TABLE half_done (id int);\nSELECT * FROM table_that_does_not_exist;\n',
       );
       await expect(migrate(migrator, dir)).rejects.toThrow(
-        /0002_broken\.sql failed and was rolled back/,
+        /9002_broken\.sql failed and was rolled back/,
       );
       const leftover = await migrator.query(`SELECT to_regclass('half_done') AS t`);
       expect(leftover.rows[0]).toEqual({ t: null });
       const status = await migrationStatus(migrator, dir);
-      expect(status.pending).toEqual(['0002_broken.sql']);
+      expect(status.pending).toEqual(['9002_broken.sql']);
     });
   });
 

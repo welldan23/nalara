@@ -155,4 +155,24 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Catatan: TEST-CSRF-07 tanpa body diterima (204) karena origin dan token valid. Serangan form `text/plain` lintas situs sudah diblok oleh cek origin.
 - Founder decision: PENDING
 
-**Next ticket:** P0-008 — Password login (urutan D-02).
+### P0-008 — Password login
+- Commit SHA: lihat PR `feat/P00-008-password-login`
+- Changed files: `db/migrations/0002_login_challenges_and_lockout.sql`, `apps/api/src/db/schema.ts`, `apps/api/src/modules/auth/login.ts`, `apps/api/src/routes/auth.ts`, `apps/api/src/app.ts`, `apps/api/src/lib/errors.ts` (`INVALID_CREDENTIALS`), `apps/api/src/modules/audit/audit.ts` (`auth.password`), `apps/api/tests/integration/{login.test.ts,db.test.ts}`
+- Perilaku:
+  - `POST /api/v1/auth/login {email, password}`: rate limit 10/menit/IP (lebih ketat dari global), ditolak bila cross-origin (login CSRF).
+  - Email tak terdaftar, password salah, dan akun terkunci → **respons identik** (`401 INVALID_CREDENTIALS`) dan **biaya sama** (satu verifikasi Argon2, termasuk dummy hash untuk email tak dikenal).
+  - Penghitung gagal per akun di DB, dinaikkan secara atomik di SQL. ≥ 5 kali → terkunci 15 menit (password benar pun ditolak). Login sukses mereset penghitung.
+  - Sukses → **bukan sesi**, hanya challenge sekali pakai 5 menit (`__Host-nalara_challenge`, HttpOnly, Secure, SameSite=Strict). Scope `enrolment` bila MFA belum aktif, `mfa` bila sudah. Challenge lama yang belum terpakai dibatalkan.
+  - Audit `auth.password` (success/failure/denied) tanpa password dan tanpa email yang dicoba.
+- Migrasi 0002: tabel `login_challenges` (hash token, scope, expiry, used_at) + kolom `users.failed_login_attempts`, `users.locked_until`. Grant untuk `nalara_app`.
+- Tests run: `pnpm run check` (PostgreSQL 18.6) → PASS **162/162**. `login.test.ts` dijalankan 3× berturut-turut, stabil
+  - TEST-AUTH-01: cookie challenge saja (0 baris `sessions`), token tidak ada di body, challenge tidak berlaku sebagai sesi (401), scope `mfa` setelah MFA aktif, challenge lama dibatalkan, email case-insensitive
+  - TEST-AUTH-02: 401 generik, penghitung +1 · TEST-AUTH-03: unknown = wrong (status, body, dan timing ≥ 40%) · TEST-AUTH-04: kosong → 400 · TEST-AUTH-05: 2000 karakter → 400, 500 karakter → 401 · TEST-AUTH-06: NFD ≡ NFC
+  - TEST-AUTH-07: terkunci setelah 5 gagal, buka setelah expiry dan reset. Rate limit per IP → 429
+  - TEST-AUTH-08: 8 percobaan paralel → `failure + denied = 8` dan penghitung = jumlah `failure` (tidak ada lost update)
+  - TEST-AUTH-09: audit lengkap tanpa password atau email asing
+- Catatan desain tes: TEST-AUTH-08 sengaja memeriksa invarian "tidak ada update yang hilang", bukan angka tetap, karena percobaan yang datang setelah akun terkunci memang tidak dihitung
+- Security review: PASS
+- Founder decision: PENDING
+
+**Next ticket:** P0-009 — MFA enrolment & recovery (urutan D-02).

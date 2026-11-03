@@ -1,7 +1,16 @@
 // Drizzle table definitions for typed queries. The SQL in db/migrations is the source of truth
 // (ADR-010); tests/integration/db.test.ts fails if these definitions drift from the database.
 import { sql } from 'drizzle-orm';
-import { boolean, customType, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  customType,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
 
@@ -13,6 +22,8 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   role: text('role', { enum: ['founder'] }).notNull(),
   mfaEnabled: boolean('mfa_enabled').notNull().default(false),
+  failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -31,6 +42,20 @@ export const sessions = pgTable('sessions', {
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
 });
 
+export const loginChallenges = pgTable('login_challenges', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  tokenHash: bytea('token_hash').notNull(),
+  scope: text('scope', { enum: ['enrolment', 'mfa'] }).notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const auditEvents = pgTable('audit_events', {
   id: uuid('id')
     .primaryKey()
@@ -46,4 +71,4 @@ export const auditEvents = pgTable('audit_events', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const schema = { users, sessions, auditEvents };
+export const schema = { users, sessions, loginChallenges, auditEvents };
