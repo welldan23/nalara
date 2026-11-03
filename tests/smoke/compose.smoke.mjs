@@ -7,7 +7,7 @@
 // so it never touches a real deployment.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -476,6 +476,38 @@ try {
         { encoding: 'utf8', env: directEnv },
       );
       assert(login.stdout === '200', `login through the proxy answered ${login.stdout}`);
+    },
+  );
+
+  await check(
+    'RUNBOOK',
+    'encrypted backup runs against the hardened production database',
+    async () => {
+      const keyFile = join(workDir, 'backup.key');
+      execFileSync('age-keygen', ['-o', keyFile], { stdio: 'pipe' });
+      const pubFile = join(workDir, 'backup.pub');
+      writeFileSync(pubFile, execFileSync('age-keygen', ['-y', keyFile], { encoding: 'utf8' }));
+      const backupDir = join(workDir, 'backups');
+      const result = spawnSync('bash', [join(root, 'infra/scripts/backup.sh')], {
+        cwd: root,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          AGE_RECIPIENTS_FILE: pubFile,
+          BACKUP_DIR: backupDir,
+          PG_EXEC: ['docker', ...compose('exec', '-T', 'db')].join(' '),
+        },
+      });
+      assert(result.status === 0, `backup.sh failed: ${result.stderr}`);
+      const verify = spawnSync('age', [
+        '--decrypt',
+        '--identity',
+        keyFile,
+        '--output',
+        '/dev/null',
+        join(backupDir, readdirSync(backupDir)[0] ?? 'missing'),
+      ]);
+      assert(verify.status === 0, 'backup does not decrypt with its key');
     },
   );
 

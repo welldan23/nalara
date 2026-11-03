@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:e2e": "node tests/e2e/web.e2e.mjs",
     "test:compose": "node tests/smoke/compose.smoke.mjs",
+    "test:backup": "node tests/smoke/backup.smoke.mjs",
     "build": "pnpm -r --if-present run build",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build"
   },

@@ -165,3 +165,19 @@ describe('TEST-REPO-10 documentation paths resolve', () => {
     expect(broken).toEqual([]);
   });
 });
+
+describe('ops scripts', () => {
+  it('are committed as executable files with strict bash settings', () => {
+    const entries = git('ls-files', '-s', 'infra/scripts')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => line.split(/\s+/));
+    expect(entries.length).toBeGreaterThanOrEqual(4);
+    for (const [mode, , , path = ''] of entries) {
+      expect(mode, path).toBe('100755');
+      const text = readFileSync(join(root, path), 'utf8');
+      expect(text.startsWith('#!/usr/bin/env bash'), path).toBe(true);
+      expect(text, path).toContain('set -euo pipefail');
+    }
+  });
+});
