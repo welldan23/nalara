@@ -144,6 +144,7 @@ describe.skipIf(!databaseAvailable)('founder bootstrap CLI', { timeout: 60_000 }
         nodeEnv: 'test',
         appOrigin: 'http://localhost:3000',
         session: { cookieName: '__Host-nalara_session', secret: 'x'.repeat(40) },
+        mfaEncryptionKey: Buffer.alloc(32, 7),
       },
       { readiness: () => Promise.resolve(true) },
     );

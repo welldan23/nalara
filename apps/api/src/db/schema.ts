@@ -2,6 +2,7 @@
 // (ADR-010); tests/integration/db.test.ts fails if these definitions drift from the database.
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   customType,
   integer,
@@ -24,6 +25,8 @@ export const users = pgTable('users', {
   mfaEnabled: boolean('mfa_enabled').notNull().default(false),
   failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
   lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  totpSecretEnc: bytea('totp_secret_enc'),
+  totpLastStep: bigint('totp_last_step', { mode: 'number' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -54,6 +57,20 @@ export const loginChallenges = pgTable('login_challenges', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  pendingTotpSecretEnc: bytea('pending_totp_secret_enc'),
+  failedAttempts: integer('failed_attempts').notNull().default(0),
+});
+
+export const recoveryCodes = pgTable('recovery_codes', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  codeHash: bytea('code_hash').notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const auditEvents = pgTable('audit_events', {
@@ -71,4 +88,4 @@ export const auditEvents = pgTable('audit_events', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const schema = { users, sessions, loginChallenges, auditEvents };
+export const schema = { users, sessions, loginChallenges, recoveryCodes, auditEvents };

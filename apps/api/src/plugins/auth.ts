@@ -21,7 +21,7 @@ declare module 'fastify' {
   }
 }
 
-export type AuthConfig = Pick<Config, 'appOrigin' | 'session' | 'nodeEnv'>;
+export type AuthConfig = Pick<Config, 'appOrigin' | 'session' | 'nodeEnv' | 'mfaEncryptionKey'>;
 
 export interface AuthGuards {
   readonly requireFounder: preHandlerAsyncHookHandler;

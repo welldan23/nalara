@@ -9,6 +9,9 @@ export const AUDIT_ACTIONS = {
   'founder.bootstrap': [],
   'session.logout': [],
   'auth.password': [],
+  'auth.mfa': ['method'],
+  'mfa.enrol': [],
+  'mfa.recovery_rotate': [],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;

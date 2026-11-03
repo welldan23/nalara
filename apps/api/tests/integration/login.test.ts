@@ -31,6 +31,7 @@ const config: AppConfig = {
   nodeEnv: 'test',
   appOrigin: ORIGIN,
   session: { cookieName: '__Host-nalara_session', secret: 'test-session-secret-'.padEnd(40, 'a') },
+  mfaEncryptionKey: Buffer.alloc(32, 7),
 };
 
 describe.skipIf(!databaseAvailable)('password login', { timeout: 120_000 }, () => {
@@ -69,7 +70,7 @@ describe.skipIf(!databaseAvailable)('password login', { timeout: 120_000 }, () =
 
   beforeEach(async () => {
     await admin.query(
-      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL, mfa_enabled = false',
+      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL, mfa_enabled = false, totp_secret_enc = NULL',
     );
   });
 
@@ -133,7 +134,8 @@ describe.skipIf(!databaseAvailable)('password login', { timeout: 120_000 }, () =
     });
 
     it('asks for an MFA code once MFA is enabled', async () => {
-      await admin.query('UPDATE users SET mfa_enabled = true');
+      // The password step needs no real secret; the schema only requires one when MFA is on.
+      await admin.query(`UPDATE users SET mfa_enabled = true, totp_secret_enc = '\\x01'::bytea`);
       const response = await login(EMAIL, PASSWORD);
       expect(response.json<{ next: string }>().next).toBe('mfa');
     });
