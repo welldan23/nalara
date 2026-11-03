@@ -44,4 +44,19 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Known issues: K-10 (nama file `middleware.ts` vs `proxy.ts` di Next 16) diverifikasi di P0-011. Telemetri Next.js aktif secara default (cara mematikan ada di README)
 - Founder decision: PENDING
 
-**Next ticket:** P0-014a — CI dasar (sesuai urutan D-02).
+### P0-014a — CI baseline
+- Commit SHA: lihat PR `feat/P00-014a-ci-baseline`
+- Changed files: `.github/workflows/ci.yml`, `tests/repo/ci.test.ts`, `docs/phase-0/PROGRESS.md`
+- Isi workflow: job `check` (install `--frozen-lockfile` → format → lint → typecheck → test → build, Node dari `.nvmrc`, pnpm via Corepack) dan job `secret-scan` (gitleaks 8.30.1, checksum SHA-256 diverifikasi, scan seluruh riwayat). `permissions: contents: read`, `persist-credentials: false`, trigger `pull_request` + `push` ke `main`, tanpa `pull_request_target`
+- Action dipin SHA: `actions/checkout` v7.0.1 `3d3c42e5aac5ba805825da76410c181273ba90b1` · `actions/setup-node` v7.1.0 `949feb2413d6458794dcd2491c4babbbce0c15c1` (keduanya ≥ 7 hari)
+- Tests run (lokal):
+  - `actionlint 1.7.12` (binary, checksum diverifikasi) → PASS (0 temuan)
+  - `pnpm run check` → PASS, **21/21** tes (7 tes baru untuk hardening workflow)
+  - `gitleaks git` ke seluruh riwayat repo → `no leaks found` (10 commit)
+- Negative tests: action tanpa pin SHA + `pull_request_target` + `contents: write` → 3 tes ✗ · token GitHub palsu di repo probe → gitleaks `leaks found: 1`, exit 1
+- CI di GitHub: lihat status check di PR (diverifikasi setelah run selesai)
+- Security review: PASS (token read-only, kredensial checkout tidak disimpan, tanpa action pihak ketiga selain milik `actions/*`, binary gitleaks diverifikasi checksum)
+- Known issues: required status check di branch protection `main` harus ditambahkan founder (Settings), karena tidak bisa dari sesi ini. Uji "CI merah pada kode rusak" di GitHub dilakukan di P0-014b
+- Founder decision: PENDING
+
+**Next ticket:** P0-004 — Environment validation (urutan D-02).
