@@ -9,7 +9,7 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Result: PASS (dokumen baseline lengkap: path, branch, versi runtime, gap, risiko)
 - Security review: PASS (secret scan tanpa temuan, tanpa perubahan kode)
 - Manual validation: NOT RUN (menunggu review founder)
-- Known issues: default branch GitHub masih `master` (langkah manual founder, `BASELINE.md` §8). 16 konflik spesifikasi menunggu keputusan (`BASELINE.md` §4)
+- Known issues: default branch GitHub sudah `main` (terverifikasi). `master` belum dihapus dan branch protection belum aktif (`BASELINE.md` §8). 16 konflik spesifikasi menunggu keputusan (`BASELINE.md` §4)
 - Founder decision: PENDING
 
 **Next ticket:** P0-002 — ADR, baru dimulai setelah founder menyetujui `ADR-PROPOSALS.md` dan urutan tiket (`BASELINE.md` §6.1).

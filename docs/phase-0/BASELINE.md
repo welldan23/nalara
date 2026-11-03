@@ -19,7 +19,7 @@
 
 - Repo masih **greenfield**: belum ada kode aplikasi, `package.json`, lockfile, CI, `.gitignore`, `README.md`, atau `.env`.
 - Isi repo saat ini hanya 10 Claude Code skill pihak ketiga di `.claude/skills/` (163 file, ±596 KB, semuanya Markdown, tanpa script). Asal dan lisensinya tercatat di `.claude/skills/SOURCES.md`.
-- Branch `master` sudah dimigrasikan ke `main` (commit sama persis). **Default branch di GitHub masih `master`** dan perlu diganti manual oleh founder (§8).
+- Branch `master` sudah dimigrasikan ke `main` (commit sama persis), dan default branch GitHub sudah `main` (terverifikasi, §8). `master` masih ada dan menunggu persetujuan untuk dihapus.
 - Lingkungan cloud session ini sanggup menjalankan hampir semua tes Phase 0 (Node, pnpm, Docker, PostgreSQL client). Pengecualiannya tes OPS yang butuh VPS dan domain asli.
 - Ditemukan **16 konflik/ambiguitas spesifikasi** (§4). Lima di antaranya perlu diputuskan founder **sebelum P0-003**: K-01, K-03, K-04, K-11, dan K-14.
 
@@ -29,7 +29,7 @@
 |---|---|
 | Branch lokal | `main` (tracking `origin/main`), `master` (tracking `origin/master`) |
 | Branch remote | `main` dan `master`, keduanya di `5ddf36b` |
-| Default branch GitHub (`HEAD`) | `refs/heads/master`, **perlu diubah ke `main`** |
+| Default branch GitHub (`HEAD`) | `refs/heads/master` saat audit, sekarang `refs/heads/main` (§8) |
 | Riwayat commit | `4645f81` (skill gelombang 1), `5ddf36b` (skill gelombang 2) |
 | Worktree | Bersih sebelum audit (tidak ada perubahan atau file untracked) |
 | File yang ter-track | 163, semuanya di `.claude/skills/**` |
@@ -90,7 +90,7 @@ Prioritas: **Blocker** = harus diputuskan sebelum tiket terkait mulai · **Major
 |---|---|---|---|---|
 | S-01 | Bypass MFA lewat alur login pertama (K-14) | High | Enrolment-scoped challenge + tes negatif `/os/*` dengan challenge | P0-008, P0-009 |
 | S-02 | `.env` ter-commit karena `.gitignore` belum ada | High (sampai P0-003) | `.gitignore` jadi file pertama di P0-003 + secret scan di CI | P0-003, P0-014 |
-| S-03 | Default branch masih `master` dan belum ada branch protection, jadi PR bisa salah target atau push langsung ke `main` | Medium | Founder ganti default branch + aktifkan protection (§8) | Founder |
+| S-03 | Belum ada branch protection di `main`, jadi push langsung atau force push masih bisa (default branch sudah `main`) | Medium | Founder aktifkan protection (§8 langkah 2) | Founder |
 | S-04 | Audit "append-only" hanya di level aplikasi | Medium | Role DB terpisah: `nalara_migrator` (DDL) dan `nalara_app` (tanpa `UPDATE`/`DELETE` di `audit_events`) | P0-005 |
 | S-05 | Rate limit in-memory reset saat restart (tidak ada Redis, DEC-008) | Medium | Rate limit IP in-memory + penghitung kegagalan per akun di PostgreSQL | P0-008 |
 | S-06 | Kunci enkripsi TOTP (`MFA_ENCRYPTION_KEY`) hilang = founder terkunci, bocor = MFA tidak berarti | Medium | AES-256-GCM, key hanya di env runtime, prosedur rotasi, recovery code | P0-009 |
@@ -196,11 +196,11 @@ Jangan pernah mengirim password, recovery code, SSH private key, atau token lewa
 | Push `main` + set upstream | PASS | `* [new branch] main -> main` · `branch 'main' set up to track 'origin/main'` |
 | Verifikasi SHA identik | PASS | local `main` = `origin/main` = `origin/master` = `5ddf36b64991e4aed7de2e49c3575bdc20464cad` |
 | Riwayat commit utuh | PASS | `git log main`: `5ddf36b`, `4645f81` |
-| Ganti default branch GitHub ke `main` | **NOT RUN**: tidak ada tool untuk mengubah setting repo dari sesi ini | `git ls-remote --symref origin HEAD` → `ref: refs/heads/master` |
-| Hapus `master` | **NOT RUN (disengaja)**: tunggu default branch terverifikasi | — |
+| Ganti default branch GitHub ke `main` | **PASS**: diubah manual oleh founder di Settings, lalu diverifikasi | Sebelum: `ref: refs/heads/master HEAD` · Sesudah: `git ls-remote --symref https://github.com/welldan23/nalara HEAD` → `ref: refs/heads/main HEAD` |
+| Hapus `master` | **NOT RUN (disengaja)**: menunggu persetujuan eksplisit founder | — |
 
 **Langkah manual founder:**
-1. GitHub → `welldan23/nalara` → **Settings → General → Default branch** → ganti ke `main` → konfirmasi.
+1. ~~GitHub → `welldan23/nalara` → **Settings → General → Default branch** → ganti ke `main` → konfirmasi.~~ Selesai dan terverifikasi.
 2. (Disarankan) **Settings → Branches → Add branch protection rule** untuk `main`: wajib PR, wajib CI hijau (setelah P0-014a), larang force push dan delete.
 3. Setelah dua langkah di atas, `master` bisa dihapus lewat PR/arahan terpisah. Claude akan memverifikasi `HEAD` remote menunjuk `main` dulu.
 
