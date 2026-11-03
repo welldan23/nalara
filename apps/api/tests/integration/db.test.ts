@@ -8,6 +8,7 @@ import type pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDatabase } from '../../src/db/client.ts';
 import { MIGRATIONS_TABLE, migrate, migrationStatus } from '../../src/db/migrate.ts';
+import { databaseReadiness } from '../../src/db/readiness.ts';
 import { auditEvents, sessions, users } from '../../src/db/schema.ts';
 import {
   connect,
@@ -187,6 +188,24 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
     });
   });
 
+  describe('readiness (feeds /health/ready)', () => {
+    it('is false until migrations are applied, then true', async () => {
+      const extra = await createTestDatabase();
+      const { pool, close } = createDatabase(extra.appUrl, { max: 1 });
+      const migratorClient = await connect(extra.migratorUrl);
+      try {
+        const ready = databaseReadiness(pool, MIGRATIONS_DIR);
+        expect(await ready()).toBe(false);
+        await migrate(migratorClient, MIGRATIONS_DIR);
+        expect(await ready()).toBe(true);
+      } finally {
+        await migratorClient.end();
+        await close();
+        await extra.drop();
+      }
+    });
+  });
+
   describe('TEST-DB-05 unique founder email', () => {
     it('allows exactly one founder with a lowercase, unique email', async () => {
       const { db, close } = createDatabase(database.appUrl, { max: 1 });
@@ -275,10 +294,22 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
       ).toBe('23514');
     });
 
-    it('gives the app role no DDL and no access to migration bookkeeping', async () => {
+    it('gives the app role no DDL and read-only migration bookkeeping', async () => {
       expect(await sqlState(app.query(`CREATE TABLE intruder (id int)`))).toBe('42501');
-      expect(await sqlState(app.query(`SELECT * FROM ${MIGRATIONS_TABLE}`))).toBe('42501');
       expect(await sqlState(app.query(`DROP TABLE users`))).toBe('42501');
+      // Readable for /health/ready, never writable.
+      expect(await sqlState(app.query(`SELECT version FROM ${MIGRATIONS_TABLE}`))).toBeUndefined();
+      expect(await sqlState(app.query(`DELETE FROM ${MIGRATIONS_TABLE}`))).toBe('42501');
+      expect(
+        await sqlState(
+          app.query(
+            `INSERT INTO ${MIGRATIONS_TABLE} (version, filename, sha256) VALUES ('9998', 'x', 'y')`,
+          ),
+        ),
+      ).toBe('42501');
+      expect(await sqlState(app.query(`UPDATE ${MIGRATIONS_TABLE} SET sha256 = 'tampered'`))).toBe(
+        '42501',
+      );
     });
   });
 

@@ -11,6 +11,8 @@ import { join } from 'node:path';
 import type { ClientBase } from 'pg';
 
 export const MIGRATIONS_TABLE = 'nalara_schema_migrations';
+/** Application role from ADR-003; gets read-only access to migration bookkeeping. */
+export const APP_ROLE = 'nalara_app';
 const FILENAME_PATTERN = /^(\d{4})_[a-z0-9_]+\.sql$/;
 // Arbitrary constant: "NALARA" spelled as digits; only needs to be stable and unique to us.
 const ADVISORY_LOCK_KEY = 6_225_272_172;
@@ -67,6 +69,8 @@ async function ensureTable(client: ClientBase): Promise<void> {
     sha256     text NOT NULL,
     applied_at timestamptz NOT NULL DEFAULT now()
   )`);
+  // The API (nalara_app) must read this table for /health/ready, but never change it.
+  await client.query(`GRANT SELECT ON ${MIGRATIONS_TABLE} TO ${APP_ROLE}`);
 }
 
 async function readApplied(client: ClientBase): Promise<AppliedRow[]> {

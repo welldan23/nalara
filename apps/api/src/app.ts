@@ -1,0 +1,123 @@
+// Fastify application factory (P0-006, ADR-002). Pure construction: no listening, no global
+// state, so tests can build an instance per case and use app.inject().
+import rateLimit from '@fastify/rate-limit';
+import Fastify, { LogController } from 'fastify';
+import type { FastifyError, FastifyInstance } from 'fastify';
+import type { Config } from './config/env.ts';
+import { AppError, ERROR_CODES, errorBody } from './lib/errors.ts';
+import type { ErrorCode } from './lib/errors.ts';
+import { REQUEST_ID_HEADER, requestIdFrom } from './lib/request-id.ts';
+import { healthRoutes } from './routes/health.ts';
+
+export interface AppDependencies {
+  /** True only when the database answers and every migration is applied. */
+  readonly readiness: () => Promise<boolean>;
+  /** Log destination; defaults to stdout. Tests pass a capture stream. */
+  readonly logStream?: NodeJS.WritableStream;
+  /** Requests per window per client IP across the API. */
+  readonly rateLimitMax?: number;
+}
+
+export const BODY_LIMIT_BYTES = 16 * 1024;
+export const REQUEST_TIMEOUT_MS = 10_000;
+export const READINESS_TIMEOUT_MS = 2_000;
+
+/** Header, cookie and body fields that must never reach the logs. */
+export const LOG_REDACT_PATHS = [
+  'req.headers.authorization',
+  'req.headers.cookie',
+  'req.headers["x-csrf-token"]',
+  'res.headers["set-cookie"]',
+  '*.password',
+  '*.token',
+  '*.secret',
+  '*.totp',
+  '*.recoveryCode',
+];
+
+export async function buildApp(
+  config: Pick<Config, 'logLevel' | 'nodeEnv'>,
+  deps: AppDependencies,
+): Promise<FastifyInstance> {
+  const app = Fastify({
+    logger: {
+      level: config.logLevel,
+      redact: { paths: LOG_REDACT_PATHS, censor: '[REDACTED]' },
+      serializers: {
+        // Path only: query strings can carry tokens. Bodies are never logged.
+        req: (req: { method: string; url: string; id: string }) => ({
+          method: req.method,
+          path: req.url.split('?')[0],
+          requestId: req.id,
+        }),
+        res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
+      },
+      ...(deps.logStream !== undefined ? { stream: deps.logStream } : {}),
+    },
+    genReqId: (req) => requestIdFrom(req.headers[REQUEST_ID_HEADER]),
+    logController: new LogController({ requestIdLogLabel: 'requestId' }),
+    bodyLimit: BODY_LIMIT_BYTES,
+    requestTimeout: REQUEST_TIMEOUT_MS,
+    return503OnClosing: true,
+    // Direct exposure is never expected; the proxy trust list is set in P0-013 (ADR-006).
+    trustProxy: false,
+  });
+
+  // JSON only (ADR-004): drop Fastify's default text/plain parser so anything else is 415.
+  app.removeContentTypeParser('text/plain');
+
+  await app.register(rateLimit, {
+    global: true,
+    max: deps.rateLimitMax ?? 300,
+    timeWindow: '1 minute',
+    errorResponseBuilder: () => new AppError('RATE_LIMITED'),
+  });
+
+  app.addHook('onSend', async (request, reply) => {
+    reply.header(REQUEST_ID_HEADER, request.id);
+    reply.header('x-content-type-options', 'nosniff');
+    reply.header('cache-control', 'no-store');
+  });
+
+  app.setNotFoundHandler((request, reply) => {
+    void reply.code(404).send(errorBody('NOT_FOUND', request.id));
+  });
+
+  app.setErrorHandler((error: FastifyError | AppError, request, reply) => {
+    const code = classify(error);
+    const status = ERROR_CODES[code].status;
+    if (status >= 500) {
+      request.log.error(
+        { err: { type: error.name, code: (error as FastifyError).code } },
+        'request failed',
+      );
+    }
+    const fields = error instanceof AppError ? error.fields : undefined;
+    void reply.code(status).send(errorBody(code, request.id, fields));
+  });
+
+  await app.register(healthRoutes, { readiness: deps.readiness });
+  return app;
+}
+
+function classify(error: FastifyError | AppError): ErrorCode {
+  if (error instanceof AppError) return error.code;
+  switch (error.code) {
+    case 'FST_ERR_CTP_BODY_TOO_LARGE':
+      return 'PAYLOAD_TOO_LARGE';
+    case 'FST_ERR_CTP_INVALID_MEDIA_TYPE':
+      return 'UNSUPPORTED_MEDIA_TYPE';
+    case 'FST_ERR_CTP_EMPTY_JSON_BODY':
+    case 'FST_ERR_CTP_INVALID_JSON_BODY':
+      return 'INVALID_JSON';
+    case 'FST_ERR_VALIDATION':
+      return 'VALIDATION_FAILED';
+    default:
+      break;
+  }
+  if (error instanceof SyntaxError || error.statusCode === 400) return 'BAD_REQUEST';
+  if (error.statusCode === 413) return 'PAYLOAD_TOO_LARGE';
+  if (error.statusCode === 415) return 'UNSUPPORTED_MEDIA_TYPE';
+  if (error.statusCode === 429) return 'RATE_LIMITED';
+  return 'INTERNAL';
+}
