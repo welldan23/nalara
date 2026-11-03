@@ -26,6 +26,7 @@ Jangan pernah menulis password, recovery code, private key, atau token di file i
 | D-19 | 2026-11-04 | Rencana Phase 1 (revisi 2) dan ADR-011..019 | **Disetujui** | Founder: "yaudah lanjutin bro" sebagai jawaban atas 4 pertanyaan (opsi "setuju semua") | ADR dipindah ke `docs/adr/` saat tiket pertama memakainya | ADR pengganti | [ADR-PROPOSALS](../phase-1/ADR-PROPOSALS.md) |
 | D-20 | 2026-11-04 | Acuan Phase 1 | **PRD v4 ringkas**, dengan pengecualian: tetap API Fastify (ADR-018) dan skema Phase 0 (ADR-009) | Pekerjaan Phase 0 yang sudah teruji dipertahankan | PRD v3 tetap disimpan sebagai riwayat | Entri baru di register ini | [PRD v4](../prd/NALARA_PRD_v4_ringkas.md) |
 | D-21 | 2026-11-04 | Validasi pembaca vs pembangunan CMS | **Paralel**: founder menjalankan validasi (PRD v4 §2), Claude mengerjakan P1-01..P1-09. Soft launch menunggu hasil validasi | Artikel validasi dipakai ulang sebagai konten awal | Target validasi (R-07) ditentukan founder | Hentikan pembangunan bila validasi gagal | KP1-21 |
+| D-22 | 2026-11-04 | Logo NALARA | **Beringin tiga lapis** (foto profil IG "NALARA Media") untuk semua lini NALARA; wordmark `NALARA` tetap untuk masthead | Pilihan founder | Butuh versi vektor sederhana untuk ukuran kecil. Domain `nalara.media` **belum** dibeli (tetap D-08) | Entri baru di register ini | [docs/brand](../brand/README.md) |
 
 ## Keputusan yang masih OPEN
 
