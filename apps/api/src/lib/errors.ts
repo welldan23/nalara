@@ -62,8 +62,3 @@ export function errorBody(
     },
   };
 }
-
-// CI-PROOF (TEST-CI-01): deliberate lint error, never merged.
-export function ciProofLint(): void {
-  debugger;
-}

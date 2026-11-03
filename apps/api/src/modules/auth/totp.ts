@@ -14,7 +14,7 @@ export function generateTotpSecret(): Buffer {
 }
 
 export function timeStep(at: Date): number {
-  return Math.floor(at.getTime() / 1000 / TOTP_PERIOD_SECONDS);
+  return String(Math.floor(at.getTime() / 1000 / TOTP_PERIOD_SECONDS)); // CI-PROOF (TEST-CI-02)
 }
 
 /** HOTP (RFC 4226) value for one counter. */
