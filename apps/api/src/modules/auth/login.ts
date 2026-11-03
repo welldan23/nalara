@@ -86,7 +86,8 @@ export async function attemptPasswordLogin(
       .update(users)
       .set({
         failedLoginAttempts: sql`${users.failedLoginAttempts} + 1`,
-        lockedUntil: sql`CASE WHEN ${users.failedLoginAttempts} + 1 >= ${MAX_FAILED_ATTEMPTS}
+        // CI-PROOF (TEST-CI-04): off-by-one in the lockout SQL, only visible against a real database.
+        lockedUntil: sql`CASE WHEN ${users.failedLoginAttempts} + 1 > ${MAX_FAILED_ATTEMPTS}
           THEN ${new Date(now.getTime() + LOCKOUT_MS)}::timestamptz ELSE ${users.lockedUntil} END`,
       })
       .where(eq(users.id, user.id));

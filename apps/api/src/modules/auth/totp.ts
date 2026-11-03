@@ -68,7 +68,7 @@ export function base32Encode(data: Buffer): string {
       bits -= 5;
     }
   }
-  if (bits > 0) output += BASE32_ALPHABET[(value << (4 - bits)) & 31] ?? ''; // CI-PROOF (TEST-CI-03)
+  if (bits > 0) output += BASE32_ALPHABET[(value << (5 - bits)) & 31] ?? '';
   return output;
 }
 
