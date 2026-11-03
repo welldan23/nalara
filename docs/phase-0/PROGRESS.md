@@ -258,4 +258,21 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Security review: PASS
 - Founder decision: PENDING
 
-**Next ticket:** P0-015 — Backup & recovery (urutan D-02).
+### P0-015 — Backup & recovery
+- Commit SHA: lihat PR `feat/P00-015-backup-restore`
+- Changed files: `infra/scripts/{backup.sh,restore.sh,prune.sh,check-backup-age.sh}`, `docs/runbooks/backup-restore.md`, `tests/smoke/backup.smoke.mjs`, `tests/smoke/compose.smoke.mjs`, `tests/repo/repo.test.ts`, `package.json` (`test:backup`)
+- Perilaku (ADR-007):
+  - **backup.sh**: `pg_dump -Fc` di dalam container db di-*stream* langsung ke `age` dengan **kunci publik saja**. Dump tanpa enkripsi tidak pernah menyentuh disk. Ditulis atomik (`.partial` → rename). File `0600` di direktori `0700`.
+  - **restore.sh**: verifikasi penuh arsip lebih dulu (dekripsi ke `/dev/null`). Kunci salah, arsip korup, atau tamper → exit 2 tanpa membuat apa pun. Restore hanya ke **container baru tanpa jaringan** (`--network none`) dengan dekripsi *stream* ke `pg_restore --single-transaction` (tanpa plaintext di disk). Gagal → container dihapus otomatis. Tidak pernah menyentuh DB produksi.
+  - **prune.sh**: 7 harian + 4 mingguan (ISO week). Default dry-run, hapus hanya dengan `--apply`. File yang namanya tidak dikenali tidak pernah dihapus.
+  - **check-backup-age.sh**: exit 1 + `ALERT:` bila tidak ada backup atau backup terbaru lebih dari 26 jam (untuk cron/monitoring).
+  - Runbook: kunci dibuat di mesin founder (privat offline, hanya `.pub` di server), jadwal cron, retensi, latihan restore, prosedur DR (tidak pernah restore di atas DB live, rotasi `SESSION_SECRET`), risiko kehilangan kunci.
+- Tests run:
+  - `pnpm run test:backup` → PASS **10/10**: 01 arsip atomik bernama timestamp · 02 header age, tanpa `PGDMP`/nama tabel/email · 09 izin 0600/0700 · 03 kunci salah → exit 2, tanpa container · 07 arsip korup → exit 2, tanpa container · 04 container baru `--network none`, sumber tidak berubah · 05 tabel, jumlah migrasi, index satu-founder, grant audit identik · 06 data identik · 08 60 hari + duplikat → dry-run tidak menghapus, `--apply` menyisakan tepat 11, file lain aman · 10 alert saat kosong dan saat basi, OK saat segar
+  - `pnpm run test:compose` → PASS **15/15** (tambahan: backup terhadap DB produksi yang read-only dan cap_drop, lalu terverifikasi bisa didekripsi)
+  - `pnpm run check` → PASS **220/220** (tambahan: script ops wajib executable + `set -euo pipefail`)
+- **NOT RUN / gate produksi terbuka:** upload offsite menunggu **D-04**. Sampai itu diputuskan, backup hanya ada di VPS (tercatat di runbook)
+- Security review: PASS
+- Founder decision: PENDING
+
+**Next ticket:** P0-014b — CI lengkap (urutan D-02).
