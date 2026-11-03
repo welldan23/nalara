@@ -374,6 +374,90 @@ try {
     },
   );
 
+  await check('TEST-P1-03', 'review → approve → publish, edit voids approval, gate', async () => {
+    assert(signedIn !== null, 'needs the signed-in page from TEST-WEB-03b');
+    const page = signedIn;
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const statusText = async () =>
+      (await page.locator('.os-content > p.muted').first().textContent()) ?? '';
+    // Match the status word at the start of the line: the slug (e.g. "alur-terbit") must not count.
+    const waitStatus = async (label) => {
+      await page
+        .locator('.os-content > p.muted', { hasText: new RegExp(`^${label} ·`) })
+        .first()
+        .waitFor({ timeout: 10_000 });
+    };
+
+    // A sourced article goes all the way.
+    await page.goto(`${WEB}/os/newsroom/baru`);
+    await page.getByLabel('Judul', { exact: true }).fill('Alur terbit');
+    await page.getByLabel('Ringkasan (dek)').fill('TEST fixture, bukan artikel nyata.');
+    await page.getByLabel('Isi', { exact: true }).fill('## Konteks\n\nIsi TEST fixture.');
+    await page.getByRole('button', { name: 'Tambah sumber' }).click();
+    await page
+      .getByLabel('Sumber 1: URL')
+      .fill('https://www.bps.go.id/id/pressrelease/2026/11/01/alur.html');
+    await page.getByLabel('Penerbit').fill('Badan Pusat Statistik');
+    await page.getByLabel('Sumber primer').check();
+    await page.getByLabel('Sudah dicek').check();
+    await page.getByRole('button', { name: 'Simpan draft' }).click();
+    await page.waitForURL(/\/os\/newsroom\/[0-9a-f-]{36}$/, { timeout: 10_000 });
+
+    await page.getByRole('button', { name: 'Ajukan untuk review' }).click();
+    await waitStatus('Ditinjau');
+
+    // Editing under review sends it back to draft.
+    await page.getByLabel('Judul', { exact: true }).fill('Alur terbit (revisi)');
+    await page.getByRole('button', { name: 'Simpan versi 2' }).click();
+    await page.getByText('Artikel kembali ke draft').waitFor({ timeout: 10_000 });
+    await waitStatus('Draft');
+
+    await page.getByRole('button', { name: 'Ajukan untuk review' }).click();
+    await waitStatus('Ditinjau');
+    await page.getByRole('button', { name: 'Setujui revisi ini' }).click();
+    await waitStatus('Disetujui');
+    await page.getByRole('button', { name: 'Terbitkan' }).click();
+    await waitStatus('Terbit');
+    const history =
+      (await page.locator('section', { hasText: 'Riwayat status' }).textContent()) ?? '';
+    for (const label of ['Diajukan untuk review', 'Disetujui', 'Diterbitkan']) {
+      assert(history.includes(label), `history missing ${label}`);
+    }
+    assert(
+      (await page.getByText('Artikel kembali ke draft').count()) === 0,
+      'a stale "back to draft" notice is still shown after publishing',
+    );
+    assert(
+      await page.getByLabel('Judul', { exact: true }).isDisabled(),
+      'published article is still editable',
+    );
+    await shot(page, '9-published');
+
+    // An unsourced article is blocked by the gate until the founder writes an exception.
+    await page.goto(`${WEB}/os/newsroom/baru`);
+    await page.getByLabel('Judul', { exact: true }).fill('Tanpa sumber');
+    await page.getByLabel('Isi', { exact: true }).fill('## Konteks\n\nOpini TEST fixture.');
+    await page.getByRole('button', { name: 'Simpan draft' }).click();
+    await page.waitForURL(/\/os\/newsroom\/[0-9a-f-]{36}$/, { timeout: 10_000 });
+    assert(
+      (await page.getByTestId('gate').textContent())?.includes('Belum ada sumber yang sudah dicek'),
+      'gate not shown',
+    );
+    await page.getByRole('button', { name: 'Ajukan untuk review' }).click();
+    await waitStatus('Ditinjau');
+    await page.getByRole('button', { name: 'Setujui revisi ini' }).click();
+    const blocked = await page
+      .locator('.workflow ul.error[role="alert"]')
+      .textContent({ timeout: 10_000 });
+    assert(blocked?.includes('Belum ada sumber'), `gate did not block: ${blocked}`);
+    assert((await statusText()).includes('Ditinjau'), 'status changed despite the gate');
+    await page
+      .getByLabel('Alasan terbit tanpa sumber terverifikasi (opsional, tampil ke pembaca)')
+      .fill('Tulisan opini founder, tanpa klaim faktual.');
+    await page.getByRole('button', { name: 'Setujui revisi ini' }).click();
+    await waitStatus('Disetujui');
+  });
+
   await check(
     'TEST-WEB-04',
     'invalid or expired session cookie redirects (server-side check)',
@@ -495,4 +579,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 12 ? 0 : 1);
+process.exit(failed === 0 && results.length === 13 ? 0 : 1);

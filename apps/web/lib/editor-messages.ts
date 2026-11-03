@@ -95,3 +95,19 @@ export function describeField(path: string, rule: string): string {
   const message = RULE_MESSAGES[rule] ?? `Isian tidak valid (${rule}).`;
   return line === undefined ? `${path}: ${message}` : `Baris ${line}: ${message}`;
 }
+
+export const GATE_MESSAGES: Readonly<Record<string, string>> = {
+  no_verified_source:
+    'Belum ada sumber yang sudah dicek. Tambah dan cek sumber, atau tulis alasan pengecualian (minimal 20 karakter) saat menyetujui.',
+  stat_source_unverified: 'Ada angka yang sumbernya belum dicek.',
+  empty_body: 'Isi artikel masih kosong.',
+  revision_changed_after_approval: 'Isi berubah setelah disetujui. Ajukan review lagi.',
+};
+
+export const EVENT_LABELS: Readonly<Record<string, string>> = {
+  submit: 'Diajukan untuk review',
+  return: 'Dikembalikan ke draft',
+  approve: 'Disetujui',
+  publish: 'Diterbitkan',
+  archive: 'Diarsipkan',
+};

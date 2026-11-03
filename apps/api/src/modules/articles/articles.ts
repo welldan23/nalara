@@ -23,8 +23,12 @@ export interface Actor {
 export const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SLUG_MIN = 3;
 const SLUG_MAX = 120;
-/** Statuses in which content may change (P1-03 adds the transitions back to draft). */
-const EDITABLE_STATUSES = new Set(['draft']);
+/**
+ * Statuses in which content may change. Editing an article under review or approved sends it
+ * back to draft and voids the approval (PRD v4 §6.2, ADR-012); published articles change only
+ * through corrections (P1-07).
+ */
+const EDITABLE_STATUSES = new Set(['draft', 'in_review', 'approved']);
 
 /** Lowercase ASCII slug from a title: "Harga Beras Naik 10%!" -> "harga-beras-naik-10". */
 export function slugify(title: string): string {
@@ -91,6 +95,8 @@ export interface SavedRevision {
   readonly revisionId: string;
   readonly version: number;
   readonly slug: string;
+  /** True when this save sent the article back to draft and voided an approval or review. */
+  readonly returnedToDraft?: boolean;
 }
 
 async function insertRevision(
@@ -216,9 +222,21 @@ export async function saveRevision(
 
     const version = article.currentVersion + 1;
     const revisionId = await insertRevision(tx, actor, article.id, version, content, changeNote);
+    const returnedToDraft = article.status !== 'draft';
     const updated = await tx
       .update(articles)
-      .set({ currentVersion: version, currentRevisionId: revisionId, updatedAt: new Date() })
+      .set({
+        currentVersion: version,
+        currentRevisionId: revisionId,
+        updatedAt: new Date(),
+        // Any edit voids review and approval: the approved bytes no longer exist as current.
+        status: 'draft',
+        approvedRevisionId: null,
+        approvedContentSha256: null,
+        approvedBy: null,
+        approvedAt: null,
+        sourceException: null,
+      })
       .where(and(eq(articles.id, article.id), eq(articles.currentVersion, input.expectedVersion)))
       .returning({ id: articles.id });
     if (updated.length !== 1) throw new AppError('VERSION_CONFLICT');
@@ -230,9 +248,9 @@ export async function saveRevision(
       resourceType: 'article',
       resourceId: article.id,
       ...(actor.requestId !== undefined ? { requestId: actor.requestId } : {}),
-      metadata: { version },
+      metadata: { version, returned_to_draft: returnedToDraft },
     });
-    return { articleId: article.id, revisionId, version, slug: article.slug };
+    return { articleId: article.id, revisionId, version, slug: article.slug, returnedToDraft };
   });
 }
 
@@ -258,6 +276,11 @@ export interface ArticleView {
   readonly slug: string;
   readonly status: (typeof articles.$inferSelect)['status'];
   readonly currentVersion: number;
+  readonly approvedRevisionId: string | null;
+  readonly approvedAt: Date | null;
+  readonly sourceException: string | null;
+  readonly publishedAt: Date | null;
+  readonly firstPublishedAt: Date | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly current: RevisionView;
@@ -295,6 +318,11 @@ export async function getArticle(db: Db, articleId: string): Promise<ArticleView
     slug: row.article.slug,
     status: row.article.status,
     currentVersion: row.article.currentVersion,
+    approvedRevisionId: row.article.approvedRevisionId,
+    approvedAt: row.article.approvedAt,
+    sourceException: row.article.sourceException,
+    publishedAt: row.article.publishedAt,
+    firstPublishedAt: row.article.firstPublishedAt,
     createdAt: row.article.createdAt,
     updatedAt: row.article.updatedAt,
     current: toRevisionView(row.revision),

@@ -59,6 +59,8 @@ export interface ArticleDetail {
     readonly slug: string;
     readonly status: ArticleStatus;
     readonly currentVersion: number;
+    readonly sourceException: string | null;
+    readonly publishedAt: string | null;
     readonly current: {
       readonly title: string;
       readonly dek: string;
@@ -70,6 +72,15 @@ export interface ArticleDetail {
     };
   };
   readonly verification: VerificationLevel;
+  readonly gate: readonly string[];
+  readonly events: readonly {
+    readonly action: string;
+    readonly fromStatus: string;
+    readonly toStatus: string;
+    readonly verification: VerificationLevel;
+    readonly note: string | null;
+    readonly createdAt: string;
+  }[];
   readonly revisions: readonly {
     readonly id: string;
     readonly version: number;

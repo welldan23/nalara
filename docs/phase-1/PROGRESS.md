@@ -87,4 +87,45 @@ Format per tiket mengikuti PRD v4 §13. Rencana: [BASELINE.md](BASELINE.md) · K
 - Catatan: hash revisi lama (sebelum kolom `citations`) dihitung tanpa sitasi. Belum ada data nyata, jadi tidak ada dampak.
 - Keputusan founder: PENDING
 
-**Next:** P1-03 — State machine + gate publish.
+### P1-03 — State machine + gate publish
+- Commit: lihat PR `feat/P1-03-workflow-gate`
+- File berubah:
+  - `db/migrations/0006_publication_workflow.sql`, `apps/api/src/db/schema.ts`
+  - `apps/api/src/modules/articles/{gate,workflow,articles}.ts`, `apps/api/src/routes/articles.ts`, `apps/api/src/plugins/policy.ts`, `apps/api/src/lib/errors.ts`, `apps/api/src/modules/audit/audit.ts`
+  - Web: `apps/web/app/os/(shell)/newsroom/{workflow,editor}.tsx`, `.../[id]/page.tsx`, `apps/web/lib/{api,editor-messages}.ts`, `globals.css`
+  - Tes: `apps/api/tests/integration/{workflow,db}.test.ts`, `tests/e2e/web.e2e.mjs`
+- Perilaku:
+  - Transisi hanya lewat endpoint khusus `POST /articles/:id/{submit,return,approve,publish,archive}`:
+    - `draft → in_review → approved → published → archived`
+    - `in_review → draft` (wajib alasan ≥5 karakter)
+    - `draft → archived`
+  - Approve dan publish butuh izin terpisah `articles.publish` (siap untuk role editor nanti).
+  - Setiap transisi dalam satu transaksi dengan row lock:
+    - `expectedVersion` dicek;
+    - revisi yang tersimpan divalidasi ulang dan di-hash ulang (`INTEGRITY_FAILED` bila tidak cocok);
+    - event immutable `publication_events` (siapa, kapan, revisi, hash, label, catatan) + audit.
+  - **Edit saat `in_review`/`approved` mengembalikan ke draft dan menghapus approval** (T-03).
+  - **Publish hanya byte yang di-approve:** `approved_revision_id` = revisi terkini dan hash cocok, kalau tidak `revision_changed_after_approval` (T-04).
+  - **Gate** (PRD v4 §7), dicek saat approve **dan** saat publish:
+    - tanpa sumber terverifikasi → diblok, kecuali founder menulis alasan pengecualian (20–500 karakter, disimpan dan nanti tampil ke pembaca);
+    - angka dengan sumber yang belum dicek → **selalu** diblok, pengecualian tidak berlaku;
+    - isi kosong → diblok.
+  - Web: panel "Review dan terbit" dengan tombol sesuai status, daftar penghalang gate, kolom alasan pengecualian dan alasan dikembalikan, riwayat status. Artikel terbit/arsip terkunci dari edit langsung (koreksi lewat P1-07).
+- Test:
+  - `pnpm exec vitest run apps/api` → PASS **281/281**, termasuk 11 tes workflow:
+    - alur penuh + event + audit + tanggal;
+    - urutan salah ditolak (T-04), edit setelah approve membatalkan approval (T-03);
+    - hash dimanipulasi → publish ditolak;
+    - gate tanpa sumber, pengecualian pendek ditolak, angka belum dicek tetap diblok;
+    - return wajib alasan, archive, versi basi;
+    - **3 publish bersamaan → tepat 1 event** (T-11);
+    - event immutable untuk app dan migrator.
+  - `pnpm run test:e2e` → PASS **13/13**. Cek baru TEST-P1-03:
+    - ajukan → edit (kembali draft) → ajukan → setujui → terbitkan;
+    - riwayat lengkap, artikel terbit terkunci, notice lama hilang;
+    - artikel tanpa sumber diblok gate lalu disetujui dengan alasan.
+  - Ditemukan saat e2e: (1) notice "kembali ke draft" masih tampil setelah terbit, **diperbaiki**; (2) tes menganggap status "Terbit" karena slug `alur-terbit`, pencarian status kini dikunci di awal baris.
+- Security review: PASS. Status tidak bisa dikirim lewat edit; transisi idempoten terhadap balapan; jejak publikasi tidak bisa diubah siapa pun.
+- Keputusan founder: PENDING
+
+**Next:** P1-06 — Halaman publik.

@@ -382,6 +382,47 @@ label.checkbox {
   font-size: 0.9rem;
 }
 
+/* Review and publish panel (P1-03). */
+.workflow {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 2rem;
+  padding: 1rem 1.25rem;
+  border: 2px solid var(--color-forest);
+  border-radius: 6px;
+  background: #fff;
+}
+.workflow h2 {
+  margin: 0;
+}
+.workflow input,
+.workflow textarea {
+  width: 100%;
+  font: inherit;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--color-ink-muted);
+  border-radius: 4px;
+}
+.workflow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.gate {
+  padding: 0.6rem 0.9rem;
+  border-left: 4px solid var(--color-danger);
+  background: var(--color-ivory);
+}
+.gate p {
+  margin: 0;
+  font-weight: 600;
+}
+.notice-warn {
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid var(--color-brass);
+  background: #fff;
+}
+
 /* Article body blocks (shared by preview and, later, public pages). */
 .article-body blockquote {
   margin: 1.5rem 0;
