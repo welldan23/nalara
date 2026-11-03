@@ -1,20 +1,9 @@
 // Explicit migration step (ADR-003): `pnpm --filter @nalara/api run db:migrate`.
 // Uses only DATABASE_MIGRATOR_URL; never runs automatically at API startup.
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { ConfigError, loadMigratorConfig } from '../config/env.ts';
 import { MigrationError, migrate, migrationStatus } from './migrate.ts';
-
-export const MIGRATIONS_DIR = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
-  '..',
-  '..',
-  '..',
-  'db',
-  'migrations',
-);
+import { MIGRATIONS_DIR } from './migrations-dir.ts';
 
 function log(level: 'info' | 'fatal', msg: string, extra: Record<string, unknown> = {}): void {
   const line = JSON.stringify({ level, time: new Date().toISOString(), msg, ...extra });

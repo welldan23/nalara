@@ -95,4 +95,27 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Known issues: role DB produksi dibuat manual di VPS (didokumentasikan di `db/README.md`), dan dikerjakan bersama P0-012/013
 - Founder decision: PENDING
 
-**Next ticket:** P0-006 — API skeleton (urutan D-02).
+### P0-006 — API skeleton
+- Commit SHA: lihat PR `feat/P00-006-api-skeleton`
+- Changed files: `apps/api/src/{app.ts,main.ts}`, `apps/api/src/routes/health.ts`, `apps/api/src/lib/{errors.ts,request-id.ts,validation.ts}`, `apps/api/src/db/{readiness.ts,migrations-dir.ts,migrate.ts,migrate-cli.ts}`, `apps/api/tests/unit/app.test.ts`, `apps/api/tests/integration/{startup.test.ts,db.test.ts}`, `apps/api/package.json` (fastify 5.12.7, @fastify/rate-limit 11.2.1), `pnpm-lock.yaml`
+- Perilaku:
+  - Fastify app factory (`buildApp`), tanpa state global.
+  - Error envelope stabil `{"error":{"code","message","requestId"}}` dengan pesan tetap per kode, tanpa stack trace atau detail internal.
+  - JSON-only: `text/plain`/form → 415. Body > 16 KiB → 413. JSON rusak → 400 `INVALID_JSON`.
+  - Validasi Zod lewat `parseOrThrow` (path + aturan saja, tanpa nilai).
+  - Request ID: `X-Request-ID` dari luar dipakai hanya jika `[A-Za-z0-9_-]{8,64}`, selain itu dibuat baru (anti log injection). Dikirim balik di header dan body error.
+  - Log pino: redaksi cookie/authorization/password/token/secret, path tanpa query string, body tidak pernah di-log.
+  - Rate limit global per IP (default 300/menit) → 429 + `Retry-After`. `/health/ready` dikecualikan.
+  - Header `nosniff` dan `cache-control: no-store`. `requestTimeout` 10 detik. `trustProxy: false` (diatur di P0-013). Graceful shutdown pada SIGTERM/SIGINT.
+  - `/health/live` publik `{status:"ok"}`. `/health/ready` 200 hanya jika DB menjawab dan semua migrasi diterapkan tanpa perubahan, selain itu 503 `NOT_READY` tanpa detail.
+- **Bug yang ditemukan dan diperbaiki:** `nalara_app` tidak punya akses baca ke `nalara_schema_migrations` (P0-005), sehingga `/health/ready` di produksi **selalu 503**. Runner kini memberi `SELECT` saja ke `nalara_app`. INSERT/UPDATE/DELETE tetap ditolak (dites).
+- Juga diperbaiki: opsi Fastify `requestIdLogLabel` sudah deprecated di 5.12 → `logController`.
+- Tests run:
+  - `pnpm run check` (PostgreSQL 18.6) → PASS **104/104**, tanpa warning
+  - TEST-API-01..10 via `app.inject`, plus proses nyata: start → `/health/live` 200 → `/health/ready` 503 tanpa DB → SIGTERM → exit 0
+  - End-to-end compose: `/health/ready` **503 sebelum migrasi → 200 setelah `db:migrate`**. Header keamanan ada. 0 secret di log API. `.env` sementara dihapus
+- Security review: PASS (anti log injection, redaksi, tanpa detail error, rate limit, JSON-only, least privilege tetap)
+- Known issues: tidak ada endpoint fitur (sesuai guardrail). Proxy trust diatur di P0-013
+- Founder decision: PENDING
+
+**Next ticket:** P0-007 — Founder bootstrap (urutan D-02).
