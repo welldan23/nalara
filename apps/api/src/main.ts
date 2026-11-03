@@ -26,6 +26,7 @@ async function main(): Promise<void> {
   const database = createDatabase(config.databaseUrl);
   const app = await buildApp(config, {
     readiness: databaseReadiness(database.pool, MIGRATIONS_DIR),
+    database: database.db,
   });
   app.log.info({ config: describeConfig(config) }, 'configuration loaded');
 

@@ -1,13 +1,19 @@
 // Fastify application factory (P0-006, ADR-002). Pure construction: no listening, no global
 // state, so tests can build an instance per case and use app.inject().
+import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { LogController } from 'fastify';
 import type { FastifyError, FastifyInstance } from 'fastify';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { Config } from './config/env.ts';
+import type { schema } from './db/schema.ts';
 import { AppError, ERROR_CODES, errorBody } from './lib/errors.ts';
 import type { ErrorCode } from './lib/errors.ts';
 import { REQUEST_ID_HEADER, requestIdFrom } from './lib/request-id.ts';
+import { createAuthGuards, crossOriginGuard } from './plugins/auth.ts';
+import { authRoutes } from './routes/auth.ts';
 import { healthRoutes } from './routes/health.ts';
+import { osRoutes } from './routes/os.ts';
 
 export interface AppDependencies {
   /** True only when the database answers and every migration is applied. */
@@ -16,7 +22,14 @@ export interface AppDependencies {
   readonly logStream?: NodeJS.WritableStream;
   /** Requests per window per client IP across the API. */
   readonly rateLimitMax?: number;
+  /**
+   * Database for authenticated routes. Without it only health routes exist (unit tests);
+   * main.ts always passes it.
+   */
+  readonly database?: NodePgDatabase<typeof schema>;
 }
+
+export type AppConfig = Pick<Config, 'logLevel' | 'nodeEnv' | 'appOrigin' | 'session'>;
 
 export const BODY_LIMIT_BYTES = 16 * 1024;
 export const REQUEST_TIMEOUT_MS = 10_000;
@@ -35,10 +48,7 @@ export const LOG_REDACT_PATHS = [
   '*.recoveryCode',
 ];
 
-export async function buildApp(
-  config: Pick<Config, 'logLevel' | 'nodeEnv'>,
-  deps: AppDependencies,
-): Promise<FastifyInstance> {
+export async function buildApp(config: AppConfig, deps: AppDependencies): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
       level: config.logLevel,
@@ -96,7 +106,16 @@ export async function buildApp(
     void reply.code(status).send(errorBody(code, request.id, fields));
   });
 
+  await app.register(cookie);
+  app.decorateRequest('auth', null);
+  app.addHook('onRequest', crossOriginGuard(config));
+
   await app.register(healthRoutes, { readiness: deps.readiness });
+  if (deps.database !== undefined) {
+    const guards = createAuthGuards(config, deps.database);
+    await app.register(authRoutes, { config, db: deps.database, guards });
+    await app.register(osRoutes, { prefix: '/api/v1/os', guards });
+  }
   return app;
 }
 

@@ -138,4 +138,21 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Security review: PASS
 - Founder decision: PENDING
 
-**Next ticket:** P0-010 — Session & CSRF (urutan D-02).
+### P0-010 — Session & CSRF
+- Commit SHA: lihat PR `feat/P00-010-session-csrf`
+- Changed files: `apps/api/src/modules/auth/{session.ts,csrf.ts}`, `apps/api/src/plugins/auth.ts`, `apps/api/src/routes/{auth.ts,os.ts}`, `apps/api/src/app.ts`, `apps/api/src/main.ts`, `apps/api/src/modules/audit/audit.ts` (`session.logout`), `apps/api/tests/integration/session.test.ts`, penyesuaian config di tes lama, `apps/api/package.json` (`@fastify/cookie` 11.1.5)
+- Perilaku:
+  - **Sesi**: token acak 256-bit (base64url, 43 karakter). DB hanya menyimpan SHA-256-nya. Umur absolut 8 jam, idle 1 jam. `last_seen_at` diperbarui maksimal sekali per menit. Revoke dan `rotateSession` (revoke lama + buat baru dalam satu transaksi, dipakai login di P0-008). Token salah format ditolak sebelum menyentuh DB.
+  - **Cookie**: `__Host-nalara_session`, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, tanpa `Domain`, `Expires` = umur absolut.
+  - **`requireFounder`**: 401 tanpa atau dengan sesi tidak valid. DB tidak bisa dicek → **503, fail closed**.
+  - **`/api/v1/os/*`**: guard dipasang di level plugin, jadi setiap route baru di prefix ini otomatis butuh founder.
+  - **CSRF**: (1) guard global menolak semua method unsafe dari origin lain (berdasarkan `Origin`, atau `Sec-Fetch-Site` bila `Origin` tidak ada) sebelum routing, termasuk login nanti. (2) Mutasi terautentikasi wajib same-origin **dan** `X-CSRF-Token` = HMAC-SHA256(`SESSION_SECRET`, session id), dibandingkan timing-safe. Tanpa CORS (deny by default).
+  - Route: `GET /api/v1/auth/me` (profil + CSRF token, tanpa secret), `POST /api/v1/auth/logout` (founder + CSRF → revoke, audit `session.logout`, cookie dihapus, 204), `GET /api/v1/os/ping`.
+- Tests run: `pnpm run check` (PostgreSQL 18.6) → PASS **147/147**
+  - TEST-SESSION-01..10: hash saja di DB · HttpOnly/Secure/SameSite/host-only · kedaluwarsa absolut + idle · revoke · logout dua kali (204 lalu 401, audit 1 baris) · 5 token rusak/palsu → 401 (bukan 500) · rotasi · DB mati → 503
+  - TEST-CSRF-01..10: tanpa/salah token → 403 (sesi tetap hidup) · cross-origin → 403 sebelum routing · same-origin + token → 204 · `Sec-Fetch-Site: same-origin` diterima · beda port → 403 · GET logout → 404 · `text/plain` dengan body → 415 · token sesi lain → 403 · preflight tidak dapat header CORS · cross-site / tanpa header browser → 403
+- Security review: PASS
+- Catatan: TEST-CSRF-07 tanpa body diterima (204) karena origin dan token valid. Serangan form `text/plain` lintas situs sudah diblok oleh cek origin.
+- Founder decision: PENDING
+
+**Next ticket:** P0-008 — Password login (urutan D-02).
