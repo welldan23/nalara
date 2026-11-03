@@ -1,0 +1,10 @@
+{
+  "name": "@nalara/api",
+  "private": true,
+  "type": "module",
+  "description": "NALARA API: sole owner of business logic, database access and authorization (ADR-002).",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

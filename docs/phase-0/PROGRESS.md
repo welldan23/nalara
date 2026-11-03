@@ -22,4 +22,26 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Known issues: D-04, D-07, D-08, D-09 masih OPEN (`docs/decisions/DECISIONS.md`). Repo sudah private (D-13) dan PRD sudah di-commit (D-05)
 - Founder decision: PENDING
 
-**Next ticket:** P0-003 — Workspace scaffold, setelah P0-002 disetujui.
+### P0-003 — Workspace scaffold
+- Commit SHA: lihat PR `feat/P00-003-workspace-scaffold`
+- Changed files: root `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `tsconfig.json`, `eslint.config.mjs`, `.prettierrc.json`, `.prettierignore`, `vitest.config.ts`, `.gitignore`, `.dockerignore`, `.editorconfig`, `.nvmrc`, `README.md` · `apps/web/{package.json,next.config.ts,tsconfig.json,app/layout.tsx,app/page.tsx}` · `apps/api/{package.json,tsconfig.json,tsconfig.build.json,src/index.ts}` · `tests/repo/repo.test.ts`
+- Tests run (Node 24.22.2, pnpm 12.16.1):
+  - `pnpm run format:check` → PASS
+  - `pnpm run lint` → PASS (setelah 1 temuan nyata di kode tes diperbaiki)
+  - `pnpm run typecheck` → PASS (root, api, web)
+  - `pnpm run test` → PASS 14/14
+  - `pnpm run build` → PASS (api `tsc`, web `next build`)
+  - TEST-REPO-09: clone bersih → `pnpm install --frozen-lockfile` → `pnpm run check` → PASS, worktree tetap bersih
+- Negative tests (harus gagal, dan memang gagal): `.env.production` ter-track → TEST-REPO-05 FAIL · versi `^19.3.1` → TEST-REPO-03 FAIL · type error → `TS2322` · floating promise → `no-floating-promises` · install di Node 22 → `ERR_PNPM_UNSUPPORTED_ENGINE` (dengan `engineStrict`) · vitest di Node 22 → TEST-REPO-04 FAIL · dependensi dengan `postinstall` (esbuild, di folder probe terpisah) → `ERR_PNPM_IGNORED_BUILDS`
+- Security review: PASS. Tanpa secret. Script install dependensi diblokir. Hanya versi ≥ 7 hari (`minimumReleaseAge: 10080`, tanpa exclusion). Semua versi dipin persis
+- Manual validation: NOT RUN (menunggu review founder)
+- Keputusan versi dan penyimpangan:
+  - Node **24.22.2** (patch D-10). Node 24 masih membawa Corepack, jadi K-09 aman untuk Node 24 (diverifikasi).
+  - pnpm **12.16.1**.
+  - **TypeScript 6.0.3**, bukan 7.0.2 (`latest`), karena `typescript-eslint@8.72.1` mensyaratkan `typescript >=4.8.4 <6.1.0`.
+  - Next.js **16.4.3**, bukan 16.4.4, karena 16.4.4 baru dirilis kurang dari 7 hari (begitu juga `vitest 5.0.5` dan `eslint 10.13.0`).
+  - `packages/contracts` dan `packages/ui` belum dibuat (guardrail "avoid excessive shared packages"). Dibuat saat pertama dipakai (P0-006/P0-011).
+- Known issues: K-10 (nama file `middleware.ts` vs `proxy.ts` di Next 16) diverifikasi di P0-011. Telemetri Next.js aktif secara default (cara mematikan ada di README)
+- Founder decision: PENDING
+
+**Next ticket:** P0-014a — CI dasar (sesuai urutan D-02).
