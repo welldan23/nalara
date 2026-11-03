@@ -2,7 +2,7 @@
 // the next version number; nothing ever updates a revision (the database refuses it too).
 // Concurrent editors are serialised with a row lock plus expected_version, so a stale editor gets
 // VERSION_CONFLICT instead of silently overwriting newer work.
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { articleRevisions, articles, categories } from '../../db/schema.ts';
 import type { schema } from '../../db/schema.ts';
@@ -306,4 +306,52 @@ export async function listRevisions(db: Db, articleId: string): Promise<Revision
     .where(eq(articleRevisions.articleId, articleId))
     .orderBy(asc(articleRevisions.version));
   return rows.map(toRevisionView);
+}
+
+export interface CategoryView {
+  readonly id: string;
+  readonly slug: string;
+  readonly name: string;
+}
+
+export async function listCategories(db: Db): Promise<CategoryView[]> {
+  return db
+    .select({ id: categories.id, slug: categories.slug, name: categories.name })
+    .from(categories)
+    .orderBy(asc(categories.name));
+}
+
+export interface ArticleSummary {
+  readonly id: string;
+  readonly slug: string;
+  readonly status: ArticleView['status'];
+  readonly currentVersion: number;
+  readonly title: string;
+  readonly categoryId: string;
+  readonly updatedAt: Date;
+}
+
+export const LIST_LIMIT_MAX = 100;
+
+/** OS newsroom list, most recently edited first. */
+export async function listArticles(
+  db: Db,
+  options: { readonly status?: ArticleView['status']; readonly limit?: number } = {},
+): Promise<ArticleSummary[]> {
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), LIST_LIMIT_MAX);
+  return db
+    .select({
+      id: articles.id,
+      slug: articles.slug,
+      status: articles.status,
+      currentVersion: articles.currentVersion,
+      title: articleRevisions.title,
+      categoryId: articleRevisions.categoryId,
+      updatedAt: articles.updatedAt,
+    })
+    .from(articles)
+    .innerJoin(articleRevisions, eq(articleRevisions.id, articles.currentRevisionId))
+    .where(options.status === undefined ? undefined : eq(articles.status, options.status))
+    .orderBy(desc(articles.updatedAt), desc(articles.id))
+    .limit(limit);
 }

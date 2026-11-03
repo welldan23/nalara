@@ -33,7 +33,8 @@ describe('TEST-WEB-09 no raw HTML injection points', () => {
     });
 
   it('never uses dangerouslySetInnerHTML or innerHTML in web sources', () => {
-    const offenders = [...files(join(webRoot, 'app')), ...files(join(webRoot, 'lib'))]
+    const offenders = ['app', 'lib', 'components']
+      .flatMap((dir) => files(join(webRoot, dir)))
       .filter((path) => /\.(tsx?|jsx?)$/.test(path))
       .filter((path) => /dangerouslySetInnerHTML|\.innerHTML\s*=/.test(readFileSync(path, 'utf8')));
     expect(offenders).toEqual([]);

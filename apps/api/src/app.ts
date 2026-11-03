@@ -134,7 +134,7 @@ export async function buildApp(config: AppConfig, deps: AppDependencies): Promis
         : {}),
       ...(deps.mfaRateLimitMax !== undefined ? { mfaRateLimitMax: deps.mfaRateLimitMax } : {}),
     });
-    await app.register(osRoutes, { prefix: '/api/v1/os', guards });
+    await app.register(osRoutes, { prefix: '/api/v1/os', guards, db: deps.database });
   }
   return app;
 }
