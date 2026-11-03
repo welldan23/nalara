@@ -7,7 +7,7 @@
 // so it never touches a real deployment.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -126,11 +126,22 @@ try {
         '--quiet',
       ]);
       assert(result.status !== 0, 'config accepted missing secrets');
-      assert(
-        /DB_MIGRATOR_PASSWORD|DB_APP_PASSWORD|SESSION_SECRET/.test(result.stderr),
-        'error does not name the variable',
-      );
       assert(!result.stderr.includes(secrets.POSTGRES_PASSWORD), 'error echoed a secret value');
+      // Compose may report one or all missing variables, in any order (it differs between
+      // versions), so accept any required variable that the file really leaves out.
+      const required = [
+        ...new Set(
+          [
+            ...readFileSync(join(root, 'compose.prod.yaml'), 'utf8').matchAll(/\$\{([A-Z_]+):\?/g),
+          ].map((match) => match[1]),
+        ),
+      ];
+      const missing = required.filter((name) => name !== 'POSTGRES_PASSWORD');
+      assert(missing.length > 0, 'compose.prod.yaml declares no required variables');
+      assert(
+        missing.some((name) => result.stderr.includes(name)),
+        `error does not name a missing variable: ${result.stderr.trim().slice(0, 200)}`,
+      );
     },
   );
 
