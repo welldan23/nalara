@@ -25,6 +25,17 @@ pnpm run check                   # semua cek di atas berurutan
 
 Next.js mengirim telemetri anonim secara default. Untuk mematikannya, jalankan `pnpm --filter @nalara/web exec next telemetry disable` atau set `NEXT_TELEMETRY_DISABLED=1`.
 
+## Database dan akun founder (lokal)
+
+```bash
+cp .env.example .env                              # ganti semua REPLACE_WITH_
+docker compose up -d db                           # PostgreSQL 18 lokal
+pnpm --filter @nalara/api run db:migrate          # terapkan migrasi
+FOUNDER_EMAIL=kamu@example.com pnpm --filter @nalara/api run founder:bootstrap
+```
+
+`founder:bootstrap` hanya bisa membuat **satu** founder. Password diketik tanpa tampil di layar, dan tidak pernah diterima sebagai argumen. Detail database ada di [`db/README.md`](db/README.md).
+
 ## Struktur
 
 ```text

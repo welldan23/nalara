@@ -118,4 +118,24 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Known issues: tidak ada endpoint fitur (sesuai guardrail). Proxy trust diatur di P0-013
 - Founder decision: PENDING
 
-**Next ticket:** P0-007 — Founder bootstrap (urutan D-02).
+### P0-007 — Founder bootstrap
+- Commit SHA: lihat PR `feat/P00-007-founder-bootstrap`
+- Changed files: `apps/api/src/cli/bootstrap-founder.ts`, `apps/api/src/modules/auth/{password.ts,founder.ts}`, `apps/api/src/modules/audit/audit.ts`, `apps/api/src/config/env.ts` (`loadBootstrapConfig`), `apps/api/tests/unit/password.test.ts`, `apps/api/tests/integration/bootstrap.test.ts`, `apps/api/package.json` (`@node-rs/argon2` 2.2.2, script `founder:bootstrap`), `README.md`
+- Perilaku:
+  - `FOUNDER_EMAIL=… pnpm --filter @nalara/api run founder:bootstrap` membuat **tepat satu** founder.
+  - Password dibaca dari terminal tanpa echo (dua kali) atau dari stdin bila di-pipe. **Tidak pernah** dari argumen atau env.
+  - Founder sudah ada → exit 2, tidak menimpa. `NODE_ENV=production` tanpa `--production` → exit 2.
+  - Insert user + audit `founder.bootstrap` (actor `system`) dalam satu transaksi. Race antar bootstrap ditangkap unique index → `FounderExistsError`.
+  - Kebijakan password: 12–128 code point, NFC, bukan whitespace saja, tidak mengandung nama email.
+  - Argon2id `m=64 MiB, t=3, p=1` (parameter tersimpan di PHC string, bisa di-tune ulang di VPS, S-10).
+  - Audit memakai allowlist metadata per action.
+- Keputusan teknis: `@node-rs/argon2` dipilih karena tanpa install script dan punya binary prebuilt (termasuk musl/Alpine). `argon2` memakai node-gyp install script yang diblokir policy. `Algorithm.Argon2id` (const enum) ditulis sebagai nilai `2` dengan pengecualian lint satu baris, dan dijaga tes yang memeriksa prefix `$argon2id$`.
+- Belum dikerjakan: cek password bocor (HIBP k-anonymity) butuh akses jaringan keluar dari server. Dicatat sebagai pertimbangan, tidak diimplementasikan di Phase 0
+- Tests run: `pnpm run check` (PostgreSQL 18.6) → PASS **120/120**
+  - Unit: TEST-AUTH-04/05/06/09 (policy, oversized, NFC vs NFD, format PHC dan parameter, salt unik, hash rusak → false)
+  - Integrasi CLI nyata: password lemah → exit 1 tanpa baris DB · production tanpa flag → exit 2 · password sebagai argumen → exit 1 · bootstrap sukses → 1 user (`email` di-lowercase, hash `$argon2id$`, `mfa_enabled=false`) + 1 audit · **TEST-AUTH-10** bootstrap kedua → exit 2, jumlah baris dan hash tidak berubah · tidak ada route bootstrap/signup/register di API (404)
+  - Password tidak muncul di stdout/stderr pada semua skenario
+- Security review: PASS
+- Founder decision: PENDING
+
+**Next ticket:** P0-010 — Session & CSRF (urutan D-02).
