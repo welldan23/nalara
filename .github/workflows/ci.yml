@@ -191,6 +191,13 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
+      - name: Enable pnpm (version from packageManager)
+        run: corepack enable
+
+      # The drill runs the real migration CLI (needs the pg driver).
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
       - name: Install age (Ubuntu archive)
         run: |
           sudo apt-get update -qq
