@@ -10,7 +10,10 @@ import { createDatabase } from '../../src/db/client.ts';
 import { MIGRATIONS_TABLE, migrate, migrationStatus } from '../../src/db/migrate.ts';
 import { databaseReadiness } from '../../src/db/readiness.ts';
 import {
+  articleRevisions,
+  articles,
   auditEvents,
+  categories,
   loginChallenges,
   recoveryCodes,
   sessions,
@@ -92,7 +95,10 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1`,
       );
       expect(tables.rows.map((row) => row.table_name)).toEqual([
+        'article_revisions',
+        'articles',
         'audit_events',
+        'categories',
         'login_challenges',
         MIGRATIONS_TABLE,
         'recovery_codes',
@@ -178,7 +184,16 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
     });
 
     it('keeps the Drizzle schema in sync with the migrated database', async () => {
-      for (const table of [users, sessions, loginChallenges, recoveryCodes, auditEvents]) {
+      for (const table of [
+        users,
+        sessions,
+        loginChallenges,
+        recoveryCodes,
+        auditEvents,
+        categories,
+        articles,
+        articleRevisions,
+      ]) {
         const { name, columns } = getTableConfig(table);
         const actual = await migrator.query<{ column_name: string; is_nullable: string }>(
           `SELECT column_name, is_nullable FROM information_schema.columns

@@ -88,4 +88,79 @@ export const auditEvents = pgTable('audit_events', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const schema = { users, sessions, loginChallenges, recoveryCodes, auditEvents };
+export const categories = pgTable('categories', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  slug: text('slug').notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const ARTICLE_STATUSES = [
+  'draft',
+  'in_review',
+  'approved',
+  'published',
+  'archived',
+] as const;
+export const ARTICLE_TYPES = ['explainer', 'analysis', 'opinion'] as const;
+
+export const articles = pgTable('articles', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  slug: text('slug').notNull(),
+  status: text('status', { enum: ARTICLE_STATUSES }).notNull().default('draft'),
+  currentVersion: integer('current_version').notNull().default(0),
+  currentRevisionId: uuid('current_revision_id'),
+  approvedRevisionId: uuid('approved_revision_id'),
+  approvedContentSha256: bytea('approved_content_sha256'),
+  approvedBy: uuid('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  firstPublishedAt: timestamp('first_published_at', { withTimezone: true }),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const articleRevisions = pgTable('article_revisions', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  articleId: uuid('article_id')
+    .notNull()
+    .references(() => articles.id),
+  version: integer('version').notNull(),
+  title: text('title').notNull(),
+  dek: text('dek').notNull().default(''),
+  articleType: text('article_type', { enum: ARTICLE_TYPES }).notNull(),
+  categoryId: uuid('category_id')
+    .notNull()
+    .references(() => categories.id),
+  body: jsonb('body').$type<unknown[]>().notNull(),
+  bodySource: text('body_source').notNull(),
+  methodNote: text('method_note'),
+  changeNote: text('change_note').notNull(),
+  contentSha256: bytea('content_sha256').notNull(),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const schema = {
+  users,
+  sessions,
+  loginChallenges,
+  recoveryCodes,
+  auditEvents,
+  categories,
+  articles,
+  articleRevisions,
+};

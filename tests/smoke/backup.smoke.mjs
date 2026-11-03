@@ -256,6 +256,21 @@ try {
         ) === 'INSERT,SELECT',
         'audit grants differ',
       );
+      // Revision immutability (P1-01) must survive a restore: grants and the trigger.
+      assert(
+        psql(
+          restored,
+          `SELECT string_agg(privilege_type, ',' ORDER BY privilege_type) FROM information_schema.role_table_grants WHERE grantee = 'nalara_app' AND table_name = 'article_revisions'`,
+        ) === 'INSERT,SELECT',
+        'revision grants differ',
+      );
+      assert(
+        psql(
+          restored,
+          `SELECT string_agg(tgname, ',' ORDER BY tgname) FROM pg_trigger WHERE tgrelid = 'article_revisions'::regclass AND NOT tgisinternal`,
+        ) === 'article_revisions_no_truncate,article_revisions_no_update_delete',
+        'revision immutability triggers missing',
+      );
     },
   );
 
