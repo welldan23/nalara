@@ -175,4 +175,28 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Security review: PASS
 - Founder decision: PENDING
 
-**Next ticket:** P0-009 — MFA enrolment & recovery (urutan D-02).
+### P0-009 — MFA enrolment & recovery
+- Commit SHA: lihat PR `feat/P00-009-mfa`
+- Changed files: `db/migrations/0003_mfa_totp_and_recovery.sql`, `apps/api/src/db/schema.ts`, `apps/api/src/modules/auth/{totp.ts,secret-box.ts,recovery-codes.ts,mfa.ts}`, `apps/api/src/routes/auth.ts`, `apps/api/src/app.ts`, `apps/api/src/plugins/auth.ts`, `apps/api/src/lib/errors.ts` (`INVALID_CODE`), `apps/api/src/modules/audit/audit.ts`, `apps/api/tests/unit/totp.test.ts`, `apps/api/tests/integration/mfa.test.ts`, penyesuaian `login.test.ts`/`db.test.ts`/`support/database.ts`
+- Perilaku (ADR-005):
+  - **TOTP** RFC 6238 (SHA-1, 6 digit, 30 detik, ±1 step), ditulis dengan `node:crypto` tanpa dependensi baru. Secret 160-bit **dienkripsi AES-256-GCM** dengan `MFA_ENCRYPTION_KEY` dan **diikat ke user** (AAD), sehingga ciphertext yang dipindah ke baris lain tidak bisa dibuka.
+  - `POST /api/v1/auth/mfa/setup`: hanya untuk challenge `enrolment`. Membuat secret baru (pending di challenge) dan mengembalikan secret base32 + `otpauth://` URI.
+  - `POST /api/v1/auth/mfa/verify {code}|{recoveryCode}`:
+    - Enrolment: kode pertama benar → secret dipindah ke `users`, `mfa_enabled`, 10 recovery code (ditampilkan sekali), sesi.
+    - Login: TOTP atau recovery code → sesi.
+    - Cookie challenge dihapus setelah sukses.
+  - `POST /api/v1/auth/mfa/recovery-codes` (sesi + CSRF): rotasi, semua kode lama mati.
+  - **Anti-replay dan race:** challenge dikonsumsi dengan `UPDATE … WHERE used_at IS NULL`, dan `totp_last_step` dimajukan secara kondisional. Penolakan di tengah transaksi me-rollback semuanya, jadi tidak ada recovery code yang hangus tanpa sesi.
+  - Challenge mati setelah 5 kode salah. Rate limit 10/menit/IP. Semua kegagalan memakai `401 INVALID_CODE`.
+  - Recovery code: 16 karakter base32 (80 bit), disimpan SHA-256, sekali pakai, tidak peka tanda hubung, spasi, atau huruf besar.
+  - Constraint DB `users_mfa_requires_secret`: `mfa_enabled` tidak bisa true tanpa secret.
+- Tests run: `pnpm run check` (PostgreSQL 18.6) → PASS **198/198**, **3× berturut-turut**
+  - Unit: HOTP RFC 4226 (10 vektor), TOTP RFC 6238 (6 vektor), base32 RFC 4648 (6 vektor), otpauth URI, AES-GCM (kunci, owner, dan tamper ditolak), recovery code
+  - TEST-MFA-01..10 + alur penuh (password → challenge → TOTP → sesi → logout), challenge `enrolment` tidak bisa akses `/os` atau verify tanpa setup, setup dari challenge `mfa` ditolak, challenge mati setelah 5 salah, **3 verifikasi paralel dengan kode benar → tepat 1 sesi**, rate limit → 429, audit hanya metadata `method`
+- Ditemukan saat verifikasi:
+  - (1) Tes lama yang menyalakan `mfa_enabled` tanpa secret kini ditolak constraint baru, dan tes disesuaikan.
+  - (2) Helper tes: `ALTER ROLE` paralel dari banyak file tes bisa gagal `tuple concurrently updated`. Kini diserialkan dengan advisory lock.
+- Security review: PASS
+- Founder decision: PENDING
+
+**Next ticket:** P0-011 — Protected web shell (urutan D-02).

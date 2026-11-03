@@ -50,7 +50,10 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   if (adminUrl === undefined) throw new Error('TEST_DATABASE_ADMIN_URL is not set');
   const name = `nalara_test_${randomBytes(6).toString('hex')}`;
   await withAdmin('postgres', async (client) => {
-    // Roles are cluster-wide; create once, reset passwords every run.
+    // Roles are cluster-wide and test files run in parallel: serialise role setup with an
+    // advisory lock, otherwise concurrent ALTER ROLE fails with "tuple concurrently updated".
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(6225272173)');
     await client.query(`DO $$ BEGIN
       IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'nalara_migrator') THEN
         CREATE ROLE nalara_migrator LOGIN; END IF;
@@ -59,6 +62,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     END $$`);
     await client.query(`ALTER ROLE nalara_migrator PASSWORD '${MIGRATOR_PASSWORD}'`);
     await client.query(`ALTER ROLE nalara_app PASSWORD '${APP_PASSWORD}'`);
+    await client.query('COMMIT');
     await client.query(`CREATE DATABASE ${name} OWNER nalara_migrator`);
     await client.query(`REVOKE ALL ON DATABASE ${name} FROM PUBLIC`);
     await client.query(`GRANT CONNECT ON DATABASE ${name} TO nalara_app`);

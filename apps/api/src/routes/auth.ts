@@ -9,6 +9,7 @@ import { parseOrThrow } from '../lib/validation.ts';
 import { recordAudit } from '../modules/audit/audit.ts';
 import { csrfTokenFor } from '../modules/auth/csrf.ts';
 import { attemptPasswordLogin } from '../modules/auth/login.ts';
+import { rotateRecoveryCodes, startEnrolment, verifySecondFactor } from '../modules/auth/mfa.ts';
 import { revokeSession } from '../modules/auth/session.ts';
 import type { IssuedSession } from '../modules/auth/session.ts';
 import { sessionCookieOptions } from '../plugins/auth.ts';
@@ -20,6 +21,8 @@ export interface AuthRouteOptions {
   readonly guards: AuthGuards;
   /** Password attempts per minute per client IP (stricter than the global limit). */
   readonly loginRateLimitMax?: number;
+  /** Second-factor attempts per minute per client IP. */
+  readonly mfaRateLimitMax?: number;
 }
 
 /** Short-lived MFA challenge cookie; only the MFA endpoints read it (ADR-005). */
@@ -33,6 +36,11 @@ const loginBody = z
   })
   .strict();
 
+const mfaVerifyBody = z.union([
+  z.object({ code: z.string().regex(/^\d{6}$/) }).strict(),
+  z.object({ recoveryCode: z.string().min(16).max(32) }).strict(),
+]);
+
 export function issueSessionCookie(
   reply: FastifyReply,
   cookieName: string,
@@ -43,8 +51,9 @@ export function issueSessionCookie(
 
 export const authRoutes: FastifyPluginAsync<AuthRouteOptions> = (
   app,
-  { config, db, guards, loginRateLimitMax },
+  { config, db, guards, loginRateLimitMax, mfaRateLimitMax },
 ) => {
+  const MFA_RATE_LIMIT = { rateLimit: { max: mfaRateLimitMax ?? 10, timeWindow: '1 minute' } };
   app.post(
     '/api/v1/auth/login',
     { config: { rateLimit: { max: loginRateLimitMax ?? 10, timeWindow: '1 minute' } } },
@@ -101,6 +110,53 @@ export const authRoutes: FastifyPluginAsync<AuthRouteOptions> = (
       });
       reply.clearCookie(config.session.cookieName, sessionCookieOptions());
       return reply.code(204).send();
+    },
+  );
+  const challengeToken = (cookies: Record<string, string | undefined>) =>
+    cookies[CHALLENGE_COOKIE] ?? '';
+
+  // Enrolment challenge only: returns a fresh TOTP secret to add to an authenticator app.
+  app.post('/api/v1/auth/mfa/setup', { config: MFA_RATE_LIMIT }, async (request) => {
+    const enrolment = await startEnrolment(
+      db,
+      config.mfaEncryptionKey,
+      challengeToken(request.cookies),
+    );
+    if (enrolment === null) throw new AppError('INVALID_CODE');
+    return enrolment;
+  });
+
+  // Enrolment: first TOTP code. Login: TOTP code or a recovery code. Mints the session.
+  app.post('/api/v1/auth/mfa/verify', { config: MFA_RATE_LIMIT }, async (request, reply) => {
+    const body = parseOrThrow(mfaVerifyBody, request.body);
+    const outcome = await verifySecondFactor(
+      db,
+      config.mfaEncryptionKey,
+      challengeToken(request.cookies),
+      body,
+      request.id,
+    );
+    if (!outcome.ok) throw new AppError('INVALID_CODE');
+    issueSessionCookie(reply, config.session.cookieName, outcome.session);
+    reply.clearCookie(CHALLENGE_COOKIE, {
+      path: '/',
+      secure: true,
+      httpOnly: true,
+      sameSite: 'strict',
+    });
+    return outcome.recoveryCodes === undefined
+      ? { ok: true }
+      : { ok: true, recoveryCodes: outcome.recoveryCodes };
+  });
+
+  // Logged-in founder: replace all recovery codes (shown once).
+  app.post(
+    '/api/v1/auth/mfa/recovery-codes',
+    { preHandler: [guards.requireFounder, guards.requireCsrf] },
+    async (request) => {
+      const session = request.auth;
+      if (session === null) throw new Error('requireFounder did not set auth');
+      return { recoveryCodes: await rotateRecoveryCodes(db, session.userId, request.id) };
     },
   );
   return Promise.resolve();

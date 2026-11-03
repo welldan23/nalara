@@ -12,6 +12,7 @@ const config = {
   nodeEnv: 'test',
   appOrigin: 'http://localhost:3000',
   session: { cookieName: '__Host-nalara_session', secret: 'test-session-secret-'.padEnd(40, 'a') },
+  mfaEncryptionKey: Buffer.alloc(32, 7),
 } as const;
 const apps: FastifyInstance[] = [];
 

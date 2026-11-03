@@ -29,9 +29,14 @@ export interface AppDependencies {
   readonly database?: NodePgDatabase<typeof schema>;
   /** Override the per-IP login attempt limit (tests). */
   readonly loginRateLimitMax?: number;
+  /** Override the per-IP second-factor attempt limit (tests). */
+  readonly mfaRateLimitMax?: number;
 }
 
-export type AppConfig = Pick<Config, 'logLevel' | 'nodeEnv' | 'appOrigin' | 'session'>;
+export type AppConfig = Pick<
+  Config,
+  'logLevel' | 'nodeEnv' | 'appOrigin' | 'session' | 'mfaEncryptionKey'
+>;
 
 export const BODY_LIMIT_BYTES = 16 * 1024;
 export const REQUEST_TIMEOUT_MS = 10_000;
@@ -122,6 +127,7 @@ export async function buildApp(config: AppConfig, deps: AppDependencies): Promis
       ...(deps.loginRateLimitMax !== undefined
         ? { loginRateLimitMax: deps.loginRateLimitMax }
         : {}),
+      ...(deps.mfaRateLimitMax !== undefined ? { mfaRateLimitMax: deps.mfaRateLimitMax } : {}),
     });
     await app.register(osRoutes, { prefix: '/api/v1/os', guards });
   }

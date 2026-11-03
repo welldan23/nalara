@@ -9,7 +9,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDatabase } from '../../src/db/client.ts';
 import { MIGRATIONS_TABLE, migrate, migrationStatus } from '../../src/db/migrate.ts';
 import { databaseReadiness } from '../../src/db/readiness.ts';
-import { auditEvents, loginChallenges, sessions, users } from '../../src/db/schema.ts';
+import {
+  auditEvents,
+  loginChallenges,
+  recoveryCodes,
+  sessions,
+  users,
+} from '../../src/db/schema.ts';
 import {
   connect,
   createTestDatabase,
@@ -89,6 +95,7 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         'audit_events',
         'login_challenges',
         MIGRATIONS_TABLE,
+        'recovery_codes',
         'sessions',
         'users',
       ]);
@@ -171,7 +178,7 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
     });
 
     it('keeps the Drizzle schema in sync with the migrated database', async () => {
-      for (const table of [users, sessions, loginChallenges, auditEvents]) {
+      for (const table of [users, sessions, loginChallenges, recoveryCodes, auditEvents]) {
         const { name, columns } = getTableConfig(table);
         const actual = await migrator.query<{ column_name: string; is_nullable: string }>(
           `SELECT column_name, is_nullable FROM information_schema.columns

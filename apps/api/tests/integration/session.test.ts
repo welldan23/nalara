@@ -32,6 +32,7 @@ const config: AppConfig = {
   nodeEnv: 'test',
   appOrigin: ORIGIN,
   session: { cookieName: COOKIE, secret: 'test-session-secret-'.padEnd(40, 'a') },
+  mfaEncryptionKey: Buffer.alloc(32, 7),
 };
 
 describe.skipIf(!databaseAvailable)('sessions and CSRF', { timeout: 60_000 }, () => {
