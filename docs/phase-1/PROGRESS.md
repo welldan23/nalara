@@ -36,4 +36,35 @@ Format per tiket mengikuti PRD v4 §13. Rencana: [BASELINE.md](BASELINE.md) · K
 - Masalah diketahui: penyimpanan sementara hanya untuk status `draft`. Transisi lain dan edit setelah approve (yang membatalkan approval) dikerjakan di P1-03.
 - Keputusan founder: PENDING
 
-**Next:** P1-02 — Editor draft.
+### P1-02 — Editor draft
+- Commit: lihat PR `feat/P1-02-draft-editor`
+- File berubah:
+  - API: `apps/api/src/modules/articles/{markdown,warnings}.ts`, `apps/api/src/routes/{articles,os}.ts`, `apps/api/src/app.ts`, `apps/api/src/modules/articles/articles.ts` (list)
+  - Web: `apps/web/app/os/(shell)/{layout,page,logout-button}.tsx`, `apps/web/app/os/(shell)/newsroom/{page,editor}.tsx`, `.../newsroom/{baru,[id]}/page.tsx`, `apps/web/components/article-body.tsx`, `apps/web/lib/{api,editor-messages}.ts`, `apps/web/app/globals.css`, `apps/web/public/brand/*`
+  - Tes: `apps/api/tests/{unit/markdown,integration/newsroom-api}.test.ts`, `tests/e2e/web.e2e.mjs`
+- Perilaku:
+  - **API Newsroom** (`/api/v1/os/*`, semua di balik sesi + kebijakan izin; mutasi wajib CSRF + same-origin):
+    - `GET /categories`, `GET /articles` (filter status), `GET /articles/:id` (+ riwayat revisi + saran gaya)
+    - `POST /articles` (draft baru), `PATCH /articles/:id` (revisi, `expectedVersion` wajib), `POST /articles/preview`
+    - Batas body editor 256 KiB (global tetap 16 KiB). Id yang rusak dijawab 404, sama seperti yang tidak ada.
+  - **Parser Markdown terbatas** (ADR-011): `##`/`###`, tebal, miring, tautan https, daftar, kutipan dengan atribusi wajib. HTML, gambar, kode, tabel, `#` (H1), dan tautan non-https **ditolak dengan nomor baris**. Semua masalah dilaporkan sekaligus. Teks yang cuma mirip markup (`5 < 10`, `snake_case`, `**` tanpa penutup) tetap teks biasa.
+  - **Saran gaya** (pola VORSA, tidak memblokir): frasa klise, judul kapital semua / >14 kata / tanda baca berlebihan, dek kosong, artikel panjang tanpa subjudul.
+  - **Web:**
+    - Shell `/os` dengan navigasi (Ringkasan, Newsroom), logo beringin (D-22), dan tombol keluar.
+    - Daftar Newsroom (status, topik, versi, waktu WIB).
+    - Editor dengan template PRD v4 §7, pratinjau server-side, catatan perubahan, riwayat revisi, dan pesan konflik versi.
+    - Renderer blok tanpa HTML string; tautan dicek ulang harus https.
+- Test:
+  - `pnpm exec vitest run apps/api` → PASS **246/246**, termasuk 21 tes parser/saran dan 9 tes HTTP: semua route 401 untuk anonim; CSRF salah, tidak ada, atau beda origin → 403; buat/baca/revisi/daftar; 409 editor basi; 404 id rusak; HTML ditolak dengan baris; field asing/status dari klien ditolak; batas 16 KiB vs 256 KiB.
+  - `pnpm run test:e2e` → PASS **11/11**. Cek baru TEST-P1-02 lewat Chromium:
+    - draft baru, pratinjau, dan HTML ditandai baris 5;
+    - simpan ditolak lalu diterima;
+    - judul berisi `<img onerror>` tampil sebagai teks dan script tidak jalan;
+    - versi 2 masuk riwayat;
+    - tab basi mendapat pesan konflik;
+    - layout 320 px tanpa scroll horizontal.
+- Security review: PASS. Tidak ada `dangerouslySetInnerHTML`; status artikel tidak bisa dikirim klien; semua mutasi lewat CSRF.
+- Masalah diketahui: blok angka (`stat`) baru bisa ditulis lewat editor di P1-04 (butuh sitasi). Hanya status `draft` yang bisa diedit sampai P1-03.
+- Keputusan founder: PENDING
+
+**Next:** P1-04 — Sumber per artikel (lalu P1-03).

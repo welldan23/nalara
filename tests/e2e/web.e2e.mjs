@@ -173,6 +173,8 @@ try {
   });
 
   let secret = Buffer.alloc(0);
+  /** Signed-in page from TEST-WEB-03b, reused because a TOTP step can be used only once. */
+  let signedIn = null;
   await check('TEST-WEB-03', 'first login with MFA enrolment, private shell, logout', async () => {
     const page = await newPage();
     await page.goto(`${WEB}/os/login`);
@@ -214,6 +216,86 @@ try {
       .fill(totpAt(secret, new Date(Date.now() + 30_000)));
     await page.getByRole('button', { name: 'Masuk', exact: true }).click();
     await page.waitForURL(`${WEB}/os`);
+    signedIn = page;
+  });
+
+  await check('TEST-P1-02', 'newsroom: draft, preview, no HTML, revisions, stale tab', async () => {
+    assert(signedIn !== null, 'needs the signed-in page from TEST-WEB-03b');
+    const page = signedIn;
+    await page.goto(`${WEB}/os/newsroom`);
+    await page.getByRole('link', { name: 'Draft baru' }).click();
+    await page.waitForURL(`${WEB}/os/newsroom/baru`);
+    const title = '<img src=x onerror="window.__pwned=1">Harga Beras';
+    await page.getByLabel('Judul').fill(title);
+    await page.getByLabel('Ringkasan (dek)').fill('TEST fixture, bukan artikel nyata.');
+    const body = page.getByLabel('Isi', { exact: true });
+    await body.fill(
+      [
+        '## Apa yang terjadi',
+        '',
+        'Harga naik **tajam**, lihat [rilis](https://www.bps.go.id/id/pressrelease).',
+        '',
+        '<script>window.__pwned=1</script>',
+      ].join('\n'),
+    );
+    await page.getByRole('button', { name: 'Pratinjau' }).click();
+    const preview = page.locator('.editor-preview');
+    await preview.locator('h2', { hasText: 'Apa yang terjadi' }).waitFor({ timeout: 10_000 });
+    assert(
+      (await preview.textContent())?.includes('Baris 5: HTML tidak didukung'),
+      'preview did not flag the HTML line',
+    );
+    assert(
+      (await preview.locator('a[href="https://www.bps.go.id/id/pressrelease"]').count()) === 1,
+      'link not rendered',
+    );
+    await shot(page, '6-editor-preview');
+
+    // Saving with the HTML line is refused, with the line number.
+    await page.getByRole('button', { name: 'Simpan draft' }).click();
+    await page.getByText('Baris 5: HTML tidak didukung').first().waitFor({ timeout: 10_000 });
+    assert(page.url().endsWith('/os/newsroom/baru'), 'invalid draft was saved');
+
+    await body.fill('## Apa yang terjadi\n\nHarga naik **tajam**.');
+    await page.getByRole('button', { name: 'Simpan draft' }).click();
+    await page.waitForURL(/\/os\/newsroom\/[0-9a-f-]{36}$/, { timeout: 10_000 });
+    const articleUrl = page.url();
+    assert((await page.locator('h1').first().textContent()) === title, 'title not shown as text');
+    assert((await page.evaluate(() => window.__pwned)) === undefined, 'injected script ran');
+    assert(
+      (await page.locator('h1 img, .os-content img').count()) === 0,
+      'injected markup rendered',
+    );
+
+    // A second save is version 2, listed in the history.
+    await page.getByLabel('Judul').fill('Harga Beras Naik');
+    await page.getByLabel('Catatan perubahan').fill('Rapikan judul');
+    await page.getByRole('button', { name: 'Simpan versi 2' }).click();
+    await page.getByText('Tersimpan sebagai versi 2.').waitFor({ timeout: 10_000 });
+    await page.locator('.revision-list', { hasText: 'Rapikan judul' }).waitFor({ timeout: 10_000 });
+    await shot(page, '7-editor-saved');
+
+    // Stale tab: tab B still holds version 2 when tab A saves version 3.
+    const stale = await page.context().newPage();
+    await stale.goto(articleUrl);
+    await page.getByLabel('Judul').fill('Harga Beras Naik dari tab A');
+    await page.getByRole('button', { name: 'Simpan versi 3' }).click();
+    await page.getByText('Tersimpan sebagai versi 3.').waitFor({ timeout: 10_000 });
+    await stale.getByLabel('Judul').fill('Harga Beras Naik dari tab B');
+    await stale.getByRole('button', { name: 'Simpan versi 3' }).click();
+    const conflict = await stale.locator('ul.error[role="alert"]').textContent({ timeout: 10_000 });
+    assert(conflict?.includes('sudah diubah'), `no conflict message: ${conflict}`);
+
+    // The newsroom list and the editor stay usable at 320 px.
+    await page.setViewportSize({ width: 320, height: 640 });
+    for (const path of ['/os/newsroom', new URL(articleUrl).pathname]) {
+      await page.goto(`${WEB}${path}`);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      assert(overflow <= 0, `${path} overflows by ${overflow}px`);
+    }
+    await stale.close();
   });
 
   await check(
@@ -336,5 +418,5 @@ for (const result of results) {
 }
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
-// All ten checks must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 10 ? 0 : 1);
+// Every check must have run: a crash that skips some is a failure, never a partial pass.
+process.exit(failed === 0 && results.length === 11 ? 0 : 1);
