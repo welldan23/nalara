@@ -36,6 +36,20 @@ FOUNDER_EMAIL=kamu@example.com pnpm --filter @nalara/api run founder:bootstrap
 
 `founder:bootstrap` hanya bisa membuat **satu** founder. Password diketik tanpa tampil di layar, dan tidak pernah diterima sebagai argumen. Detail database ada di [`db/README.md`](db/README.md).
 
+## Menjalankan topologi produksi (Docker Compose)
+
+```bash
+# di VPS: env file di luar repo, izin 0600, berisi POSTGRES_PASSWORD, DB_MIGRATOR_PASSWORD,
+# DB_APP_PASSWORD (hex, URL-safe), APP_BASE_URL (https), SESSION_SECRET, MFA_ENCRYPTION_KEY
+docker compose -f compose.prod.yaml --env-file /srv/nalara/.env build
+docker compose -f compose.prod.yaml --env-file /srv/nalara/.env run --rm migrate
+docker compose -f compose.prod.yaml --env-file /srv/nalara/.env up -d
+```
+
+Tidak ada port yang dibuka ke host. Reverse proxy (Caddy, P0-013) akan menjadi satu-satunya pintu masuk. Database hanya ada di jaringan `backend` yang `internal`. Semua container berjalan non-root dengan filesystem read-only. Uji otomatisnya: `pnpm run test:compose`.
+
+Di balik proxy TLS-inspecting (misalnya sandbox), build dengan `docker build --network host --build-arg HTTPS_PROXY=... --secret id=npm_ca,src=<ca-bundle> -f apps/api/Dockerfile .`. CA dan proxy tidak tersimpan di image (dicek TEST-COMPOSE-10).
+
 ## Struktur
 
 ```text

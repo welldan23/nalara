@@ -219,4 +219,24 @@ Format mengikuti PRD §19 (Definition of done and evidence format).
 - Security review: PASS
 - Founder decision: PENDING
 
-**Next ticket:** P0-012 — Compose topology (urutan D-02).
+### P0-012 — Compose topology
+- Commit SHA: lihat PR `feat/P00-012-compose-topology`
+- Changed files: `apps/api/Dockerfile`, `apps/web/Dockerfile`, `compose.prod.yaml`, `apps/web/next.config.ts` (`output: 'standalone'`), `tests/smoke/compose.smoke.mjs`, `tests/repo/ci.test.ts`, `package.json` (`test:compose`), `README.md`
+- Topologi:
+  - `db` (PostgreSQL 18.6, digest pin), `api`, `web`, dan `migrate` (profile `tools`, one-shot, ADR-003).
+  - Jaringan `backend` **internal** (db, api, migrate) dan `frontend` (api, web). **Tidak ada port yang dipublikasikan.**
+  - Semua service: `read_only`, `cap_drop: [ALL]` (db hanya mendapat kembali CHOWN/DAC_OVERRIDE/FOWNER/SETGID/SETUID untuk entrypoint), `no-new-privileges`, `restart: unless-stopped`, tmpfs `/tmp`, rotasi log 10 MB × 3, `mem_limit`, healthcheck (api memakai `/health/ready`).
+  - Secret hanya dari env file host saat runtime.
+- Image:
+  - Multi-stage dengan `node:24.22.2-alpine3.24@sha256:8a32…`. API 292 MB, web 298 MB (Next standalone).
+  - Runtime berjalan sebagai `node`, dan file aplikasi milik root sehingga proses tidak bisa mengubah kodenya sendiri.
+  - CA proxy hanya lewat BuildKit secret `npm_ca` (opsional).
+- Catatan: base image Node berumur 6 hari saat dipin. Aturan 7 hari saat ini berlaku untuk paket npm, belum untuk image Docker, dan dicatat untuk P0-014b (Dependabot Docker).
+- Tests run:
+  - `pnpm run check` (PostgreSQL 18.6) → PASS **209/209**. Tes statis baru: TEST-COMPOSE-04 (semua image eksternal tag + digest, satu versi Postgres di dev/prod/CI, satu base Node, tanpa `latest`), serta hardening statis (tanpa `ports:`, backend internal, read-only, cap_drop, tanpa docker.sock/privileged/host network, `USER node`, tanpa ARG/ENV secret)
+  - `pnpm run test:compose` (stack nyata) → PASS **9/9**: 01 config valid + secret hilang ditolak dengan nama variabel (tanpa nilai) · 05 semua healthy · 02 tanpa port, db hanya di backend internal, web **tidak bisa** menjangkau db sedangkan api bisa, web → api OK · 03 api/web non-root, PID 1 db bukan root · 06 restart policy, read-only, cap_drop, no-new-privileges · 09 tulis ke FS ditolak, `/tmp` bisa · 10 tanpa secret, proxy, `.env`, pem, atau CA di metadata/isi image · 07 stop api graceful (exit 0, log `shutting down`, web tetap healthy) · 08 proses mati → restart otomatis dan healthy lagi
+  - `pnpm run test:e2e` → PASS 10/10 (tetap jalan setelah `output: 'standalone'`)
+- Security review: PASS
+- Founder decision: PENDING
+
+**Next ticket:** P0-013 — Reverse proxy & TLS (urutan D-02).
