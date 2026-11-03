@@ -1,6 +1,6 @@
 # ADR-003 — Database, migration tool, and database roles
 
-- **Status:** Accepted
+- **Status:** Accepted · migration tooling (drizzle-kit) superseded by [ADR-010](ADR-010-sql-first-migrations.md)
 - **Date:** 2026-11-03
 - **Approver:** Founder (chat 2026-11-03, "approve semua")
 - **Related:** BASELINE K-12, S-04 · PRD B §7, DEC-003 · PRD D3 · TEST-DB-01..10

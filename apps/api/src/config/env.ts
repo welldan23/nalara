@@ -26,7 +26,12 @@ export interface Config {
 }
 
 /** Variables whose values must never appear in logs or error messages. */
-export const SECRET_ENV_KEYS = ['DATABASE_URL', 'SESSION_SECRET', 'MFA_ENCRYPTION_KEY'] as const;
+export const SECRET_ENV_KEYS = [
+  'DATABASE_URL',
+  'DATABASE_MIGRATOR_URL',
+  'SESSION_SECRET',
+  'MFA_ENCRYPTION_KEY',
+] as const;
 
 /** Every variable NALARA understands. Used by the typo guard and by .env.example tests. */
 export const KNOWN_ENV_KEYS = [
@@ -34,6 +39,7 @@ export const KNOWN_ENV_KEYS = [
   'APP_BASE_URL',
   'API_BASE_URL',
   'DATABASE_URL',
+  'DATABASE_MIGRATOR_URL',
   'SESSION_COOKIE_NAME',
   'SESSION_SECRET',
   'MFA_ENCRYPTION_KEY',
@@ -44,19 +50,13 @@ export const KNOWN_ENV_KEYS = [
 ] as const;
 
 /**
- * Prefixes reserved for NALARA. An unknown variable with one of these prefixes is almost
- * certainly a typo (e.g. SESION_SECRET would not match, but SESSION_SECRT does) and is rejected.
+ * Variables read only by Docker Compose and db/init (never by the API process).
+ * Listed so .env.example stays complete; they use no reserved prefix.
  */
-export const RESERVED_ENV_PREFIXES = [
-  'APP_',
-  'API_',
-  'DATABASE_',
-  'SESSION_',
-  'MFA_',
-  'LOG_',
-  'FOUNDER_',
-  'BACKUP_',
-  'NALARA_',
+export const COMPOSE_ENV_KEYS = [
+  'POSTGRES_PASSWORD',
+  'DB_MIGRATOR_PASSWORD',
+  'DB_APP_PASSWORD',
 ] as const;
 
 export const DEFAULT_SESSION_COOKIE_NAME = '__Host-nalara_session';
@@ -127,20 +127,8 @@ type RawEnv = Readonly<Record<string, string | undefined>>;
 
 /** Validate the environment. Throws ConfigError listing every problem (names only, no values). */
 export function loadConfig(env: RawEnv = process.env): Config {
-  const issues: string[] = [];
-
-  for (const key of Object.keys(env)) {
-    const reserved = RESERVED_ENV_PREFIXES.some((prefix) => key.startsWith(prefix));
-    if (reserved && !(KNOWN_ENV_KEYS as readonly string[]).includes(key)) {
-      issues.push(`${key} is not a known variable (check for a typo)`);
-    }
-  }
-
-  // Treat empty strings as "not set" so defaults apply and required checks fire.
-  const input = Object.fromEntries(
-    Object.entries(env).filter(([, value]) => value !== undefined && value.trim() !== ''),
-  );
-  const parsed = schema.safeParse(input);
+  const issues = typoIssues(env);
+  const parsed = schema.safeParse(nonEmpty(env));
   if (!parsed.success) {
     for (const issue of parsed.error.issues) issues.push(issue.message);
     throw new ConfigError(issues);
@@ -167,20 +155,11 @@ export function loadConfig(env: RawEnv = process.env): Config {
     }
   }
 
-  const dbUrl = parseUrl(raw.DATABASE_URL);
-  if (
-    dbUrl === undefined ||
-    !['postgres:', 'postgresql:'].includes(dbUrl.protocol) ||
-    dbUrl.hostname === '' ||
-    dbUrl.pathname.length <= 1
-  ) {
-    issues.push('DATABASE_URL must be a postgres:// URL with host and database name');
-  }
+  checkDatabaseUrl('DATABASE_URL', raw.DATABASE_URL, issues);
 
   for (const [key, value] of [
     ['SESSION_SECRET', raw.SESSION_SECRET],
     ['MFA_ENCRYPTION_KEY', raw.MFA_ENCRYPTION_KEY],
-    ['DATABASE_URL', raw.DATABASE_URL],
   ] as const) {
     const problem = notPlaceholder(key)(value);
     if (problem !== undefined) issues.push(problem);
@@ -215,6 +194,93 @@ export function loadConfig(env: RawEnv = process.env): Config {
     logLevel: raw.LOG_LEVEL,
     port: raw.PORT,
   };
+}
+
+export interface MigratorConfig {
+  readonly nodeEnv: NodeEnv;
+  /** Connection for the DDL-capable nalara_migrator role (ADR-003). */
+  readonly migratorDatabaseUrl: string;
+}
+
+const migratorSchema = z.object({
+  NODE_ENV: schema.shape.NODE_ENV,
+  DATABASE_MIGRATOR_URL: required('DATABASE_MIGRATOR_URL'),
+});
+
+/** Config for the migration CLI only: it never needs session or MFA secrets. */
+export function loadMigratorConfig(env: RawEnv = process.env): MigratorConfig {
+  const issues = typoIssues(env);
+  const parsed = migratorSchema.safeParse(nonEmpty(env));
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) issues.push(issue.message);
+    throw new ConfigError(issues);
+  }
+  checkDatabaseUrl('DATABASE_MIGRATOR_URL', parsed.data.DATABASE_MIGRATOR_URL, issues);
+  if (issues.length > 0) throw new ConfigError(issues);
+  return { nodeEnv: parsed.data.NODE_ENV, migratorDatabaseUrl: parsed.data.DATABASE_MIGRATOR_URL };
+}
+
+/**
+ * Typo guard (TEST-ENV-06). A variable that is not ours but is a near miss of one of ours
+ * (edit distance <= 2 for names of 8+ characters, or same name in another case) is almost certainly a misspelling, e.g.
+ * SESSION_SECRT or session_secret, and silently ignoring it would start the API without that
+ * setting. Unrelated variables are left alone, even with a similar prefix: hosting platforms
+ * set their own (e.g. SESSION_INGRESS_URL), and rejecting those would make startup brittle.
+ */
+function typoIssues(env: RawEnv): string[] {
+  const known: readonly string[] = [...KNOWN_ENV_KEYS, ...COMPOSE_ENV_KEYS];
+  const issues: string[] = [];
+  for (const key of Object.keys(env)) {
+    if (known.includes(key)) continue;
+    const nearMiss = known.find(
+      (candidate) =>
+        candidate === key.toUpperCase() ||
+        // Short names (PORT) only match by case: PATH is two edits from PORT but unrelated.
+        (candidate.length >= 8 &&
+          Math.abs(candidate.length - key.length) <= 2 &&
+          editDistance(candidate, key) <= 2),
+    );
+    if (nearMiss !== undefined) {
+      issues.push(`${key} is not a known variable (did you mean ${nearMiss}?)`);
+    }
+  }
+  return issues;
+}
+
+function editDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      const substitution = (previous[j - 1] ?? 0) + (a[i - 1] === b[j - 1] ? 0 : 1);
+      current.push(Math.min((previous[j] ?? 0) + 1, (current[j - 1] ?? 0) + 1, substitution));
+    }
+    previous = current;
+  }
+  return previous[b.length] ?? 0;
+}
+
+/** Treat empty strings as "not set" so defaults apply and required checks fire. */
+function nonEmpty(env: RawEnv): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(env).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined && entry[1].trim() !== '',
+    ),
+  );
+}
+
+function checkDatabaseUrl(key: string, value: string, issues: string[]): void {
+  const url = parseUrl(value);
+  if (
+    url === undefined ||
+    !['postgres:', 'postgresql:'].includes(url.protocol) ||
+    url.hostname === '' ||
+    url.pathname.length <= 1
+  ) {
+    issues.push(`${key} must be a postgres:// URL with host and database name`);
+  }
+  const problem = notPlaceholder(key)(value);
+  if (problem !== undefined) issues.push(problem);
 }
 
 function decodeBase64Key(value: string): Buffer | undefined {

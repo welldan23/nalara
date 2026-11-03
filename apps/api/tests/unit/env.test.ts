@@ -4,12 +4,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  COMPOSE_ENV_KEYS,
   ConfigError,
   DEFAULT_SESSION_COOKIE_NAME,
   KNOWN_ENV_KEYS,
   SECRET_ENV_KEYS,
   describeConfig,
   loadConfig,
+  loadMigratorConfig,
 } from '../../src/config/env.ts';
 
 // Obvious, low-entropy fixture values: test-only, never real secrets.
@@ -151,16 +153,31 @@ describe('TEST-ENV-05 production debug flag', () => {
 });
 
 describe('TEST-ENV-06 unknown env rejected', () => {
-  it('rejects a misspelled NALARA variable', () => {
-    expect(issuesFor({ ...validEnv, SESSION_SECRT: 'x' })).toContain(
-      'SESSION_SECRT is not a known variable (check for a typo)',
+  it.each([
+    ['SESSION_SECRT', 'SESSION_SECRET'],
+    ['DATABSE_URL', 'DATABASE_URL'],
+    ['session_secret', 'SESSION_SECRET'],
+    ['MFA_ENCRYPTION_KY', 'MFA_ENCRYPTION_KEY'],
+    ['APP_BASE_UR', 'APP_BASE_URL'],
+    ['port', 'PORT'],
+  ])('rejects the near-miss %s', (typo, intended) => {
+    expect(issuesFor({ ...validEnv, [typo]: 'x' })).toContain(
+      `${typo} is not a known variable (did you mean ${intended}?)`,
     );
   });
 
-  it('rejects unknown variables under any reserved prefix', () => {
-    const issues = issuesFor({ ...validEnv, DATABASE_PASSWORD: 'x', NALARA_DEBUG: '1' });
-    expect(issues).toContain('DATABASE_PASSWORD is not a known variable (check for a typo)');
-    expect(issues).toContain('NALARA_DEBUG is not a known variable (check for a typo)');
+  it('ignores unrelated platform variables that merely share a prefix', () => {
+    expect(
+      issuesFor({
+        ...validEnv,
+        SESSION_INGRESS_URL: 'https://x',
+        APP_ID: '1',
+        LOG_FORMAT: 'json',
+        PATH: '/usr/bin',
+        PWD: '/srv',
+        HOSTNAME: 'vps',
+      }),
+    ).toEqual([]);
   });
 
   it('rejects an invalid PORT', () => {
@@ -210,7 +227,12 @@ describe('TEST-ENV-08 secret absent in startup log', () => {
   });
 
   it('marks every secret key as secret', () => {
-    expect(SECRET_ENV_KEYS).toEqual(['DATABASE_URL', 'SESSION_SECRET', 'MFA_ENCRYPTION_KEY']);
+    expect(SECRET_ENV_KEYS).toEqual([
+      'DATABASE_URL',
+      'DATABASE_MIGRATOR_URL',
+      'SESSION_SECRET',
+      'MFA_ENCRYPTION_KEY',
+    ]);
   });
 });
 
@@ -255,7 +277,9 @@ describe('TEST-ENV-10 .env.example contains placeholders only', () => {
   );
 
   it('documents every known variable and nothing else', () => {
-    expect(entries.map(([key]) => key).sort()).toEqual([...KNOWN_ENV_KEYS].sort());
+    expect(entries.map(([key]) => key).sort()).toEqual(
+      [...KNOWN_ENV_KEYS, ...COMPOSE_ENV_KEYS].sort(),
+    );
   });
 
   it('uses placeholders for every secret', () => {
@@ -269,5 +293,37 @@ describe('TEST-ENV-10 .env.example contains placeholders only', () => {
     expect(issues).toContain('SESSION_SECRET still contains a placeholder value');
     expect(issues).toContain('MFA_ENCRYPTION_KEY still contains a placeholder value');
     expect(issues).toContain('DATABASE_URL still contains a placeholder value');
+  });
+});
+
+describe('loadMigratorConfig', () => {
+  const migratorUrl = 'postgres://nalara_migrator:fixture-migrator-pw@localhost:5432/nalara';
+
+  it('needs only NODE_ENV and DATABASE_MIGRATOR_URL', () => {
+    expect(loadMigratorConfig({ NODE_ENV: 'test', DATABASE_MIGRATOR_URL: migratorUrl })).toEqual({
+      nodeEnv: 'test',
+      migratorDatabaseUrl: migratorUrl,
+    });
+  });
+
+  it('rejects a missing, invalid or placeholder URL without echoing it', () => {
+    const messages = (env: Record<string, string>) => {
+      try {
+        loadMigratorConfig(env);
+      } catch (error) {
+        return error instanceof ConfigError ? error.issues : [];
+      }
+      return [];
+    };
+    expect(messages({ NODE_ENV: 'test' })).toContain('DATABASE_MIGRATOR_URL is required');
+    expect(messages({ NODE_ENV: 'test', DATABASE_MIGRATOR_URL: 'mysql://x' })).toContain(
+      'DATABASE_MIGRATOR_URL must be a postgres:// URL with host and database name',
+    );
+    const placeholder = messages({
+      NODE_ENV: 'test',
+      DATABASE_MIGRATOR_URL: 'postgres://m:REPLACE_WITH_PW@localhost:5432/nalara',
+    });
+    expect(placeholder).toContain('DATABASE_MIGRATOR_URL still contains a placeholder value');
+    expect(placeholder.join(' ')).not.toContain('REPLACE_WITH_PW');
   });
 });
