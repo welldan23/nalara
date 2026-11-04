@@ -78,6 +78,10 @@ services:
       TRUSTED_PROXIES: 172.31.250.10,172.31.250.11
       # Launch switch (ADR-015): published articles stay off the public site until set to true.
       PUBLIC_SITE_ENABLED: ${PUBLIC_SITE_ENABLED:-false}
+      # Founder Telegram bot webhook (P3-04, D-26): off while the secret is empty.
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      TELEGRAM_FOUNDER_USER_ID: ${TELEGRAM_FOUNDER_USER_ID:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
     networks: [backend, frontend]
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:4000/health/ready']
@@ -102,6 +106,12 @@ services:
       NODE_ENV: production
       WORKER_DATABASE_URL: postgres://nalara_worker:${DB_WORKER_PASSWORD:?set DB_WORKER_PASSWORD}@db:5432/nalara
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Founder Telegram bot, sending side (P3-04, D-26): off while the token is empty. The
+      # webhook secret and site URL are only for `dist/cli/telegram-setup.js set-webhook`.
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      APP_BASE_URL: ${APP_BASE_URL:?set APP_BASE_URL}
     networks: [backend, egress]
     healthcheck:
       # The loop rewrites this file on every turn (at most every 5 s while idle).

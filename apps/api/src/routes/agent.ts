@@ -111,7 +111,8 @@ export function agentRoutes(app: FastifyInstance, options: { readonly db: Db }):
   }
 
   app.get('/status', (request) => call(request, 'status', {}));
-  app.post('/tools/:name', (request) => {
+  // Drafts from the writer agent can be up to ~40 KB of source (same order as the editor).
+  app.post('/tools/:name', { bodyLimit: 128 * 1024 }, (request) => {
     const { name } = request.params as { name: string };
     return call(request, name, request.body);
   });

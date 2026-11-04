@@ -50,6 +50,8 @@ export const SECRET_ENV_KEYS = [
   'MFA_ENCRYPTION_KEY',
   'AGENT_TOKEN',
   'AI_API_KEY',
+  'TELEGRAM_BOT_TOKEN',
+  'TELEGRAM_WEBHOOK_SECRET',
 ] as const;
 
 /** Every variable NALARA understands. Used by the typo guard and by .env.example tests. */
@@ -78,6 +80,11 @@ export const KNOWN_ENV_KEYS = [
   'AI_BASE_URL',
   'AI_API_KEY',
   'AI_MODEL',
+  // Founder Telegram bot (P3-04, D-26).
+  'TELEGRAM_BOT_TOKEN',
+  'TELEGRAM_WEBHOOK_SECRET',
+  'TELEGRAM_FOUNDER_USER_ID',
+  'TELEGRAM_CHAT_ID',
 ] as const;
 
 /**
@@ -558,4 +565,65 @@ export function loadAgentRunnerConfig(env: RawEnv = process.env): AgentRunnerCon
     intervalSeconds: data.AGENT_INTERVAL_SECONDS,
     provider,
   };
+}
+
+export interface TelegramWebhookConfig {
+  /** Telegram sends it back in X-Telegram-Bot-Api-Secret-Token on every update. */
+  readonly secret: string;
+  /** Numeric ids: only this user, in this chat, is ever answered. */
+  readonly founderUserId: number;
+  readonly chatId: number;
+}
+
+export interface TelegramBotConfig {
+  readonly botToken: string;
+  readonly chatId: number;
+}
+
+const TELEGRAM_SECRET = /^[A-Za-z0-9_-]{32,256}$/;
+const TELEGRAM_BOT_TOKEN = /^\d{5,15}:[A-Za-z0-9_-]{30,64}$/;
+
+function telegramId(key: string, value: string | undefined, issues: string[]): number {
+  if (value === undefined || !/^-?\d{1,15}$/.test(value)) {
+    issues.push(`${key} must be a numeric Telegram id`);
+    return 0;
+  }
+  return Number(value);
+}
+
+/**
+ * The API's side of the founder bot (P3-04): the webhook. Off (null) until
+ * TELEGRAM_WEBHOOK_SECRET is set; then the founder's user id and chat id are required too.
+ */
+export function loadTelegramWebhookConfig(env: RawEnv = process.env): TelegramWebhookConfig | null {
+  const raw = nonEmpty(env);
+  const secret = raw['TELEGRAM_WEBHOOK_SECRET'];
+  // The example file's placeholder means "not set up yet", like an empty value.
+  if (secret === undefined || PLACEHOLDER_PATTERN.test(secret)) return null;
+  const issues: string[] = [];
+  if (!TELEGRAM_SECRET.test(secret)) {
+    issues.push('TELEGRAM_WEBHOOK_SECRET must be 32-256 characters of A-Z a-z 0-9 _ -');
+  }
+  const founderUserId = telegramId(
+    'TELEGRAM_FOUNDER_USER_ID',
+    raw['TELEGRAM_FOUNDER_USER_ID'],
+    issues,
+  );
+  const chatId = telegramId('TELEGRAM_CHAT_ID', raw['TELEGRAM_CHAT_ID'], issues);
+  if (issues.length > 0) throw new ConfigError(issues);
+  return { secret, founderUserId, chatId };
+}
+
+/** The worker's side of the founder bot (P3-04): sending. Off (null) until the token is set. */
+export function loadTelegramBotConfig(env: RawEnv = process.env): TelegramBotConfig | null {
+  const raw = nonEmpty(env);
+  const botToken = raw['TELEGRAM_BOT_TOKEN'];
+  if (botToken === undefined || PLACEHOLDER_PATTERN.test(botToken)) return null;
+  const issues: string[] = [];
+  if (!TELEGRAM_BOT_TOKEN.test(botToken)) {
+    issues.push('TELEGRAM_BOT_TOKEN must be the token from @BotFather');
+  }
+  const chatId = telegramId('TELEGRAM_CHAT_ID', raw['TELEGRAM_CHAT_ID'], issues);
+  if (issues.length > 0) throw new ConfigError(issues);
+  return { botToken, chatId };
 }

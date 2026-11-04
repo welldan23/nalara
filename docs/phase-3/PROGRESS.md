@@ -124,3 +124,39 @@ Satu entri per tiket, format sama dengan Phase 2. Rencana: [PLAN.md](PLAN.md).
     - 1 tes POST di fetch aman.
     - 2 tes konfig runner.
 - Keputusan founder: tidak ada yang baru. D-25 (provider) baru dibutuhkan untuk menyalakan runner sungguhan.
+
+### P3-04 — Bot Telegram founder
+- Commit: lihat PR `feat/P3-04-telegram`
+- File baru:
+  - `db/migrations/0017_approval_tokens.sql`
+  - `apps/api/src/modules/telegram/{tokens,bot}.ts`, `apps/api/src/routes/telegram.ts`, `apps/api/src/cli/telegram-setup.ts`
+  - `docs/runbooks/telegram-bot.md`
+  - `apps/api/tests/integration/telegram.test.ts`
+- File berubah:
+  - `worker.ts`: notifikasi tiap menit
+  - `main.ts`/`app.ts`: webhook hanya ada bila dikonfigurasi
+  - `config/env.ts`, `.env.example`, `compose.prod.yaml`
+  - Caddyfile: header secret webhook dihapus dari log
+  - Gateway: batas body 128 KB untuk tool, supaya draft panjang dari Penulis tidak ditolak 413
+- Perilaku:
+  - Worker mengirim satu pesan teks polos (tanpa `parse_mode`) per usulan baru, dengan tombol Setujui/Tolak. Token disimpan dalam transaksi yang sama dengan pengiriman: kalau Telegram menolak, tidak ada yang tersimpan, dan usulan dicoba lagi menit berikutnya.
+  - Token: 128 bit, sekali pakai, paling lama 24 jam (tidak pernah melewati batas usulan), terikat ke usulan + keputusan, dan disimpan sebagai hash. Dipakai dengan satu `UPDATE` bersyarat, dan tombol pasangannya ikut mati.
+  - Webhook API:
+    - secret dicek dengan perbandingan waktu-konstan (401 kalau salah);
+    - hanya user ID dan chat ID founder yang dilayani;
+    - akun asing → jawaban kosong + audit `denied`;
+    - replay, token kedaluwarsa, prefiks tombol yang salah, dan usulan yang sudah diputuskan → ditolak dengan pesan;
+    - keputusan lewat `decideProposal` yang sama dengan OS, dengan kanal `telegram`.
+  - `/stop` = kill switch (hanya founder); `/status` = status AI + jumlah usulan.
+  - Balasan dikirim di respons webhook, jadi API tetap tanpa koneksi keluar.
+  - Role worker hanya bisa membaca kolom yang ditampilkan di pesan (bukan payload), dan tidak bisa memakai token.
+- Test:
+  - `pnpm run check` → PASS **487/487**, termasuk 6 tes integrasi Telegram:
+    - kirim + retry;
+    - secret salah;
+    - sekali pakai, akun/chat asing, prefiks salah, tombol pasangan;
+    - token kedaluwarsa dan usulan yang sudah diputuskan di OS;
+    - `/stop` dan `/status`;
+    - grant database.
+  - Ditambah tes draft panjang (39 KB) yang tidak ditolak karena ukurannya.
+- Keputusan founder: D-26 (membuat bot) baru dibutuhkan setelah deploy. Langkahnya ada di runbook.
