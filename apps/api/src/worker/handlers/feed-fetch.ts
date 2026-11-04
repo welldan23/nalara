@@ -2,7 +2,8 @@
 // failing (not quarantined, not unchecked) feed is fetched about once an hour, politely:
 // If-None-Match / If-Modified-Since, so an unchanged feed costs one 304 and no parsing. New items
 // are inserted with ON CONFLICT DO NOTHING on (source, canonical URL), so a feed fetched twice
-// never creates a duplicate. Failures back off exponentially with jitter (P2-05 adds quarantine).
+// never creates a duplicate. Failures back off exponentially with jitter; after QUARANTINE_AFTER
+// failures in a row (or at once, for an internal address) the feed is quarantined (P2-05).
 import { createHash, randomUUID } from 'node:crypto';
 import { and, eq, inArray, isNotNull, lte, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -22,6 +23,23 @@ type Db = NodePgDatabase<typeof schema>;
 export const FETCH_INTERVAL_MS = 60 * 60 * 1000;
 /** First retry after a failure (then doubling with jitter, capped at 6 hours). */
 export const FAILURE_BASE_MS = 15 * 60 * 1000;
+/** Consecutive failures before a feed is quarantined (P2-05). */
+export const QUARANTINE_AFTER = 5;
+/**
+ * Errors that quarantine at once: the feed URL points at an internal address or a forbidden
+ * scheme/port (possibly after a redirect). Retrying would only knock on the same door again.
+ */
+const QUARANTINE_NOW = new Set([
+  'fetch:address',
+  'fetch:scheme',
+  'fetch:port',
+  'fetch:credentials',
+]);
+
+/** What a failed fetch does to the feed: back off, or stop until the founder looks at it. */
+export function afterFailure(failures: number, error: string): 'retry' | 'quarantine' {
+  return failures >= QUARANTINE_AFTER || QUARANTINE_NOW.has(error) ? 'quarantine' : 'retry';
+}
 
 /** Feeds that may be fetched at all: verified source, feed checked once, not quarantined. */
 const fetchable = () =>
@@ -151,6 +169,21 @@ export function feedFetchHandler(db: Db, fetchOptions: SafeFetchOptions = {}): J
         durationMs,
       });
       const failures = error === null ? 0 : source.failures + 1;
+      if (error !== null && afterFailure(failures, error) === 'quarantine') {
+        // Stop fetching this feed until the founder releases it; other feeds carry on.
+        await tx
+          .update(sources)
+          .set({
+            feedStatus: 'quarantined',
+            feedError: error,
+            feedCheckedAt: sql`now()`,
+            consecutiveFailures: failures,
+            nextFetchAt: null,
+            feedQuarantinedAt: sql`now()`,
+          })
+          .where(eq(sources.id, source.id));
+        return;
+      }
       const delay =
         error === null
           ? FETCH_INTERVAL_MS

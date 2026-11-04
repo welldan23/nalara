@@ -57,6 +57,8 @@ const RULES: Readonly<Record<string, string>> = {
   http_url_required: 'harus alamat http(s) lengkap, tanpa nama pengguna atau kata sandi.',
   missing: 'belum diisi.',
   not_verified: 'feed hanya dicek untuk sumber berstatus Terverifikasi.',
+  quarantined: 'feed sedang dikarantina. Lepas karantina dulu.',
+  not_quarantined: 'feed tidak sedang dikarantina.',
 };
 
 export function describeSourceField(path: string, rule: string): string {
@@ -77,6 +79,7 @@ export const FEED_STATUS_LABELS: Readonly<Record<string, string>> = {
 export const FEED_ERRORS: Readonly<Record<string, string>> = {
   'source:not_verified':
     'Sumber tidak berstatus Terverifikasi saat dicek, jadi feed tidak diambil.',
+  'source:quarantined': 'Feed sedang dikarantina, jadi tidak diambil.',
   'fetch:address': 'Alamat feed menunjuk ke jaringan internal atau privat, jadi ditolak.',
   'fetch:dns': 'Nama domain feed tidak ditemukan.',
   'fetch:timeout': 'Server feed terlalu lama menjawab.',

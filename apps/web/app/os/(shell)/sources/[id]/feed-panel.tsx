@@ -10,39 +10,49 @@ async function csrfToken(): Promise<string> {
   return ((await me.json()) as { csrfToken: string }).csrfToken;
 }
 
-export function CheckFeedButton({ sourceId }: { readonly sourceId: string }) {
+export function CheckFeedButton({
+  sourceId,
+  quarantined = false,
+}: {
+  readonly sourceId: string;
+  /** P2-05: a quarantined feed is released (and checked again) instead of just checked. */
+  readonly quarantined?: boolean;
+}) {
   const router = useRouter();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const action = quarantined ? 'release-feed' : 'check-feed';
 
   async function check() {
     setBusy(true);
     setMessage('');
     try {
-      const response = await fetch(
-        `/api/v1/os/sources/${encodeURIComponent(sourceId)}/check-feed`,
-        {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'content-type': 'application/json', 'x-csrf-token': await csrfToken() },
-          body: '{}',
-        },
-      );
+      const response = await fetch(`/api/v1/os/sources/${encodeURIComponent(sourceId)}/${action}`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json', 'x-csrf-token': await csrfToken() },
+        body: '{}',
+      });
       const body = (await response.json()) as {
         queued?: boolean;
+        released?: boolean;
         error?: { fields?: { path: string; rule: string }[] };
       };
       if (response.status === 202) {
         setMessage(
-          body.queued === true
-            ? 'Pengecekan dijadwalkan. Hasilnya muncul di riwayat di bawah dalam beberapa detik.'
-            : 'Pengecekan sebelumnya masih menunggu giliran.',
+          body.released === true
+            ? 'Karantina dilepas. Feed dicek ulang dulu; pengambilan berjalan lagi bila cek berhasil.'
+            : body.queued === true
+              ? 'Pengecekan dijadwalkan. Hasilnya muncul di riwayat di bawah dalam beberapa detik.'
+              : 'Pengecekan sebelumnya masih menunggu giliran.',
         );
         for (const delay of [3_000, 8_000, 15_000]) {
           setTimeout(() => {
             router.refresh();
           }, delay);
         }
+      } else if (body.error?.fields?.some((field) => field.rule === 'quarantined')) {
+        setMessage('Feed sedang dikarantina. Muat ulang halaman, lalu lepas karantina.');
       } else if (body.error?.fields?.some((field) => field.rule === 'not_verified')) {
         setMessage('Feed hanya dicek untuk sumber berstatus Terverifikasi.');
       } else if (body.error?.fields?.some((field) => field.path === 'feedUrl')) {
@@ -60,7 +70,7 @@ export function CheckFeedButton({ sourceId }: { readonly sourceId: string }) {
   return (
     <div className="workflow-actions">
       <button type="button" className="secondary" disabled={busy} onClick={() => void check()}>
-        Cek feed sekarang
+        {quarantined ? 'Lepas karantina dan cek ulang' : 'Cek feed sekarang'}
       </button>
       <p aria-live="polite" className="muted">
         {message}

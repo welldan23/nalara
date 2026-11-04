@@ -162,6 +162,7 @@ export interface Source {
   readonly feedCheckedAt: string | null;
   readonly feedError: string | null;
   readonly consecutiveFailures: number;
+  readonly feedQuarantinedAt: string | null;
   readonly version: number;
   readonly createdAt: string;
   readonly updatedAt: string;

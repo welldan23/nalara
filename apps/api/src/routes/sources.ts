@@ -12,6 +12,7 @@ import {
   getSource,
   listSourceChecks,
   listSources,
+  releaseFeed,
   requestFeedCheck,
   updateSource,
 } from '../modules/sources/sources.ts';
@@ -60,6 +61,16 @@ export function registerSourceRoutes(
     async (request, reply) => {
       const queued = await requestFeedCheck(db, actor(request), sourceId(request.params));
       return reply.code(202).send({ queued });
+    },
+  );
+
+  // Release a quarantined feed (P2-05): back to unchecked, with a check queued.
+  app.post(
+    '/sources/:id/release-feed',
+    { config: { permission: 'sources.write' }, preHandler: guards.requireCsrf },
+    async (request, reply) => {
+      await releaseFeed(db, actor(request), sourceId(request.params));
+      return reply.code(202).send({ released: true });
     },
   );
 
