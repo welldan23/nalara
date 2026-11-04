@@ -245,4 +245,36 @@ Satu entri per tiket, format sama dengan Phase 1. Rencana: [PLAN.md](PLAN.md).
 - Security review: PASS. Inbox hanya untuk founder, tidak ada jalur ke publik, teks penerbit tidak masuk ke artikel, dan sitasi tetap harus diverifikasi manusia.
 - Keputusan founder: PENDING
 
-**Next:** P2-07 — Vault bukti (snapshot sumber yang dikutip).
+### P2-07 — Vault bukti
+- Commit: lihat PR `feat/P2-07-evidence-vault`
+- File berubah:
+  - baru: `db/migrations/0014_evidence_snapshots.sql`, `apps/api/src/modules/evidence/evidence.ts`, `apps/api/src/worker/handlers/evidence-snapshot.ts`, `apps/api/tests/integration/evidence.test.ts`, `apps/api/tests/support/tls.ts`;
+  - `apps/api/src/{db/schema,routes/articles,worker,modules/fetch/safe-fetch}.ts`, halaman artikel OS, `apps/web/lib/api.ts`;
+  - tes db dan e2e.
+- Perilaku:
+  - **Sitasi yang ditandai "sudah dicek"** (saat buat, simpan, atau koreksi) meminta salinan halaman sumbernya:
+    - salinan yang tersimpan kurang dari 30 hari atau masih menunggu dipakai ulang, tidak di-fetch lagi;
+    - kegagalan meminta salinan tidak pernah menggagalkan penyimpanan artikel.
+  - **Worker `evidence_snapshot`:**
+    - fetch lewat fetch aman (P2-01);
+    - hanya dokumen dan data (HTML, PDF, teks, CSV, JSON, XML, spreadsheet), maksimal 5 MB;
+    - menyimpan byte apa adanya + SHA-256 + status HTTP + URL akhir; tidak ada yang di-parse atau dijalankan;
+    - gangguan sementara (timeout, jaringan, DNS, 5xx, 429) dicoba ulang oleh antrean sampai 3 kali; selain itu langsung `failed` dengan kode tetap.
+  - **Immutable:** `pending` → `captured`/`failed` sekali saja (trigger database), setelah itu tidak bisa diubah atau dihapus siapa pun. Worker hanya bisa membaca `id`/`url`/`status` dan tidak pernah membaca kembali byte-nya.
+  - **Unduh** (`GET /api/v1/os/evidence/:id/file`, `articles.read`): selalu `attachment` bertipe `application/octet-stream`, `nosniff`, `CSP sandbox`, header `X-Evidence-SHA256`. Salinan halaman orang lain **tidak pernah dijalankan di origin NALARA**.
+  - **Web:** bagian "Bukti sumber" di halaman artikel OS per sitasi yang sudah dicek: menunggu / tersimpan (waktu, ukuran, SHA-256, unduh) / gagal.
+  - `safeFetch` mendapat opsi `ca` khusus tes untuk server HTTPS lokal. Sertifikat tes dibuat saat tes berjalan dengan openssl, jadi tidak ada private key di repo.
+- Test:
+  - `pnpm run check` → PASS **458/458**; `pnpm run test:backup` → PASS **11/11**; compose smoke → PASS **20/20**.
+  - Termasuk 4 tes integrasi vault dengan server **HTTPS** lokal:
+    - sitasi yang dicek tersalin byte-per-byte (termasuk `<script>` yang disimpan, tidak dijalankan), SHA-256 cocok; sitasi yang belum dicek tidak diminta;
+    - detail artikel menampilkan bukti;
+    - unduh sebagai attachment dengan header aman; tanpa sesi → 401;
+    - salinan baru dipakai ulang (tanpa fetch kedua);
+    - tipe terlarang → `failed` tanpa byte; server mati → tetap `pending` lalu `failed` setelah 3 percobaan;
+    - immutable bagi worker dan migrator, dan worker tidak bisa membaca byte.
+  - `pnpm run test:e2e` → PASS **21/21**. TEST-P1-03 kini juga melihat "Bukti sumber: Menunggu disalin" setelah sumber dicek.
+- Security review: PASS. Fetch ke URL pilihan founder tetap terlindungi SSRF. Konten pihak ketiga hanya disimpan dan diunduh, tidak pernah dirender.
+- Keputusan founder: PENDING
+
+**Next:** P2-08 — Penerimaan Phase 2 (`docs/phase-2/ACCEPTANCE.md`).
