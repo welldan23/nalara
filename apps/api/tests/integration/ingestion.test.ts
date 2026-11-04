@@ -240,9 +240,10 @@ describe.skipIf(!databaseAvailable)('ingestion', { timeout: 60_000 }, () => {
     const unchecked = await source();
     const quarantined = await source();
     await checked(quarantined);
-    await migrator.query(`UPDATE sources SET feed_status = 'quarantined' WHERE id = $1`, [
-      quarantined,
-    ]);
+    await migrator.query(
+      `UPDATE sources SET feed_status = 'quarantined', feed_quarantined_at = now() WHERE id = $1`,
+      [quarantined],
+    );
     const paused = await source();
     await checked(paused);
     await migrator.query(`UPDATE sources SET status = 'paused' WHERE id = $1`, [paused]);

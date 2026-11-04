@@ -184,4 +184,33 @@ Satu entri per tiket, format sama dengan Phase 1. Rencana: [PLAN.md](PLAN.md).
 - Security review: PASS. Semua fetch tetap lewat fetch aman, hanya sumber verified, isi feed disimpan sebagai teks polos, dan item tidak pernah tampil di situs publik.
 - Keputusan founder: PENDING
 
-**Next:** P2-05 — Retry + karantina feed bermasalah.
+### P2-05 — Retry + karantina
+- Commit: lihat PR `feat/P2-05-quarantine`
+- File berubah:
+  - baru: `db/migrations/0013_feed_quarantine.sql`, `apps/api/tests/integration/quarantine.test.ts`;
+  - `apps/api/src/worker/handlers/{feed-fetch,feed-check}.ts`, `apps/api/src/modules/sources/sources.ts`, `apps/api/src/routes/sources.ts`, `modules/audit/audit.ts`, panel feed di web, `apps/web/lib/{api,source-messages}.ts`.
+- Perilaku:
+  - **Retry:** setiap kegagalan menaikkan `consecutive_failures` dan menjadwalkan ulang dengan backoff eksponensial + jitter (P2-04). Satu fetch berhasil mengembalikan hitungan ke 0.
+  - **Karantina otomatis** (status `quarantined`, `feed_quarantined_at` terisi, tidak dijadwalkan lagi):
+    - setelah **5 kali gagal berturut-turut**;
+    - **langsung** bila feed menunjuk ke alamat internal/privat, skema/port terlarang, atau kredensial (termasuk lewat redirect), karena mencoba lagi hanya mengetuk pintu yang sama.
+  - **Feed lain tidak terpengaruh:** setiap feed punya job dan statusnya sendiri.
+  - **Lepas karantina** (`POST /api/v1/os/sources/:id/release-feed`, `sources.write` + CSRF, tercatat audit):
+    - feed kembali ke `unchecked`, hitungan gagal dan ETag dikosongkan;
+    - cek feed langsung diantrekan;
+    - ingestion baru berjalan lagi **setelah cek itu lolos**.
+  - "Cek feed" biasa pada feed yang dikarantina ditolak (harus dilepas secara eksplisit), dan worker juga melewatinya saat job berjalan. Ini mencegah karantina terlepas diam-diam (dan pelanggaran constraint database).
+  - **Web:** panel feed menampilkan peringatan karantina (sejak kapan, berapa kali gagal, apa yang harus dicek) dan tombol "Lepas karantina dan cek ulang".
+- **Ditemukan saat tes:** constraint baru (`quarantined` ⇔ `feed_quarantined_at` terisi) menolak tes P2-04 yang menyetel status karantina tanpa waktunya. Tes diperbaiki; constraint memang dimaksudkan menolak keadaan setengah itu.
+- Test:
+  - `pnpm run check` → PASS **450/450**; `pnpm run test:backup` → PASS **11/11**; `pnpm run test:e2e` → PASS **20/20**; compose smoke → PASS **20/20**.
+  - Termasuk 4 tes integrasi karantina dengan server feed lokal:
+  - aturan retry/karantina per jumlah gagal dan jenis error;
+  - feed rusak dikarantina setelah 5 putaran, sementara feed sehat tetap diambil **setiap putaran**;
+  - feed yang dikarantina tidak dijadwalkan walaupun "jatuh tempo";
+  - alamat internal → karantina langsung;
+  - cek biasa pada feed karantina ditolak; lepas karantina → `unchecked` + cek diantrekan → tidak dijadwalkan sebelum cek lolos → setelah lolos diambil lagi; audit; melepas feed yang tidak dikarantina ditolak.
+- Security review: PASS. Feed yang mencurigakan berhenti otomatis, dan hanya founder yang bisa melanjutkannya.
+- Keputusan founder: PENDING
+
+**Next:** P2-06 — Inbox `/os/inbox`.
