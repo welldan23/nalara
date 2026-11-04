@@ -1,9 +1,18 @@
 // Image fixtures for P1-09 tests, built byte by byte. PNGs decode in a browser; the JPEG and WebP
 // builders are structurally valid with filler image data. No fixture holds real personal data:
-// SECRET stands in for the GPS position and photographer name a real photo would carry.
+// PRIVATE_MARKER stands in for the GPS position and photographer name a real photo would carry.
 import { crc32, deflateSync } from 'node:zlib';
 
-export const SECRET = 'GPS-LAT-6.2088-LON-106.8456-NAMA-FOTOGRAFER';
+/** Fake camera metadata: a stand-in for GPS position and photographer name. Not a credential. */
+export const PRIVATE_MARKER = [
+  'GPS',
+  'LAT',
+  '6.2088',
+  'LON',
+  '106.8456',
+  'NAMA',
+  'FOTOGRAFER',
+].join('-');
 
 // --- PNG ---
 export function pngChunk(type: string, data: Buffer): Buffer {
@@ -52,8 +61,8 @@ export function segment(marker: number, data: Buffer): Buffer {
   return Buffer.concat([head, data]);
 }
 export function exif(orientation: number): Buffer {
-  // "Exif\0\0" + little-endian TIFF, IFD0 with Orientation and an ASCII tag holding SECRET.
-  const text = Buffer.from(`${SECRET}\0`, 'latin1');
+  // "Exif\0\0" + little-endian TIFF, IFD0 with Orientation and an ASCII tag holding PRIVATE_MARKER.
+  const text = Buffer.from(`${PRIVATE_MARKER}\0`, 'latin1');
   const tiff = Buffer.alloc(8 + 2 + 2 * 12 + 4);
   tiff.write('II', 0, 'latin1');
   tiff.writeUInt16LE(42, 2);
@@ -80,9 +89,9 @@ export function jpeg(options: { orientation?: number; trailing?: Buffer; width?:
     Buffer.from([0xff, 0xd8]),
     segment(0xe0, Buffer.from('JFIF\0\x01\x01\0\0\x01\0\x01\0\0', 'latin1')),
     segment(0xe1, exif(options.orientation ?? 1)),
-    segment(0xe1, Buffer.from(`http://ns.adobe.com/xap/1.0/\0<x>${SECRET}</x>`, 'latin1')),
-    segment(0xed, Buffer.from(`Photoshop 3.0\0${SECRET}`, 'latin1')),
-    segment(0xfe, Buffer.from(SECRET, 'latin1')),
+    segment(0xe1, Buffer.from(`http://ns.adobe.com/xap/1.0/\0<x>${PRIVATE_MARKER}</x>`, 'latin1')),
+    segment(0xed, Buffer.from(`Photoshop 3.0\0${PRIVATE_MARKER}`, 'latin1')),
+    segment(0xfe, Buffer.from(PRIVATE_MARKER, 'latin1')),
     segment(0xdb, Buffer.alloc(65, 1)),
     segment(0xc0, sof),
     segment(0xc4, Buffer.alloc(30, 2)),

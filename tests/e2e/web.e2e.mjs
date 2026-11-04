@@ -14,7 +14,11 @@ import { migrate } from '../../apps/api/src/db/migrate.ts';
 import { MIGRATIONS_DIR } from '../../apps/api/src/db/migrations-dir.ts';
 import { hashPassword } from '../../apps/api/src/modules/auth/password.ts';
 import { totpAt } from '../../apps/api/src/modules/auth/totp.ts';
-import { SECRET as PRIVATE_METADATA, exif, segment } from '../../apps/api/tests/support/images.ts';
+import {
+  PRIVATE_MARKER as PRIVATE_METADATA,
+  exif,
+  segment,
+} from '../../apps/api/tests/support/images.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const { chromium } = createRequire(import.meta.url)('playwright');

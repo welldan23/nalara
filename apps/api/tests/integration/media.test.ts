@@ -18,7 +18,7 @@ import {
   sqlState,
   type TestDatabase,
 } from '../support/database.ts';
-import { SECRET as PRIVATE_METADATA, jpeg, png, pngChunk } from '../support/images.ts';
+import { PRIVATE_MARKER as PRIVATE_METADATA, jpeg, png, pngChunk } from '../support/images.ts';
 
 const ORIGIN = 'http://localhost:3000';
 const COOKIE = '__Host-nalara_session';

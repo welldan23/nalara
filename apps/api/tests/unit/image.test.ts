@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { ImageError, cleanImage, sniffImage } from '../../src/modules/media/image.ts';
 import {
-  SECRET,
+  PRIVATE_MARKER,
   exif,
   jpeg,
   png,
@@ -40,17 +40,17 @@ describe('PNG', () => {
       5,
       3,
       [
-        pngChunk('tEXt', Buffer.from(`Author\0${SECRET}`, 'latin1')),
-        pngChunk('iTXt', Buffer.from(`XML:com.adobe.xmp\0\0\0\0\0${SECRET}`, 'latin1')),
+        pngChunk('tEXt', Buffer.from(`Author\0${PRIVATE_MARKER}`, 'latin1')),
+        pngChunk('iTXt', Buffer.from(`XML:com.adobe.xmp\0\0\0\0\0${PRIVATE_MARKER}`, 'latin1')),
         pngChunk('eXIf', exif(1).subarray(6)),
         pngChunk('tIME', Buffer.alloc(7)),
         pngChunk('sRGB', Buffer.from([0])),
       ],
-      Buffer.from(`PK\x03\x04${SECRET}`, 'latin1'),
+      Buffer.from(`PK\x03\x04${PRIVATE_MARKER}`, 'latin1'),
     );
     const clean = cleanImage(input);
     expect(clean).toMatchObject({ mime: 'image/png', width: 5, height: 3 });
-    expect(has(clean.bytes, SECRET)).toBe(false);
+    expect(has(clean.bytes, PRIVATE_MARKER)).toBe(false);
     expect(has(clean.bytes, 'sRGB')).toBe(true);
     expect([...clean.removed].sort()).toEqual(['eXIf', 'iTXt', 'tEXt', 'tIME', 'trailing-data']);
     // The result is itself a valid PNG that cleans to the same bytes (idempotent).
@@ -82,9 +82,11 @@ describe('PNG', () => {
 
 describe('JPEG', () => {
   it('drops EXIF (GPS, camera), XMP, IPTC, comments and trailing data', () => {
-    const clean = cleanImage(jpeg({ trailing: Buffer.from(`<?php ${SECRET} ?>`, 'latin1') }));
+    const clean = cleanImage(
+      jpeg({ trailing: Buffer.from(`<?php ${PRIVATE_MARKER} ?>`, 'latin1') }),
+    );
     expect(clean).toMatchObject({ mime: 'image/jpeg', width: 40, height: 30 });
-    expect(has(clean.bytes, SECRET)).toBe(false);
+    expect(has(clean.bytes, PRIVATE_MARKER)).toBe(false);
     expect(has(clean.bytes, 'Exif')).toBe(false);
     expect([...clean.removed].sort()).toEqual(['COM', 'EXIF', 'IPTC', 'XMP', 'trailing-data']);
     // The image data survives untouched, stuffed bytes and restart markers included.
@@ -96,7 +98,7 @@ describe('JPEG', () => {
 
   it('keeps only the orientation of a rotated phone photo', () => {
     const clean = cleanImage(jpeg({ orientation: 6 }));
-    expect(has(clean.bytes, SECRET)).toBe(false);
+    expect(has(clean.bytes, PRIVATE_MARKER)).toBe(false);
     const at = clean.bytes.indexOf(Buffer.from('Exif\0\0', 'latin1'));
     expect(at).toBeGreaterThan(0);
     // Minimal block: big-endian TIFF, one IFD entry (0x0112 = 6), 36 bytes in total.
@@ -136,13 +138,13 @@ describe('WebP', () => {
         webpChunk('VP8X', vp8x(64, 48, 0x08 | 0x04 | 0x10)),
         webpChunk('VP8L', vp8l(64, 48)),
         webpChunk('EXIF', exif(1).subarray(6)),
-        webpChunk('XMP ', Buffer.from(`<x>${SECRET}</x>`, 'latin1')),
+        webpChunk('XMP ', Buffer.from(`<x>${PRIVATE_MARKER}</x>`, 'latin1')),
       ],
-      Buffer.from(SECRET, 'latin1'),
+      Buffer.from(PRIVATE_MARKER, 'latin1'),
     );
     const clean = cleanImage(input);
     expect(clean).toMatchObject({ width: 64, height: 48 });
-    expect(has(clean.bytes, SECRET)).toBe(false);
+    expect(has(clean.bytes, PRIVATE_MARKER)).toBe(false);
     expect([...clean.removed].sort()).toEqual(['EXIF', 'XMP', 'trailing-data']);
     expect((clean.bytes[20] ?? 0) & 0x0c).toBe(0); // EXIF/XMP flags cleared, alpha flag kept
     expect((clean.bytes[20] ?? 0) & 0x10).toBe(0x10);

@@ -1,0 +1,7 @@
+# Reviewed gitleaks false positives. One line per finding fingerprint (commit:file:rule:line).
+# Add an entry only after checking the match is not a credential, and say why here.
+#
+# P1-09 image fixture: the fake "GPS" marker string assigned to a constant named SECRET in a test
+# helper (no credential; the constant was renamed in the next commit). The commit stays in history
+# because force pushes are not allowed, so the finding is ignored by its exact fingerprint.
+f1308bc62ecaa623fc340a1c31fd9511a135f9c8:apps/api/tests/support/images.ts:generic-api-key:6
