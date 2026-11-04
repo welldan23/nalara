@@ -26,13 +26,13 @@ Jangan pernah menulis password, recovery code, private key, atau token di file i
 | D-19 | 2026-11-04 | Rencana Phase 1 (revisi 2) dan ADR-011..019 | **Disetujui** | Founder: "yaudah lanjutin bro" sebagai jawaban atas 4 pertanyaan (opsi "setuju semua") | ADR dipindah ke `docs/adr/` saat tiket pertama memakainya | ADR pengganti | [ADR-PROPOSALS](../phase-1/ADR-PROPOSALS.md) |
 | D-20 | 2026-11-04 | Acuan Phase 1 | **PRD v4 ringkas**, dengan pengecualian: tetap API Fastify (ADR-018) dan skema Phase 0 (ADR-009) | Pekerjaan Phase 0 yang sudah teruji dipertahankan | PRD v3 tetap disimpan sebagai riwayat | Entri baru di register ini | [PRD v4](../prd/NALARA_PRD_v4_ringkas.md) |
 | D-21 | 2026-11-04 | Validasi pembaca vs pembangunan CMS | **Paralel**: founder menjalankan validasi (PRD v4 §2), Claude mengerjakan P1-01..P1-09. Soft launch menunggu hasil validasi | Artikel validasi dipakai ulang sebagai konten awal | Target validasi (R-07) ditentukan founder | Hentikan pembangunan bila validasi gagal | KP1-21 |
+| D-04 | 2026-11-04 | Lokasi backup offsite terenkripsi | **Google Drive**, lewat `rclone` dengan scope `drive.file`. Hanya ciphertext `age` yang diunggah; kunci privat tetap offline di founder. Token Drive di `/srv/nalara/rclone.conf` (mode 600) di server | Pilihan founder ("di google drive aja deh") | Gratis sampai 15 GB. Risiko: token server bisa menghapus salinan yang ia unggah (tempat sampah Drive menyimpan 30 hari); akun Google wajib 2FA | Ganti `OFFSITE_REMOTE` ke remote rclone lain (B2/R2/S3) tanpa ubah skrip | [backup-restore §7](../runbooks/backup-restore.md) |
+| D-09 | 2026-11-04 | Kapan deploy produksi pertama | **Ditunda** sampai founder siap (validasi pembaca dan artikel awal) | Pilihan founder ("tunggu") | P1-10 (deploy, TEST-OPS di VPS, ACCEPTANCE Phase 1) menunggu. Semua bagian yang tidak butuh server sudah selesai | Founder memberi tanda mulai | — |
 | D-22 | 2026-11-04 | Logo NALARA | **Beringin tiga lapis** (foto profil IG "NALARA Media") untuk semua lini NALARA; wordmark `NALARA` tetap untuk masthead | Pilihan founder | Butuh versi vektor sederhana untuk ukuran kecil. Domain `nalara.media` **belum** dibeli (tetap D-08) | Entri baru di register ini | [docs/brand](../brand/README.md) |
 
 ## Keputusan yang masih OPEN
 
 | ID | Pertanyaan | Dibutuhkan sebelum | Catatan |
 |---|---|---|---|
-| D-04 | Lokasi backup offsite terenkripsi dan siapa yang memegang kredensial | Deploy publik pertama (gate R-01) | Backup dan restore lokal tetap dikerjakan. Upload offsite NOT RUN sampai diputuskan |
 | D-07 | OS laptop founder dan apakah Docker terpasang | Dokumentasi P0-003 | Untuk menulis instruksi setup lokal yang tepat |
-| D-08 | Provider VPS, spek CPU/RAM/disk, versi Ubuntu, domain dan kontrol DNS | Deploy publik pertama (gate R-02) | Tanpa ini, rehearsal TLS memakai CA lokal saja |
-| D-09 | Kapan deploy produksi pertama (Phase 0 diterima tanpa deploy, D-16) | Sebelum launch publik | Menentukan apakah TEST-OPS dijalankan di VPS di Phase 0 |
+| D-08 | Provider VPS, spek CPU/RAM/disk, versi Ubuntu, domain dan kontrol DNS | Deploy publik pertama (gate R-02) | 2026-11-04: VPS dan domain **belum dibeli** (`nalara.media` belum dibeli). Tanpa ini, rehearsal TLS memakai CA lokal saja |
