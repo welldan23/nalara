@@ -85,6 +85,20 @@ export interface ArticleDetail {
     readonly note: string | null;
     readonly createdAt: string;
   }[];
+  /** Latest evidence snapshot per cited URL (P2-07). */
+  readonly evidence: Readonly<
+    Record<
+      string,
+      {
+        readonly id: string;
+        readonly status: string;
+        readonly capturedAt: string | null;
+        readonly byteSize: number | null;
+        readonly sha256: string | null;
+        readonly error: string | null;
+      }
+    >
+  >;
   readonly corrections: readonly {
     readonly description: string;
     readonly substantial: boolean;

@@ -6,6 +6,7 @@ import { writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { ConfigError, loadWorkerConfig } from './config/env.ts';
 import { createDatabase } from './db/client.ts';
+import { evidenceSnapshotHandler } from './worker/handlers/evidence-snapshot.ts';
 import { feedCheckHandler } from './worker/handlers/feed-check.ts';
 import { feedFetchHandler, scheduleDueFeeds } from './worker/handlers/feed-fetch.ts';
 import { startWorker } from './worker/runner.ts';
@@ -48,6 +49,7 @@ function main(): void {
     handlers: {
       feed_check: feedCheckHandler(database.db),
       feed_fetch: feedFetchHandler(database.db),
+      evidence_snapshot: evidenceSnapshotHandler(database.db),
     },
     onBeat: () => {
       try {

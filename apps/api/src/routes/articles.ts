@@ -30,6 +30,7 @@ import {
 import type { TransitionAction } from '../modules/articles/workflow.ts';
 import { styleWarnings } from '../modules/articles/warnings.ts';
 import { assertMediaExist, mediaForBody } from '../modules/media/media.ts';
+import { getEvidenceFile, latestEvidence, requestEvidence } from '../modules/evidence/evidence.ts';
 import type { AuthGuards } from '../plugins/auth.ts';
 
 /** Drafts are larger than the global 16 KiB API body limit (ADR-011). */
@@ -114,6 +115,20 @@ export function registerArticleRoutes(
     return { userId: request.auth.userId, requestId: request.id };
   };
 
+  // P2-07: keep a copy of every checked citation. Evidence is auxiliary: a failure here is
+  // logged and never undoes or blocks the save itself.
+  const keepEvidence = async (
+    request: { auth: { userId: string } | null; log: { warn: (o: object, m: string) => void } },
+    citations: readonly { readonly url: string; readonly verified: boolean }[],
+  ) => {
+    if (request.auth === null) return;
+    try {
+      await requestEvidence(db, request.auth.userId, citations);
+    } catch {
+      request.log.warn({}, 'evidence request failed');
+    }
+  };
+
   app.get('/categories', { config: { permission: 'articles.read' } }, async () => ({
     categories: await listCategories(db),
   }));
@@ -160,6 +175,11 @@ export function registerArticleRoutes(
         { sourceException: article.sourceException, media },
       ).blockers,
       media: Object.fromEntries(media),
+      // Stored citations were validated when the revision was written.
+      evidence: await latestEvidence(
+        db,
+        (article.current.citations as Citation[]).map((citation) => citation.url),
+      ),
       events: await listPublicationEvents(db, id),
       corrections: await listCorrections(db, id),
     };
@@ -181,7 +201,7 @@ export function registerArticleRoutes(
         input.citations.map((citation) => citation.id),
       );
       await assertMediaExist(db, body);
-      return correctPublished(db, actor(request), id, {
+      const corrected = await correctPublished(db, actor(request), id, {
         expectedVersion: input.expectedVersion,
         changeNote: input.changeNote,
         description: input.description,
@@ -197,6 +217,8 @@ export function registerArticleRoutes(
           citations: input.citations,
         },
       });
+      await keepEvidence(request, input.citations);
+      return corrected;
     },
   );
 
@@ -251,6 +273,7 @@ export function registerArticleRoutes(
         ...(input.slug !== undefined ? { slug: input.slug } : {}),
         ...(input.changeNote !== undefined ? { changeNote: input.changeNote } : {}),
       });
+      await keepEvidence(request, content.citations);
       return reply.code(201).send({
         ...saved,
         warnings: styleWarnings(content),
@@ -289,11 +312,37 @@ export function registerArticleRoutes(
         content,
         changeNote: input.changeNote,
       });
+      await keepEvidence(request, content.citations);
       return {
         ...saved,
         warnings: styleWarnings(content),
         verification: verificationLevel(content.citations),
       };
+    },
+  );
+
+  // Evidence download (P2-07). Always an attachment of unknown type: a copy of someone else's
+  // page must never run in NALARA's origin.
+  app.get(
+    '/evidence/:id/file',
+    { config: { permission: 'articles.read' } },
+    async (request, reply) => {
+      const { id } = parseOrThrow(idParams, request.params);
+      if (!uuid.safeParse(id).success) throw new AppError('NOT_FOUND');
+      const file = await getEvidenceFile(db, id);
+      if (file === null) throw new AppError('NOT_FOUND');
+      const digest = file.sha256.toString('hex');
+      return reply
+        .header('content-type', 'application/octet-stream')
+        .header(
+          'content-disposition',
+          `attachment; filename="nalara-bukti-${digest.slice(0, 12)}.bin"`,
+        )
+        .header('x-content-type-options', 'nosniff')
+        .header('content-security-policy', "default-src 'none'; sandbox")
+        .header('cache-control', 'private, no-store')
+        .header('x-evidence-sha256', digest)
+        .send(file.body);
     },
   );
 
