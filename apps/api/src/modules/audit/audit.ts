@@ -25,6 +25,8 @@ export const AUDIT_ACTIONS = {
   'source.update': ['version', 'status', 'license_status', 'changed'],
   'source.check_feed': ['queued'],
   'source.release_feed': ['check_queued'],
+  'inbox.status': ['status'],
+  'inbox.draft': ['article'],
   // `removed`: names of stripped metadata parts (e.g. "EXIF,XMP"), never their contents.
   'media.upload': ['mime', 'width', 'height', 'bytes', 'usage_basis', 'licensed', 'removed'],
   'media.update': ['version', 'usage_basis', 'licensed', 'changed'],

@@ -934,6 +934,95 @@ try {
   );
 
   await check(
+    'TEST-P2-06',
+    'inbox: items from feeds, mark seen, draft cites the original',
+    async () => {
+      assert(signedIn !== null, 'needs the signed-in page from TEST-WEB-03b');
+      const page = signedIn;
+      await page.setViewportSize({ width: 1280, height: 900 });
+      // Seed what the worker would have stored (the worker itself is tested in integration).
+      const db = await connect(database.migratorUrl);
+      try {
+        const founder = (await db.query('SELECT id FROM users LIMIT 1')).rows[0].id;
+        const source = (
+          await db.query(
+            `INSERT INTO sources (name, organization, type, official_url, license_status, status, feed_url, feed_status, created_by)
+           VALUES ('Siaran Pers', 'Bank Indonesia', 'central_bank', 'https://www.bi.go.id/id/publikasi', 'open', 'verified',
+                   'https://www.bi.go.id/id/rss', 'ok', $1) RETURNING id`,
+            [founder],
+          )
+        ).rows[0].id;
+        const run = (
+          await db.query(
+            'INSERT INTO ingestion_runs (source_id, http_status) VALUES ($1, 200) RETURNING id',
+            [source],
+          )
+        ).rows[0].id;
+        for (const [n, title] of [
+          [1, 'BI menahan suku bunga acuan'],
+          [2, 'Cadangan devisa Oktober 2026'],
+        ]) {
+          await db.query(
+            `INSERT INTO discovered_items (source_id, run_id, canonical_url, guid, title, summary, fingerprint)
+           VALUES ($1, $2, $3, $3, $4, 'RINGKASAN-PENERBIT', sha256(convert_to($4, 'UTF8')))`,
+            [source, run, `https://www.bi.go.id/id/siaran/${String(n)}`, title],
+          );
+        }
+      } finally {
+        await db.end();
+      }
+
+      await page.goto(`${WEB}/os`);
+      await page.getByRole('link', { name: 'Inbox', exact: true }).click();
+      await page.waitForURL(`${WEB}/os/inbox`);
+      const list = page.getByTestId('inbox');
+      await list.getByText('Cadangan devisa Oktober 2026').waitFor({ timeout: 10_000 });
+      assert(
+        (
+          await list.getByRole('link', { name: 'BI menahan suku bunga acuan' }).getAttribute('rel')
+        )?.includes('noopener'),
+        'external link without rel=noopener',
+      );
+      assert((await page.getByRole('link', { name: /^Baru \(2\)$/ }).count()) === 1, 'new count');
+
+      const item = list.locator('li', { hasText: 'Cadangan devisa Oktober 2026' });
+      await item.getByRole('button', { name: 'Tandai dilihat' }).click();
+      await page.getByRole('link', { name: /^Baru \(1\)$/ }).waitFor({ timeout: 10_000 });
+      await page.goto(`${WEB}/os/inbox?status=seen`);
+      await page.getByText('Cadangan devisa Oktober 2026').waitFor({ timeout: 10_000 });
+
+      await page.goto(`${WEB}/os/inbox`);
+      await shot(page, '15-inbox');
+      await page
+        .getByTestId('inbox')
+        .locator('li', { hasText: 'BI menahan suku bunga acuan' })
+        .getByRole('button', { name: 'Buat draft' })
+        .click();
+      await page.waitForURL(/\/os\/newsroom\/[0-9a-f-]{36}$/, { timeout: 10_000 });
+      assert(
+        (await page.getByLabel('Sumber 1: URL').inputValue()) ===
+          'https://www.bi.go.id/id/siaran/1',
+        'draft does not cite the original',
+      );
+      assert((await page.getByLabel('Penerbit').inputValue()) === 'Bank Indonesia', 'publisher');
+      assert(!(await page.getByLabel('Sudah dicek').isChecked()), 'citation marked as checked');
+      assert(
+        !(await page.getByLabel('Isi', { exact: true }).inputValue()).includes(
+          'RINGKASAN-PENERBIT',
+        ),
+        'publisher text copied into the draft',
+      );
+
+      await page.setViewportSize({ width: 320, height: 640 });
+      await page.goto(`${WEB}/os/inbox?status=used`);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      assert(overflow <= 0, `inbox overflows by ${overflow}px`);
+    },
+  );
+
+  await check(
     'TEST-WEB-04',
     'invalid or expired session cookie redirects (server-side check)',
     async () => {
@@ -1075,4 +1164,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 20 ? 0 : 1);
+process.exit(failed === 0 && results.length === 21 ? 0 : 1);

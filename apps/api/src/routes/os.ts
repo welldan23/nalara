@@ -7,6 +7,7 @@ import type { schema } from '../db/schema.ts';
 import type { AuthGuards } from '../plugins/auth.ts';
 import { enforcePolicy } from '../plugins/policy.ts';
 import { registerArticleRoutes } from './articles.ts';
+import { registerInboxRoutes } from './inbox.ts';
 import { registerMediaRoutes } from './media.ts';
 import { registerSourceRoutes } from './sources.ts';
 
@@ -23,5 +24,6 @@ export const osRoutes: FastifyPluginAsync<OsRoutesOptions> = (app, { guards, db 
   registerArticleRoutes(app, { db, guards });
   registerSourceRoutes(app, { db, guards });
   registerMediaRoutes(app, { db, guards });
+  registerInboxRoutes(app, { db, guards });
   return Promise.resolve();
 };

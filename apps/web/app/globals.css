@@ -676,3 +676,41 @@ main:focus {
   margin-top: 2rem;
   overflow-wrap: anywhere;
 }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Inbox (P2-06). */
+.inbox-list {
+  list-style: none;
+  padding: 0;
+}
+.inbox-list li {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--color-ink-muted);
+  overflow-wrap: anywhere;
+}
+.inbox-title {
+  margin: 0.2rem 0;
+  font-size: 1.15rem;
+}
+.inbox-summary {
+  margin: 0.3rem 0;
+}
+.inbox-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+.inbox-actions select {
+  font: inherit;
+  padding: 0.4rem;
+}

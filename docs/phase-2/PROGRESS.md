@@ -213,4 +213,36 @@ Satu entri per tiket, format sama dengan Phase 1. Rencana: [PLAN.md](PLAN.md).
 - Security review: PASS. Feed yang mencurigakan berhenti otomatis, dan hanya founder yang bisa melanjutkannya.
 - Keputusan founder: PENDING
 
-**Next:** P2-06 — Inbox `/os/inbox`.
+### P2-06 — Inbox `/os/inbox`
+- Commit: lihat PR `feat/P2-06-inbox`
+- File berubah:
+  - baru: `apps/api/src/modules/inbox/inbox.ts`, `apps/api/src/routes/inbox.ts`, `apps/web/app/os/(shell)/inbox/{page,item-actions}.tsx`, `apps/api/tests/integration/inbox.test.ts`;
+  - `apps/api/src/{routes/os,plugins/policy,modules/audit/audit}.ts`, navigasi OS, `apps/web/lib/api.ts`, `globals.css`;
+  - tes e2e.
+- Perilaku:
+  - **Inbox** (`GET /api/v1/os/inbox`, izin baru `inbox.read`):
+    - item dari feed sumber Terverifikasi, terbaru di atas, 50 per halaman dengan cursor;
+    - tab Baru / Dilihat / Diabaikan / Jadi draft, dengan jumlah item baru;
+    - tiap item: lembaga + nama sumber, judul (tautan ke penerbit asli, `rel="noopener noreferrer nofollow"`), ringkasan teks polos, waktu terbit, waktu ditemukan;
+    - **"juga di N sumber lain"** bila sidik judul yang sama dimuat sumber lain.
+  - **Tandai** (`PATCH /api/v1/os/inbox/:id`, `inbox.write` + CSRF, tercatat audit): dilihat / diabaikan / kembali ke baru. Status "dipakai" hanya bisa diset lewat "Buat draft".
+  - **Buat draft** (`POST /api/v1/os/inbox/:id/draft`, `articles.write` + CSRF): membuat artikel draft dengan topik pilihan dan:
+    - **satu sitasi** ke tulisan asli (URL kanonik, penerbit = lembaga sumber, judul, tanggal akses WIB);
+    - sitasi **belum ditandai "sudah dicek"**, sehingga gerbang terbit menahan artikel sampai founder membuka dan memverifikasi sumbernya;
+    - isi berupa **template kosong** (judul-judul bagian saja). Ringkasan atau teks penerbit **tidak disalin**;
+    - item berpindah ke "Jadi draft", tercatat di audit, lalu editor terbuka.
+- Test:
+  - `pnpm run check` → PASS **454/454**. Termasuk 4 tes integrasi inbox:
+    - daftar terbaru, paginasi 50+3 tanpa duplikat, filter sumber, "juga di 1 sumber lain", cursor dan status rusak → 400;
+    - tandai diabaikan + audit, "used" ditolak lewat PATCH, id rusak/tak dikenal → 404;
+    - draft: sitasi ke tulisan asli dan belum dicek, **ringkasan penerbit tidak ada di revisi**, item jadi "used", gerbang `no_verified_source` menahan;
+    - tanpa sesi → 401, tanpa CSRF → 403.
+  - `pnpm run test:e2e` → PASS **21/21**. Cek baru TEST-P2-06 (item ditanam langsung ke database; worker diuji di integrasi):
+    - inbox tampil dengan jumlah baru dan tautan `noopener`;
+    - tandai dilihat → hitungan turun, muncul di tab Dilihat;
+    - buat draft → editor dengan URL dan penerbit tersitasi, "Sudah dicek" belum dicentang, teks penerbit tidak tersalin;
+    - 320 px tanpa scroll horizontal.
+- Security review: PASS. Inbox hanya untuk founder, tidak ada jalur ke publik, teks penerbit tidak masuk ke artikel, dan sitasi tetap harus diverifikasi manusia.
+- Keputusan founder: PENDING
+
+**Next:** P2-07 — Vault bukti (snapshot sumber yang dikutip).
