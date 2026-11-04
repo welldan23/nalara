@@ -250,6 +250,7 @@ export const sources = pgTable('sources', {
   nextFetchAt: timestamp('next_fetch_at', { withTimezone: true }),
   etag: text('etag'),
   lastModified: text('last_modified'),
+  feedQuarantinedAt: timestamp('feed_quarantined_at', { withTimezone: true }),
   version: integer('version').notNull().default(1),
   createdBy: uuid('created_by')
     .notNull()

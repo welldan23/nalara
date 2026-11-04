@@ -55,11 +55,18 @@ export function feedCheckHandler(db: Db, fetchOptions: SafeFetchOptions = {}): J
   return async (job) => {
     if (job.subjectId === null) return { ok: false, error: 'job:no_subject' };
     const [source] = await db
-      .select({ id: sources.id, status: sources.status, feedUrl: sources.feedUrl })
+      .select({
+        id: sources.id,
+        status: sources.status,
+        feedUrl: sources.feedUrl,
+        feedStatus: sources.feedStatus,
+      })
       .from(sources)
       .where(eq(sources.id, job.subjectId));
     if (source === undefined) return { ok: false, error: 'source:missing' };
     if (source.feedUrl === null) return { ok: false, error: 'source:no_feed' };
+    // Quarantined since it was queued: leave it alone until the founder releases it.
+    if (source.feedStatus === 'quarantined') return { ok: false, error: 'source:quarantined' };
 
     const started = Date.now();
     let result: FeedFetchResult;

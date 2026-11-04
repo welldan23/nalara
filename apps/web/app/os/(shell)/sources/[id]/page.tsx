@@ -59,7 +59,14 @@ export default async function SourcePage({ params }: { readonly params: Promise<
             )}
           </p>
           {source.feedError !== null && <p className="error">{feedErrorText(source.feedError)}</p>}
-          <CheckFeedButton sourceId={source.id} />
+          {source.feedQuarantinedAt !== null && (
+            <p className="notice-warn" role="status">
+              Feed ini dikarantina sejak {dateFormat.format(new Date(source.feedQuarantinedAt))} WIB
+              setelah {source.consecutiveFailures} kali gagal, jadi tidak diambil lagi. Periksa URL
+              feed di atas, lalu lepas karantina. Feed dicek ulang dulu sebelum diambil lagi.
+            </p>
+          )}
+          <CheckFeedButton sourceId={source.id} quarantined={source.feedQuarantinedAt !== null} />
           {checks.length > 0 && (
             <ol className="revision-list" aria-label="Riwayat cek feed">
               {checks.map((check, index) => (

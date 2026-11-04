@@ -96,6 +96,7 @@ export interface SourceView {
   readonly feedCheckedAt: Date | null;
   readonly feedError: string | null;
   readonly consecutiveFailures: number;
+  readonly feedQuarantinedAt: Date | null;
   readonly version: number;
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -118,6 +119,7 @@ const columns = {
   feedCheckedAt: sources.feedCheckedAt,
   feedError: sources.feedError,
   consecutiveFailures: sources.consecutiveFailures,
+  feedQuarantinedAt: sources.feedQuarantinedAt,
   version: sources.version,
   createdAt: sources.createdAt,
   updatedAt: sources.updatedAt,
@@ -146,6 +148,7 @@ const freshFeed = (url: string | null) => ({
   nextFetchAt: null,
   etag: null,
   lastModified: null,
+  feedQuarantinedAt: null,
 });
 
 function duplicateField(error: unknown): 'officialUrl' | 'feedUrl' | null {
@@ -302,10 +305,14 @@ export async function listSourceChecks(
 export async function requestFeedCheck(db: Db, actor: Actor, id: string): Promise<boolean> {
   return db.transaction(async (tx) => {
     const [source] = await tx
-      .select({ status: sources.status, feedUrl: sources.feedUrl })
+      .select({ status: sources.status, feedUrl: sources.feedUrl, feedStatus: sources.feedStatus })
       .from(sources)
       .where(eq(sources.id, id));
     if (source === undefined) throw new AppError('NOT_FOUND');
+    // A quarantined feed is released explicitly (releaseFeed), never by a stray check.
+    if (source.feedStatus === 'quarantined') {
+      throw new AppError('VALIDATION_FAILED', [{ path: 'feedStatus', rule: 'quarantined' }]);
+    }
     if (source.feedUrl === null) {
       throw new AppError('VALIDATION_FAILED', [{ path: 'feedUrl', rule: 'missing' }]);
     }
@@ -325,5 +332,48 @@ export async function requestFeedCheck(db: Db, actor: Actor, id: string): Promis
       metadata: { queued },
     });
     return queued;
+  });
+}
+
+/**
+ * Release a quarantined feed (P2-05): back to "unchecked" with a fresh failure count, and a check
+ * queued at once. Ingestion resumes only after that check passes.
+ */
+export async function releaseFeed(db: Db, actor: Actor, id: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [source] = await tx
+      .select({ status: sources.status, feedStatus: sources.feedStatus })
+      .from(sources)
+      .where(eq(sources.id, id))
+      .for('update');
+    if (source === undefined) throw new AppError('NOT_FOUND');
+    if (source.feedStatus !== 'quarantined') {
+      throw new AppError('VALIDATION_FAILED', [{ path: 'feedStatus', rule: 'not_quarantined' }]);
+    }
+    await tx
+      .update(sources)
+      .set({
+        feedStatus: 'unchecked',
+        feedQuarantinedAt: null,
+        consecutiveFailures: 0,
+        feedError: null,
+        nextFetchAt: null,
+        etag: null,
+        lastModified: null,
+      })
+      .where(eq(sources.id, id));
+    const queued =
+      source.status === 'verified' &&
+      (await enqueue(tx, { kind: 'feed_check', subjectId: id, maxAttempts: 1 })) !== null;
+    await recordAudit(tx, {
+      action: 'source.release_feed',
+      actorType: 'founder',
+      actorId: actor.userId,
+      result: 'success',
+      resourceType: 'source',
+      resourceId: id,
+      ...(actor.requestId === undefined ? {} : { requestId: actor.requestId }),
+      metadata: { check_queued: queued },
+    });
   });
 }
