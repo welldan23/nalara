@@ -71,4 +71,35 @@ Satu entri per tiket, format sama dengan Phase 1. Rencana: [PLAN.md](PLAN.md).
 - Security review: PASS. Worker yang dibobol lewat feed berbahaya tetap tidak bisa membaca data orang, sesi, atau artikel, dan tidak bisa menjangkau web atau Caddy di jaringan internal.
 - Keputusan founder: PENDING
 
-**Next:** P2-03 — Feed di Source Registry.
+### P2-03a — Parser feed (RSS 2.0, RSS 1.0, Atom)
+- Commit: lihat PR `feat/P2-03a-feed-parser`. P2-03 dipecah supaya parser bisa ditinjau tersendiri.
+- File baru: `apps/api/src/modules/feeds/{xml,feed}.ts`, `apps/api/tests/unit/feed.test.ts`
+- **Keputusan: parser XML ditulis sendiri**, tanpa dependensi baru. Alasannya:
+  - `fast-xml-parser` 5.x kini membawa 6 dependensi transitif, dan parser XML umum punya riwayat CVE (XXE, prototype pollution, ReDoS);
+  - feed hanya butuh sebagian kecil XML, dan penolakan ketat lebih aman daripada toleransi.
+- Perilaku:
+  - **XML ketat.** Yang dibaca: elemen, atribut, teks, CDATA, komentar, deklarasi XML, 5 entity bawaan + beberapa entity HTML umum (`&nbsp;`, `&mdash;` …), dan referensi angka.
+  - **Selalu ditolak:**
+    - `DOCTYPE` apa pun, sehingga tidak ada entity eksternal (XXE) dan tidak ada bom entity;
+    - entity tak dikenal, `&#0;`, surrogate;
+    - tag tidak seimbang, atribut ganda, atribut tanpa kutip, teks di luar root.
+  - Batas ukuran (4 juta karakter), kedalaman (32), dan jumlah node (50 ribu). Nama atribut disimpan di objek tanpa prototype, jadi aman dari prototype pollution.
+  - **Feed:**
+    - RSS 2.0, RSS 1.0/RDF, dan Atom (link `alternate`) menjadi item berisi judul, URL, id penerbit, waktu terbit, dan ringkasan;
+    - ringkasan dan judul diubah ke **teks polos** (script/style/komentar/tag dibuang, entity didekode, karakter kontrol dibuang, dipotong 300/500 karakter);
+    - maksimal 200 item;
+    - encoding UTF-8 (BOM dilewati) atau Latin-1/Windows-1252 sesuai deklarasi; selain itu ditolak.
+  - **URL kanonik:** hanya `http(s)` absolut tanpa kredensial; link relatif di-resolve terhadap URL feed; fragment dan parameter pelacak (`utm_*`, `fbclid`, `gclid` …) dibuang. Item tanpa link yang layak dilewati.
+- **Ditemukan saat tes:** link kosong sempat di-resolve menjadi URL feed itu sendiri (item palsu di inbox). Kini link kosong berarti "tanpa link".
+- Test: `pnpm exec vitest run apps/api/tests/unit/feed.test.ts` → PASS **23/23**:
+  - 13 bentuk XML berbahaya atau rusak ditolak, termasuk XXE dan billion laughs;
+  - batas kedalaman, node, dan ukuran;
+  - prototype pollution;
+  - URL kanonik dan link berbahaya (`javascript:`, `data:`, kredensial);
+  - HTML → teks polos tanpa script;
+  - RSS 2.0, Atom, dan RSS 1.0;
+  - batas item, bukan-feed, encoding buruk, Latin-1, dan BOM.
+- Security review: PASS. Belum ada pemanggil; dipakai worker di P2-03b/P2-04.
+- Keputusan founder: PENDING
+
+**Next:** P2-03b — Feed di Source Registry + cek feed oleh worker.
