@@ -70,8 +70,10 @@ services:
       MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?set MFA_ENCRYPTION_KEY}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       PORT: '4000'
-      # Only Caddy (fixed address below) may set the client IP via X-Forwarded-For.
-      TRUSTED_PROXIES: 172.31.250.10
+      # Only Caddy and the web server (fixed addresses below) may set the client IP via
+      # X-Forwarded-For. The web passes on the reader's address for its server-side calls, so
+      # every reader gets their own rate-limit bucket (R-12).
+      TRUSTED_PROXIES: 172.31.250.10,172.31.250.11
       # Launch switch (ADR-015): published articles stay off the public site until set to true.
       PUBLIC_SITE_ENABLED: ${PUBLIC_SITE_ENABLED:-false}
     networks: [backend, frontend]
@@ -97,7 +99,9 @@ services:
       API_BASE_URL: http://api:4000
       # Public origin for canonical URLs, sitemap and RSS (P1-08).
       APP_BASE_URL: ${APP_BASE_URL:?set APP_BASE_URL}
-    networks: [frontend]
+    networks:
+      frontend:
+        ipv4_address: 172.31.250.11
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/']
       interval: 10s
@@ -141,6 +145,8 @@ networks:
     ipam:
       config:
         - subnet: 172.31.250.0/24
+          # Dynamic addresses come from the upper half, so they never take a fixed one below.
+          ip_range: 172.31.250.128/25
 
 volumes:
   db-data:

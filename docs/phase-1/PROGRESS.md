@@ -248,7 +248,7 @@ Format per tiket mengikuti PRD v4 §13. Rencana: [BASELINE.md](BASELINE.md) · K
     - Ditambahkan juga `E2E_LOG_DIR` untuk menyimpan log server saat debugging.
 - Security review: PASS. Tidak ada jalan untuk meng-index konten sebelum launch, karena status launch tidak disimpan di web. Origin canonical divalidasi.
 - Masalah diketahui:
-  - **R-12 (Sedang, sebelum launch, P1-10):** di produksi, panggilan server-side dari web ke API datang dari satu IP container web. Semua pembaca berbagi satu jatah 300/menit; dengan 2–3 panggilan per halaman, itu kira-kira 100 halaman per menit sebelum 429.
+  - **R-12 (Sedang, sebelum launch; SELESAI di P1-10a):** di produksi, panggilan server-side dari web ke API datang dari satu IP container web. Semua pembaca berbagi satu jatah 300/menit; dengan 2–3 panggilan per halaman, itu kira-kira 100 halaman per menit sebelum 429.
     - Opsi perbaikan: web meneruskan IP pembaca dan masuk `TRUSTED_PROXIES` dengan IP tetap; atau kunci rate limit terpisah untuk panggilan internal web; ditambah cache singkat untuk data publik.
     - Dikerjakan di hardening P1-10 dan wajib diuji beban sebelum launch.
 - Keputusan founder: PENDING
@@ -342,4 +342,21 @@ Format per tiket mengikuti PRD v4 §13. Rencana: [BASELINE.md](BASELINE.md) · K
 - Masalah diketahui: gambar belum dikecilkan atau dibuat versi responsif (butuh decode/re-encode, tanpa sharp). Founder sebaiknya mengunggah gambar yang sudah berukuran wajar (misalnya lebar 1600 px).
 - Keputusan founder: PENDING
 
-**Next:** P1-10 — Deploy + hardening (butuh D-04, D-08, D-09).
+### P1-10a — Rate limit per pembaca (R-12)
+- Commit: lihat PR `feat/P1-10a-per-reader-rate-limit`. Bagian P1-10 yang tidak butuh server.
+- File berubah: `apps/web/lib/{forwarded,api,public-api}.ts`, `compose.prod.yaml`, `tests/repo/ci.test.ts`, `tests/smoke/compose.smoke.mjs`.
+- Perilaku:
+  - Panggilan server-side dari web ke API kini meneruskan `X-Forwarded-For` pembaca, yang diisi Caddy. Format IP divalidasi, maksimal 200 karakter.
+  - Container web mendapat alamat tetap `172.31.250.11`, dan `TRUSTED_PROXIES` berisi persis Caddy (`.10`) dan web (`.11`). API tetap mengabaikan header itu dari pihak lain.
+  - Alamat dinamis jaringan frontend dibatasi ke `172.31.250.128/25`, supaya tidak pernah mengambil alamat tetap.
+  - Hasilnya, setiap pembaca punya jatah 300 request/menit sendiri, juga untuk halaman yang dirender server. **R-12 selesai.**
+- Test:
+  - `pnpm run check` → PASS **371/371**. Tes statis compose kini mengunci daftar proxy tepercaya, alamat tetap web, dan rentang dinamis.
+  - `pnpm run test:e2e` → PASS **19/19**.
+  - `node tests/smoke/compose.smoke.mjs` → PASS **18/18**. Cek baru TEST-OPS-07: dua "pembaca" di container terpisah (alamat tetap) sama-sama lewat Caddy. Pembaca A memuat halaman sampai API membatasinya; pembaca B tetap langsung dapat halamannya (200).
+  - **Bukti tesnya bermakna:** dengan `TRUSTED_PROXIES` dikembalikan ke Caddy saja, TEST-OPS-07 → **FAIL** (pembaca B ikut terblokir, 500). Dengan perbaikan → PASS.
+  - Ikut diperbaiki: TEST-OPS-06 (P1-09) bisa menerima 502 alih-alih 413, karena API menutup koneksi lebih dulu (batasnya 16–256 KiB, dilihat dari Content-Length) sebelum Caddy selesai mengirim. Keduanya berarti body tidak sampai ke handler, jadi cek kini menerima 413 atau 502, dan route unggah tetap harus 401.
+- Security review: PASS. Kepercayaan pada `X-Forwarded-For` hanya untuk dua alamat internal tetap. Port web tidak terbuka ke host (TEST-OPS-04), dan Caddy menimpa header dari klien.
+- Keputusan founder: PENDING
+
+**Next:** P1-10 — Deploy + hardening (butuh D-04, D-08, D-09). Sambil menunggu: CSP berbasis nonce (ADR-017).

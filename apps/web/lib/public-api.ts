@@ -3,6 +3,7 @@
 // and can never show founder-only data, even to the founder.
 import 'server-only';
 import { cache } from 'react';
+import { forwardedFor } from './forwarded';
 import type { Block, CitationView, MediaRender } from '../components/article-body';
 import type { VerificationLevel } from './api';
 
@@ -54,7 +55,7 @@ function apiBaseUrl(): string {
 /** GET a public API path; 404 (unknown, unpublished, or site not launched) → null. */
 async function publicGet<T>(path: string): Promise<T | null> {
   const response = await fetch(`${apiBaseUrl()}/api/v1/public${path}`, {
-    headers: { accept: 'application/json' },
+    headers: { accept: 'application/json', ...(await forwardedFor()) },
     cache: 'no-store',
     signal: AbortSignal.timeout(5_000),
   });

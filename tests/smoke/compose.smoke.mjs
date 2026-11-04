@@ -462,11 +462,12 @@ try {
         ).stdout;
       const media = post('/api/v1/os/media');
       assert(media === '401', `media upload answered ${media}`);
-      // API routes that read a body. (Next.js pages ignore request bodies, and Caddy's limit only
-      // applies to bytes actually read, so the web app is not a meaningful case here.)
+      // API routes with smaller limits. Either Caddy (1 MB) or the API (16-256 KiB, from the
+      // Content-Length) refuses first: 413, or 502 when the API closes before Caddy finished
+      // sending. Both mean the body never reached a handler; a 401 or 2xx would mean it did.
       for (const path of ['/api/v1/auth/login', '/api/v1/os/articles', '/api/v1/os/sources']) {
         const code = post(path);
-        assert(code === '413', `${path} accepted 2 MB (answered ${code})`);
+        assert(code === '413' || code === '502', `${path} accepted 2 MB (answered ${code})`);
       }
     },
   );
@@ -580,6 +581,63 @@ try {
         join(backupDir, readdirSync(backupDir)[0] ?? 'missing'),
       ]);
       assert(verify.status === 0, 'backup does not decrypt with its key');
+    },
+  );
+
+  await check(
+    'TEST-OPS-07',
+    'each reader has their own API rate limit, even for server-rendered pages (R-12)',
+    async () => {
+      // Two readers in their own containers on the frontend network, both going through Caddy.
+      // Reader A loads pages until the API limits it (the page fails); reader B must still get
+      // its page at once. With one shared bucket for the web server, B would fail too.
+      // Fixed addresses below the dynamic range: Docker would otherwise give reader B the address
+      // reader A just released, and they would be the same reader to the API.
+      const reader = (ip, script) =>
+        docker([
+          'run',
+          '--rm',
+          '--network',
+          `${project}_frontend`,
+          '--ip',
+          ip,
+          '--add-host',
+          `${SITE}:172.31.250.10`,
+          '-v',
+          `${caFile}:/ca.pem:ro`,
+          '-e',
+          'NODE_EXTRA_CA_CERTS=/ca.pem',
+          '--entrypoint',
+          'node',
+          'nalara-api:local',
+          '--input-type=module',
+          '-e',
+          script,
+        ]);
+      const page = `https://${SITE}/`;
+      const flooded = JSON.parse(
+        reader(
+          '172.31.250.21',
+          `let n = 0, status = 0;
+          for (; n < 400; n += 1) {
+            const response = await fetch(${JSON.stringify(page)});
+            await response.arrayBuffer();
+            status = response.status;
+            if (status >= 500) break;
+          }
+          console.log(JSON.stringify({ n, status }));`,
+        ),
+      );
+      assert(
+        flooded.status >= 500 && flooded.n > 100,
+        `reader A was not limited as expected: ${JSON.stringify(flooded)}`,
+      );
+      const other = reader(
+        '172.31.250.22',
+        `const response = await fetch(${JSON.stringify(page)});
+        console.log(response.status);`,
+      );
+      assert(other === '200', `reader B was limited by reader A's traffic (answered ${other})`);
     },
   );
 
