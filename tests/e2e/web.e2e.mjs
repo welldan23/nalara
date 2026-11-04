@@ -675,6 +675,57 @@ try {
   );
 
   await check(
+    'TEST-P1-05',
+    'source registry: add, licence rule, verify, filter, edit',
+    async () => {
+      assert(signedIn !== null, 'needs the signed-in page from TEST-WEB-03b');
+      const page = signedIn;
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto(`${WEB}/os`);
+      await page.getByRole('link', { name: 'Sumber', exact: true }).click();
+      await page.waitForURL(`${WEB}/os/sources`);
+      await page.getByRole('link', { name: 'Tambah sumber' }).click();
+      await page.getByLabel('Nama sumber').fill('Berita Resmi Statistik');
+      await page.getByLabel('Lembaga').fill('Badan Pusat Statistik');
+      await page.getByLabel('URL resmi').fill('https://www.bps.go.id/id/pressrelease');
+      // "Verified" with an unknown licence is refused.
+      await page.getByLabel('Status').selectOption('verified');
+      await page.getByRole('button', { name: 'Simpan sumber' }).click();
+      const refused = await page.locator('ul.error[role="alert"]').textContent({ timeout: 10_000 });
+      assert(refused?.includes('isi lisensinya dulu'), `licence rule not shown: ${refused}`);
+
+      await page.getByLabel('Lisensi', { exact: true }).selectOption('attribution_required');
+      await page.getByLabel(/^Atribusi/).fill('Sumber: Badan Pusat Statistik');
+      await page.getByRole('button', { name: 'Simpan sumber' }).click();
+      await page.waitForURL(/\/os\/sources\/[0-9a-f-]{36}$/, { timeout: 10_000 });
+      assert(
+        ((await page.locator('.os-content > p.muted').first().textContent()) ?? '').startsWith(
+          'Terverifikasi · versi 1',
+        ),
+        'new source is not verified v1',
+      );
+
+      await page.getByLabel('Status').selectOption('paused');
+      await page.getByRole('button', { name: 'Simpan perubahan' }).click();
+      await page.getByText('Tersimpan (versi 2).').waitFor({ timeout: 10_000 });
+      await shot(page, '13-source');
+
+      await page.goto(`${WEB}/os/sources?status=paused`);
+      assert(
+        ((await page.getByTestId('sources').textContent()) ?? '').includes(
+          'Berita Resmi Statistik',
+        ),
+        'paused filter misses the source',
+      );
+      await page.goto(`${WEB}/os/sources?status=verified`);
+      assert(
+        (await page.getByText('Berita Resmi Statistik').count()) === 0,
+        'verified filter shows a paused source',
+      );
+    },
+  );
+
+  await check(
     'TEST-WEB-04',
     'invalid or expired session cookie redirects (server-side check)',
     async () => {
@@ -812,4 +863,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 17 ? 0 : 1);
+process.exit(failed === 0 && results.length === 18 ? 0 : 1);

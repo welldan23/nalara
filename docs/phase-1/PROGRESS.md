@@ -253,4 +253,41 @@ Format per tiket mengikuti PRD v4 §13. Rencana: [BASELINE.md](BASELINE.md) · K
     - Dikerjakan di hardening P1-10 dan wajib diuji beban sebelum launch.
 - Keputusan founder: PENDING
 
-**Next:** P1-05 — Source Registry.
+### P1-05 — Source Registry manual
+- Commit: lihat PR `feat/P1-05-source-registry`
+- File berubah:
+  - `db/migrations/0008_sources.sql`, `apps/api/src/db/schema.ts`;
+  - `apps/api/src/modules/sources/sources.ts`, `apps/api/src/routes/{sources,os}.ts`;
+  - `apps/api/src/plugins/policy.ts` (izin `sources.read` / `sources.write`), `modules/audit/audit.ts`;
+  - `apps/web/app/os/(shell)/sources/{page,source-form}.tsx`, `sources/{baru,[id]}/page.tsx`, `apps/web/lib/{api,source-messages}.ts`, navigasi OS, `globals.css`;
+  - tes: `apps/api/tests/integration/{sources,db}.test.ts`, `tests/e2e/web.e2e.mjs`.
+- Perilaku:
+  - Founder mencatat sumber resmi di `/os/sources`:
+    - nama, lembaga, jenis (statistik, bank sentral, kementerian, regulator, peraturan, perusahaan, akademik, internasional, media, lainnya), URL resmi;
+    - **status:** `candidate` / `verified` / `paused` / `disabled`;
+    - **lisensi:** `unknown` / `open` / `attribution_required` / `permission_required` / `restricted`;
+    - catatan lisensi, atribusi, catatan internal.
+  - **Tidak ada pengambilan otomatis** (itu Phase 2, hanya untuk sumber terverifikasi).
+  - **Aturan, ditegakkan di API dan di database:**
+    - URL resmi harus https, tanpa kredensial, bukan pemendek link atau agregator, dan unik (huruf besar/kecil diabaikan);
+    - status `verified` hanya bila lisensi sudah diketahui;
+    - lisensi `attribution_required` wajib menulis kalimat atribusi.
+  - **Sumber tidak pernah dihapus:** tidak ada izin DELETE, ditambah trigger penolak DELETE/TRUNCATE. Sumber dinonaktifkan saja.
+  - Edit memakai `expectedVersion` (versi basi → 409); edit tanpa perubahan ditolak.
+  - Audit `source.create` / `source.update` mencatat versi, status, lisensi, dan **nama field yang berubah saja**, tidak pernah isinya.
+  - Daftar sumber bisa disaring per status.
+- Test:
+  - `pnpm run check` → PASS **352/352**, termasuk 6 tes integrasi Source Registry:
+    - default `candidate` + `unknown` dan teraudit;
+    - URL http, berkredensial, `javascript:`, pemendek link, duplikat, karakter kontrol, dan field asing ditolak;
+    - aturan verified/lisensi dan atribusi berlaku di API **dan** database;
+    - optimistic lock, edit tanpa perubahan ditolak, audit tanpa isi catatan, field kosong disimpan `null`;
+    - filter status, DELETE ditolak untuk migrator maupun role app;
+    - tanpa sesi → 401, tanpa CSRF → 403, id rusak/tak dikenal → 404.
+  - `pnpm run test:e2e` → PASS **18/18**. Cek baru TEST-P1-05: tambah sumber lewat UI, aturan lisensi tampil, simpan sebagai terverifikasi, ubah ke dijeda (versi 2), filter status.
+  - `pnpm run test:backup` → PASS **10/10** (migrasi 0008 ikut di-restore).
+- Security review: PASS. Semua route di belakang sesi founder dan kebijakan izin deny-by-default; tulis butuh CSRF. Tidak ada fetch keluar.
+- Masalah diketahui: sitasi artikel belum bisa ditautkan langsung ke sumber terdaftar (`source_id` opsional, KP1-11). Sitasi tetap memakai URL penerbit. Tautan ini bisa ditambahkan tanpa mengubah aturan hash revisi.
+- Keputusan founder: PENDING
+
+**Next:** P1-09 — Media.

@@ -138,3 +138,33 @@ export function getArticle(id: string, cookieHeader: string | null): Promise<Art
   // The id comes from the URL: encode it so it can only ever be one path segment.
   return osGet<ArticleDetail>(`/articles/${encodeURIComponent(id)}`, cookieHeader);
 }
+
+// --- Source Registry (P1-05) ---
+
+export interface Source {
+  readonly id: string;
+  readonly name: string;
+  readonly organization: string;
+  readonly type: string;
+  readonly officialUrl: string;
+  readonly licenseStatus: string;
+  readonly licenseNote: string | null;
+  readonly attribution: string | null;
+  readonly status: string;
+  readonly notes: string | null;
+  readonly version: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export async function listSources(cookieHeader: string | null, status?: string): Promise<Source[]> {
+  const query = status === undefined ? '' : `?status=${encodeURIComponent(status)}`;
+  const body = await osGet<{ sources: Source[] }>(`/sources${query}`, cookieHeader);
+  return body?.sources ?? [];
+}
+
+export async function getSource(id: string, cookieHeader: string | null): Promise<Source | null> {
+  // The id comes from the URL: encode it so it can only ever be one path segment.
+  const body = await osGet<{ source: Source }>(`/sources/${encodeURIComponent(id)}`, cookieHeader);
+  return body?.source ?? null;
+}

@@ -49,7 +49,7 @@ function hasControlCharacters(value: string): boolean {
   return false;
 }
 
-const plainText = (max: number) =>
+export const plainText = (max: number) =>
   z
     .string()
     .max(max)
