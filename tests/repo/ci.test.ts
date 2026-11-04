@@ -86,8 +86,12 @@ describe('CI workflow hardening', () => {
     const services = prod.split(/^ {2}(?=[a-z-]+:\s*$)/m);
     const withPorts = services.filter((block) => /^\s{4}ports:/m.test(block));
     expect(withPorts.map((block) => block.split(':')[0])).toEqual(['caddy']);
-    expect(prod).toMatch(/TRUSTED_PROXIES: 172\.31\.250\.10/);
+    // Exactly Caddy and the web server may forward a client IP (R-12); both have fixed addresses
+    // outside the dynamic range.
+    expect(prod).toMatch(/TRUSTED_PROXIES: 172\.31\.250\.10,172\.31\.250\.11\n/);
     expect(prod).toMatch(/ipv4_address: 172\.31\.250\.10/);
+    expect(prod).toMatch(/ipv4_address: 172\.31\.250\.11/);
+    expect(prod).toMatch(/ip_range: 172\.31\.250\.128\/25/);
     expect(prod).toMatch(/backend:\s*\n\s*internal: true/);
     expect(prod).toMatch(/read_only: true/);
     expect(prod).toMatch(/cap_drop: \[ALL\]/);

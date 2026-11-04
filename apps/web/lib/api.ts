@@ -3,6 +3,7 @@
 // trusts only what the API answers.
 import 'server-only';
 import type { MediaRender } from '../components/article-body';
+import { forwardedFor } from './forwarded';
 
 export interface Founder {
   readonly id: string;
@@ -23,7 +24,7 @@ function apiBaseUrl(): string {
 export async function currentFounder(cookieHeader: string | null): Promise<Founder | null> {
   if (cookieHeader === null || cookieHeader === '') return null;
   const response = await fetch(`${apiBaseUrl()}/api/v1/auth/me`, {
-    headers: { cookie: cookieHeader, accept: 'application/json' },
+    headers: { cookie: cookieHeader, accept: 'application/json', ...(await forwardedFor()) },
     cache: 'no-store',
     signal: AbortSignal.timeout(5_000),
   });
@@ -117,7 +118,7 @@ export class ApiUnauthorized extends Error {}
 /** GET an OS API path on behalf of the browser; 404 → null, 401 → ApiUnauthorized. */
 async function osGet<T>(path: string, cookieHeader: string | null): Promise<T | null> {
   const response = await fetch(`${apiBaseUrl()}/api/v1/os${path}`, {
-    headers: { cookie: cookieHeader ?? '', accept: 'application/json' },
+    headers: { cookie: cookieHeader ?? '', accept: 'application/json', ...(await forwardedFor()) },
     cache: 'no-store',
     signal: AbortSignal.timeout(5_000),
   });
