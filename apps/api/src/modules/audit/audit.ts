@@ -12,7 +12,8 @@ export const AUDIT_ACTIONS = {
   'auth.mfa': ['method'],
   'mfa.enrol': [],
   'mfa.recovery_rotate': [],
-  'article.create': ['version'],
+  // `agent_role`: set when an agent created the draft through the gateway (P3-02).
+  'article.create': ['version', 'agent_role'],
   'article.revise': ['version', 'returned_to_draft'],
   'article.submit': ['version'],
   'article.return': ['version'],
@@ -32,13 +33,18 @@ export const AUDIT_ACTIONS = {
   'media.update': ['version', 'usage_basis', 'licensed', 'changed'],
   // Agent proposals (P3-01): what was decided, never the payload.
   'proposal.decide': ['kind', 'decision', 'status', 'channel'],
+  // Agent gateway (P3-02). `credential` is the credential's label, never its token.
+  'agent.tool': ['tool', 'role', 'credential', 'outcome'],
+  'agent.credential': ['label', 'change'],
+  'ai.settings': ['version', 'ai_enabled', 'changed'],
+  'ai.preferences': ['version'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
 
 export interface AuditEvent {
   readonly action: AuditAction;
-  readonly actorType: 'founder' | 'system';
+  readonly actorType: 'founder' | 'system' | 'agent';
   readonly actorId?: string;
   readonly result: 'success' | 'failure' | 'denied';
   readonly resourceType?: string;

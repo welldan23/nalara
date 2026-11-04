@@ -18,6 +18,11 @@ export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 export interface Actor {
   readonly userId: string;
   readonly requestId?: string;
+  /**
+   * Set when an AI agent creates a draft through the gateway (P3-02): the draft still belongs to
+   * the founder (userId), and the audit log names the agent as the actor.
+   */
+  readonly agentRole?: string;
 }
 
 export const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -153,13 +158,17 @@ export async function createDraft(
         .where(eq(articles.id, article.id));
       await recordAudit(tx, {
         action: 'article.create',
-        actorType: 'founder',
-        actorId: actor.userId,
+        ...(actor.agentRole === undefined
+          ? { actorType: 'founder' as const, actorId: actor.userId }
+          : { actorType: 'agent' as const }),
         result: 'success',
         resourceType: 'article',
         resourceId: article.id,
         ...(actor.requestId !== undefined ? { requestId: actor.requestId } : {}),
-        metadata: { version: 1 },
+        metadata: {
+          version: 1,
+          ...(actor.agentRole === undefined ? {} : { agent_role: actor.agentRole }),
+        },
       });
       return { articleId: article.id, revisionId, version: 1, slug };
     });

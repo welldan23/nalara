@@ -13,6 +13,7 @@ import { REQUEST_ID_HEADER, requestIdFrom } from './lib/request-id.ts';
 import { createAuthGuards, crossOriginGuard } from './plugins/auth.ts';
 import { authRoutes } from './routes/auth.ts';
 import { healthRoutes } from './routes/health.ts';
+import { agentRoutes } from './routes/agent.ts';
 import { osRoutes } from './routes/os.ts';
 import { publicRoutes } from './routes/public.ts';
 
@@ -138,6 +139,7 @@ export async function buildApp(config: AppConfig, deps: AppDependencies): Promis
       ...(deps.mfaRateLimitMax !== undefined ? { mfaRateLimitMax: deps.mfaRateLimitMax } : {}),
     });
     await app.register(osRoutes, { prefix: '/api/v1/os', guards, db: deps.database });
+    await app.register(agentRoutes, { prefix: '/api/v1/agent', db: deps.database });
     await app.register(publicRoutes, {
       prefix: '/api/v1/public',
       db: deps.database,

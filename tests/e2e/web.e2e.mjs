@@ -1102,6 +1102,39 @@ try {
     },
   );
 
+  await check('TEST-P3-02', 'AI settings: off by default, switch on and kill switch', async () => {
+    assert(signedIn !== null, 'needs the signed-in page from TEST-WEB-03b');
+    const page = signedIn;
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`${WEB}/os`);
+    await page.getByRole('link', { name: 'Agent AI', exact: true }).click();
+    await page.waitForURL(`${WEB}/os/ai`);
+    const state = page.getByTestId('ai-state');
+    assert((await state.textContent())?.includes('mati'), 'AI is not off by default');
+    await page.getByRole('button', { name: 'Nyalakan AI' }).click();
+    await state.getByText('menyala').waitFor({ timeout: 10_000 });
+    await page.getByLabel('Draft per hari').fill('2');
+    await page.getByRole('button', { name: 'Simpan kuota' }).click();
+    await page.getByText('Draft: 0 dari 2').waitFor({ timeout: 10_000 });
+    await shot(page, '17-agent-ai');
+    await page.getByRole('button', { name: 'Matikan AI sekarang' }).click();
+    await state.getByText('mati').waitFor({ timeout: 10_000 });
+    const db = await connect(database.migratorUrl);
+    try {
+      const row = await db.query('SELECT ai_enabled, daily_draft_quota FROM system_settings');
+      assert(row.rows[0]?.ai_enabled === false, 'kill switch did not reach the database');
+      assert(row.rows[0]?.daily_draft_quota === 2, 'quota not saved');
+    } finally {
+      await db.end();
+    }
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.reload();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    assert(overflow <= 0, `AI settings overflow by ${overflow}px`);
+  });
+
   await check(
     'TEST-WEB-04',
     'invalid or expired session cookie redirects (server-side check)',
@@ -1244,4 +1277,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 22 ? 0 : 1);
+process.exit(failed === 0 && results.length === 23 ? 0 : 1);

@@ -436,6 +436,21 @@ try {
         `https://${SITE}/health/ready`,
       );
       assert(ready.stdout === '404', `/health/ready via proxy answered ${ready.stdout}`);
+      // The agent tool gateway is internal only (P3-02): the proxy never forwards it.
+      for (const path of ['/api/v1/agent/status', '/api/v1/agent/tools/status', '/api/v1/agent']) {
+        const agent = curl(
+          '--cacert',
+          caFile,
+          '-o',
+          '/dev/null',
+          '-w',
+          '%{http_code}',
+          '-H',
+          'Authorization: Bearer AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+          `https://${SITE}${path}`,
+        );
+        assert(agent.stdout === '404', `${path} via proxy answered ${agent.stdout}`);
+      }
       const spoofed = curl(
         '--cacert',
         caFile,

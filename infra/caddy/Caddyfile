@@ -46,9 +46,14 @@
 		max_size 1MB
 	}
 
-	# Readiness is for the internal healthcheck only (ADR-006, K-16).
-	@internal path /health/ready
-	respond @internal 404
+	# Readiness is for the internal healthcheck only (ADR-006, K-16). The agent tool gateway
+	# (P3-02, ADR-020) is for the agent runner on the internal network only.
+	# A `handle` (not a bare `respond`, which Caddy orders after reverse_proxy) placed before the
+	# API route, so these paths never reach the API.
+	@internal path /health/ready /api/v1/agent /api/v1/agent/*
+	handle @internal {
+		respond 404
+	}
 
 	# Never trust a client-supplied request ID: the API will log Caddy's per-request UUID.
 	@api path /api/* /health/live

@@ -323,3 +323,32 @@ export async function getProposal(
   );
   return body?.proposal ?? null;
 }
+
+// --- AI settings (P3-02) ---
+
+export interface AiOverview {
+  readonly settings: {
+    readonly aiEnabled: boolean;
+    readonly dailyDraftQuota: number;
+    readonly dailyProposalQuota: number;
+    readonly dailyTokenQuota: number;
+    readonly version: number;
+    readonly updatedAt: string;
+  };
+  readonly usage: { readonly drafts: number; readonly proposals: number; readonly tokens: number };
+  readonly preferences: {
+    readonly topics: readonly string[];
+    readonly notes: string;
+    readonly version: number;
+  };
+  readonly credentials: readonly {
+    readonly label: string;
+    readonly createdAt: string;
+    readonly lastUsedAt: string | null;
+    readonly revokedAt: string | null;
+  }[];
+}
+
+export async function getAiOverview(cookieHeader: string | null): Promise<AiOverview | null> {
+  return osGet<AiOverview>('/ai', cookieHeader);
+}
