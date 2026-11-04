@@ -98,13 +98,19 @@ describe('CI workflow hardening', () => {
     expect(prod).toMatch(/no-new-privileges:true/);
     expect(prod).toMatch(/restart: unless-stopped/);
     // TEST-OPS-06 (static): every service inherits bounded json-file logs.
-    // db, migrate, api, worker, web, caddy
-    expect(prod.match(/^ {4}<<: \*hardened$/gm)?.length).toBe(6);
-    // Only the worker joins the egress network (P2-02).
-    expect(prod.match(/networks: \[backend, egress\]/g)?.length).toBe(1);
+    // db, migrate, api, worker, agent, web, caddy
+    expect(prod.match(/^ {4}<<: \*hardened$/gm)?.length).toBe(7);
+    // Only the worker and the agent runner join the egress network (P2-02, P3-05).
+    expect(prod.match(/networks: \[[a-z, ]*egress[a-z, ]*\]/g)?.length).toBe(2);
     expect(services.find((block) => block.startsWith('worker:'))).toMatch(
       /networks: \[backend, egress\]/,
     );
+    // The agent runner: no database network, no database URL, opt-in profile (ADR-020).
+    const agent = services.find((block) => block.startsWith('agent:')) ?? '';
+    expect(agent).toMatch(/networks: \[agent, egress\]/);
+    expect(agent).toMatch(/profiles: \[agent\]/);
+    expect(agent).not.toMatch(/DATABASE_URL|DB_[A-Z]+_PASSWORD|backend/);
+    expect(prod).toMatch(/agent:\s*\n\s*internal: true/);
     expect(prod).toMatch(/driver: json-file\s*\n\s*options: \{ max-size: 10m, max-file: '3' \}/);
     expect(prod).not.toMatch(/docker\.sock|privileged:\s*true|network_mode:\s*host/);
     for (const dockerfile of ['apps/api/Dockerfile', 'apps/web/Dockerfile']) {
