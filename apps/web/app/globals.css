@@ -714,3 +714,8 @@ main:focus {
   font: inherit;
   padding: 0.4rem;
 }
+
+/* Evidence vault (P2-07). */
+.evidence-url {
+  overflow-wrap: anywhere;
+}

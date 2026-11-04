@@ -16,6 +16,7 @@ import {
   categories,
   corrections,
   discoveredItems,
+  evidenceSnapshots,
   ingestionRuns,
   jobRuns,
   loginChallenges,
@@ -109,6 +110,7 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         'categories',
         'corrections',
         'discovered_items',
+        'evidence_snapshots',
         'ingestion_runs',
         'job_runs',
         'login_challenges',
@@ -217,6 +219,7 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         sourceChecks,
         ingestionRuns,
         discoveredItems,
+        evidenceSnapshots,
       ]) {
         const { name, columns } = getTableConfig(table);
         const actual = await migrator.query<{ column_name: string; is_nullable: string }>(

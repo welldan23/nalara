@@ -63,6 +63,8 @@ export interface SafeFetchOptions {
   readonly policy?: AddressPolicy;
   /** Tests only: replaces DNS. */
   readonly resolve?: (host: string) => Promise<readonly Resolved[]>;
+  /** Tests only: an extra trusted CA (PEM) for a local HTTPS server. Production uses the system store. */
+  readonly ca?: string;
   /** Tests only: ports allowed per scheme. Default http 80, https 443. */
   readonly ports?: { readonly 'http:': readonly number[]; readonly 'https:': readonly number[] };
 }
@@ -187,6 +189,7 @@ function request(
         ...(target.url.protocol === 'https:' && isIP(target.host) === 0
           ? { servername: target.host }
           : {}),
+        ...(options.ca === undefined ? {} : { ca: options.ca }),
       },
       (response) => {
         resolve({ response, request: req });

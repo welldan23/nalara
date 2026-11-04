@@ -65,6 +65,48 @@ export default async function EditDraftPage({
         version={article.currentVersion}
         gate={detail.gate}
       />
+      {article.current.citations.some((citation) => citation.verified) && (
+        <section aria-labelledby="evidence">
+          <h2 id="evidence">Bukti sumber</h2>
+          <p className="muted">
+            Salinan halaman sumber yang sudah dicek, disimpan saat dicentang &ldquo;Sudah
+            dicek&rdquo;. Hanya bisa diunduh, tidak pernah dibuka di NALARA.
+          </p>
+          <ul className="revision-list" data-testid="evidence">
+            {article.current.citations
+              .filter((citation) => citation.verified)
+              .map((citation) => {
+                const snapshot = detail.evidence[citation.url];
+                return (
+                  <li key={citation.id}>
+                    <span className="evidence-url">{citation.url}</span>
+                    <br />
+                    {snapshot === undefined || snapshot.status === 'pending' ? (
+                      <span className="muted">Menunggu disalin oleh worker…</span>
+                    ) : snapshot.status === 'captured' ? (
+                      <>
+                        <strong>Tersimpan</strong>
+                        {snapshot.capturedAt !== null &&
+                          ` · ${dateFormat.format(new Date(snapshot.capturedAt))} WIB`}
+                        {snapshot.byteSize !== null &&
+                          ` · ${String(Math.max(1, Math.round(snapshot.byteSize / 1024)))} KB`}
+                        {snapshot.sha256 !== null && (
+                          <>
+                            {' · SHA-256 '}
+                            <code>{snapshot.sha256.slice(0, 16)}…</code>
+                          </>
+                        )}{' '}
+                        · <a href={`/api/v1/os/evidence/${snapshot.id}/file`}>Unduh</a>
+                      </>
+                    ) : (
+                      <span className="error">Gagal disalin ({snapshot.error ?? 'error'}).</span>
+                    )}
+                  </li>
+                );
+              })}
+          </ul>
+        </section>
+      )}
       {detail.corrections.length > 0 && (
         <section aria-labelledby="corrections">
           <h2 id="corrections">Riwayat koreksi</h2>

@@ -425,6 +425,9 @@ try {
     await page.getByRole('button', { name: 'Simpan draft' }).click();
     await page.waitForURL(/\/os\/newsroom\/[0-9a-f-]{36}$/, { timeout: 10_000 });
 
+    // P2-07: a checked source gets an evidence copy (queued here; no worker in e2e).
+    await page.getByTestId('evidence').getByText('Menunggu disalin').waitFor({ timeout: 10_000 });
+
     await page.getByRole('button', { name: 'Ajukan untuk review' }).click();
     await waitStatus('Ditinjau');
 

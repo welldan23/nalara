@@ -372,6 +372,29 @@ export const discoveredItems = pgTable('discovered_items', {
   firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const EVIDENCE_STATUSES = ['pending', 'captured', 'failed'] as const;
+
+/** Evidence vault (P2-07): byte copies of checked citations. Immutable once captured. */
+export const evidenceSnapshots = pgTable('evidence_snapshots', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  url: text('url').notNull(),
+  status: text('status', { enum: EVIDENCE_STATUSES }).notNull().default('pending'),
+  requestedBy: uuid('requested_by')
+    .notNull()
+    .references(() => users.id),
+  requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+  capturedAt: timestamp('captured_at', { withTimezone: true }),
+  httpStatus: integer('http_status'),
+  contentType: text('content_type'),
+  finalUrl: text('final_url'),
+  byteSize: integer('byte_size'),
+  sha256: bytea('sha256'),
+  body: bytea('body'),
+  error: text('error'),
+});
+
 export const schema = {
   users,
   sessions,
@@ -389,4 +412,5 @@ export const schema = {
   sourceChecks,
   ingestionRuns,
   discoveredItems,
+  evidenceSnapshots,
 };
