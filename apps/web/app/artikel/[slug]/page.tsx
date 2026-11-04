@@ -1,19 +1,22 @@
 // Article reading page (P1-06, PRD v4 §4.1): title, summary, body, numbered sources, dates and
 // the verification label, and any substantial corrections (P1-07). Only published articles exist here; everything else is a 404.
 import type { Metadata } from 'next';
+import { cache } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArticleBody, CitationList } from '../../../components/article-body';
 import { TYPE_BADGES, VERIFICATION_PUBLIC, formatDate } from '../../../components/public';
 import { publicArticle } from '../../../lib/public-api';
+import { pageAlternates, pageOpenGraph } from '../../../lib/site';
 
 export const dynamic = 'force-dynamic';
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
-async function load(slug: string) {
+// Metadata and page share one request per render (React cache).
+const load = cache(async (slug: string) => {
   return SLUG.test(slug) ? publicArticle(slug) : null;
-}
+});
 
 export async function generateMetadata({
   params,
@@ -21,7 +24,23 @@ export async function generateMetadata({
   readonly params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const article = await load((await params).slug);
-  return article === null ? {} : { title: article.title, description: article.dek || undefined };
+  if (article === null) return {};
+  const path = `/artikel/${article.slug}`;
+  const description = article.dek === '' ? undefined : article.dek;
+  return {
+    title: article.title,
+    description,
+    alternates: pageAlternates(path),
+    openGraph: pageOpenGraph(
+      { title: article.title, path, ...(description ? { description } : {}) },
+      {
+        type: 'article',
+        publishedTime: article.firstPublishedAt,
+        modifiedTime: article.publishedAt,
+        section: article.category.name,
+      },
+    ),
+  };
 }
 
 export default async function ArticlePage({

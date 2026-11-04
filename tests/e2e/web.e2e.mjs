@@ -6,6 +6,7 @@
 // drives Chromium through them. Needs Playwright with Chromium installed on the machine.
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { openSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createTestDatabase, connect } from '../../apps/api/tests/support/database.ts';
@@ -107,13 +108,27 @@ const apiEnv = {
   MFA_ENCRYPTION_KEY: Buffer.alloc(32, 5).toString('base64'),
   PORT: String(API_PORT),
   PUBLIC_SITE_ENABLED: 'true',
+  // Every page, browser call and server render of this run reaches the API from 127.0.0.1, so
+  // the whole suite shares one rate-limit bucket. Real readers each get their own (see R-12).
+  RATE_LIMIT_MAX: '2000',
 };
 const webEnv = {
   PATH: process.env.PATH ?? '',
   API_BASE_URL: `http://127.0.0.1:${API_PORT}`,
+  // Public origin for canonical URLs, sitemap and RSS (P1-08); without it the web app fails
+  // closed and asks search engines not to index anything.
+  APP_BASE_URL: WEB,
   NEXT_TELEMETRY_DISABLED: '1',
 };
 const nextBin = join(root, 'apps/web/node_modules/next/dist/bin/next');
+// Set E2E_LOG_DIR to keep the API and web server output for debugging (it holds no secrets
+// beyond these throwaway test values); by default it is discarded.
+const serverOutput = (name) => {
+  const dir = process.env.E2E_LOG_DIR;
+  if (!dir) return 'ignore';
+  const fd = openSync(join(dir, `${name}.log`), 'w');
+  return ['ignore', fd, fd];
+};
 
 console.info('building web with the e2e API origin…');
 const build = spawnSync(process.execPath, [nextBin, 'build'], {
@@ -129,12 +144,12 @@ if (build.status !== 0) {
 const api = spawn(process.execPath, ['src/main.ts'], {
   cwd: join(root, 'apps/api'),
   env: apiEnv,
-  stdio: 'ignore',
+  stdio: serverOutput('api'),
 });
 const web = spawn(process.execPath, [nextBin, 'start', '-p', String(WEB_PORT)], {
   cwd: join(root, 'apps/web'),
   env: webEnv,
-  stdio: 'ignore',
+  stdio: serverOutput('web'),
 });
 const browser = await chromium.launch();
 
@@ -580,6 +595,86 @@ try {
   );
 
   await check(
+    'TEST-P1-08',
+    'SEO after launch: robots, sitemap, RSS, canonical, Open Graph',
+    async () => {
+      const text = async (path) => {
+        const response = await fetch(`${WEB}${path}`);
+        return {
+          status: response.status,
+          type: response.headers.get('content-type') ?? '',
+          body: await response.text(),
+        };
+      };
+      const robots = await text('/robots.txt');
+      assert(robots.status === 200, `robots.txt ${robots.status}`);
+      assert(
+        /Allow: \/\n/.test(robots.body),
+        `robots.txt does not allow the site: ${JSON.stringify(robots.body)}`,
+      );
+      assert(robots.body.includes('Disallow: /os'), 'robots.txt does not disallow /os');
+      assert(robots.body.includes(`Sitemap: ${WEB}/sitemap.xml`), 'robots.txt misses the sitemap');
+
+      const sitemap = await text('/sitemap.xml');
+      assert(sitemap.status === 200, `sitemap ${sitemap.status}`);
+      for (const path of ['/', '/artikel/alur-terbit', '/topik/ekonomi', '/koreksi', '/tentang']) {
+        assert(sitemap.body.includes(`<loc>${WEB}${path}</loc>`), `sitemap misses ${path}`);
+      }
+      // Approved-but-unpublished and private pages never appear.
+      for (const leak of ['tanpa-sumber', '/os']) {
+        assert(!sitemap.body.includes(leak), `sitemap leaks ${leak}`);
+      }
+
+      const rss = await text('/rss.xml');
+      assert(
+        rss.status === 200 && rss.type.startsWith('application/rss+xml'),
+        `rss ${rss.status} ${rss.type}`,
+      );
+      assert(
+        rss.body.includes(`<link>${WEB}/artikel/alur-terbit</link>`),
+        'rss misses the article',
+      );
+      assert(!rss.body.includes('Tanpa sumber'), 'rss leaks an unpublished article');
+
+      const page = await newPage();
+      await page.goto(`${WEB}/artikel/alur-terbit`);
+      const meta = (selector) => page.locator(selector).first().getAttribute('content');
+      assert(
+        (await page.locator('link[rel="canonical"]').getAttribute('href')) ===
+          `${WEB}/artikel/alur-terbit`,
+        'canonical',
+      );
+      assert((await meta('meta[property="og:type"]')) === 'article', 'og:type');
+      assert((await meta('meta[property="og:title"]')) === 'Alur terbit (revisi)', 'og:title');
+      assert((await meta('meta[property="og:site_name"]')) === 'NALARA', 'og:site_name');
+      assert(
+        (await meta('meta[property="og:image"]')) === `${WEB}/brand/nalara-beringin-512.png`,
+        'og:image',
+      );
+      assert((await meta('meta[name="robots"]')) === 'index, follow', 'article robots');
+      assert(
+        (await page.locator('link[type="application/rss+xml"]').getAttribute('href')) ===
+          `${WEB}/rss.xml`,
+        'rss alternate link',
+      );
+      // A tampered cursor or an older topic page is not indexed on its own.
+      await page.goto(`${WEB}/topik/ekonomi?setelah=x`);
+      assert((await meta('meta[name="robots"]')) === 'noindex, follow', 'paged topic robots');
+
+      // Private pages: noindex in the page and in the header, launched or not.
+      const login = await page.goto(`${WEB}/os/login`);
+      assert(
+        (login?.headers()['x-robots-tag'] ?? '').includes('noindex'),
+        'X-Robots-Tag missing on /os',
+      );
+      assert(
+        (await meta('meta[name="robots"]'))?.startsWith('noindex, nofollow'),
+        '/os robots meta',
+      );
+    },
+  );
+
+  await check(
     'TEST-WEB-04',
     'invalid or expired session cookie redirects (server-side check)',
     async () => {
@@ -677,6 +772,21 @@ try {
     );
   });
 
+  await check('TEST-P1-08b', 'SEO fails closed: API down means noindex everywhere', async () => {
+    // The API was stopped by TEST-WEB-10: nothing can confirm launch.
+    const robots = await (await fetch(`${WEB}/robots.txt`)).text();
+    assert(/Disallow: \/\n/.test(robots) && !robots.includes('Allow: /'), `robots: ${robots}`);
+    const sitemap = await (await fetch(`${WEB}/sitemap.xml`)).text();
+    assert(!sitemap.includes('<loc>'), 'sitemap lists pages while launch is unconfirmed');
+    const page = await newPage();
+    await page.goto(`${WEB}/tentang`);
+    assert(
+      (await page.locator('meta[name="robots"]').first().getAttribute('content')) ===
+        'noindex, nofollow',
+      'page robots while launch is unconfirmed',
+    );
+  });
+
   await check('console', 'no unexpected browser console errors', async () => {
     // Expected only during TEST-WEB-10: the deliberate API outage makes the server render fail,
     // and React reports that (minified, without details) in the client console. Any console
@@ -702,4 +812,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 15 ? 0 : 1);
+process.exit(failed === 0 && results.length === 17 ? 0 : 1);

@@ -131,6 +131,28 @@ describe('TEST-ENV-04 invalid APP_BASE_URL', () => {
   });
 });
 
+describe('RATE_LIMIT_MAX (P1-08, tests only)', () => {
+  it('defaults to unset, so the API uses its built-in limit', () => {
+    expect(loadConfig(validEnv).rateLimitMax).toBeUndefined();
+  });
+
+  it('accepts a bounded integer outside production', () => {
+    expect(loadConfig({ ...validEnv, RATE_LIMIT_MAX: '2000' }).rateLimitMax).toBe(2000);
+  });
+
+  it.each(['abc', '1.5', '0', '29', '100001'])('rejects %s', (value) => {
+    expect(issuesFor({ ...validEnv, RATE_LIMIT_MAX: value })).toContain(
+      'RATE_LIMIT_MAX must be an integer between 30 and 100000',
+    );
+  });
+
+  it('is refused in production, so the default always protects the live API', () => {
+    expect(issuesFor({ ...productionEnv, RATE_LIMIT_MAX: '2000' })).toContain(
+      'RATE_LIMIT_MAX is for tests only and is not allowed in production',
+    );
+  });
+});
+
 describe('TEST-ENV-05 production debug flag', () => {
   it.each(['debug', 'trace'])('rejects LOG_LEVEL=%s in production', (level) => {
     expect(issuesFor({ ...productionEnv, LOG_LEVEL: level })).toContain(

@@ -2,6 +2,7 @@
 // these requests never carry the visitor's cookies, so a public page is the same for everyone
 // and can never show founder-only data, even to the founder.
 import 'server-only';
+import { cache } from 'react';
 import type { Block, CitationView } from '../components/article-body';
 import type { VerificationLevel } from './api';
 
@@ -60,11 +61,14 @@ async function publicGet<T>(path: string): Promise<T | null> {
   return (await response.json()) as T;
 }
 
-/** null while the site is not launched (ADR-015). */
-export async function publicCategories(): Promise<PublicCategory[] | null> {
+/**
+ * null while the site is not launched (ADR-015). Memoised per server render (React cache): the
+ * navigation and the launch check for metadata share one API call per page.
+ */
+export const publicCategories = cache(async (): Promise<PublicCategory[] | null> => {
   const body = await publicGet<{ categories: PublicCategory[] }>('/categories');
   return body?.categories ?? null;
-}
+});
 
 export async function publicArticles(options: {
   readonly category?: string;

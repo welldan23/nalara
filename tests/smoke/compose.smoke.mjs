@@ -414,6 +414,29 @@ try {
   );
 
   await check(
+    'TEST-OPS-05',
+    'before launch the production stack asks search engines to stay away',
+    async () => {
+      // PUBLIC_SITE_ENABLED defaults to false (ADR-015): robots.txt must disallow everything and
+      // the sitemap must be empty. /os always says noindex, launched or not (P1-08).
+      const robots = curl('--cacert', caFile, `https://${SITE}/robots.txt`).stdout;
+      assert(/Disallow: \/\n/.test(robots) && !robots.includes('Allow:'), `robots.txt: ${robots}`);
+      const sitemap = curl('--cacert', caFile, `https://${SITE}/sitemap.xml`).stdout;
+      assert(!sitemap.includes('<loc>'), 'sitemap lists pages before launch');
+      const os = curl(
+        '--cacert',
+        caFile,
+        '-D',
+        '-',
+        '-o',
+        '/dev/null',
+        `https://${SITE}/os/login`,
+      ).stdout.toLowerCase();
+      assert(os.includes('x-robots-tag: noindex'), 'X-Robots-Tag missing on /os');
+    },
+  );
+
+  await check(
     'TEST-OPS-04',
     'only 80/443 are exposed; API, web and Postgres ports are closed on the host',
     async () => {
