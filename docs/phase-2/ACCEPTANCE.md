@@ -75,7 +75,7 @@ Sisa dari Phase 1 tetap berlaku: deploy (D-08/D-09), **PHASE 1 ACCEPTED**, requi
 
 ## 6. Keputusan founder
 
-- [ ] **PHASE 2 ACCEPTED** (fondasi lokal + CI), dengan G-1..G-3 ditutup setelah deploy, **atau**
+- [x] **PHASE 2 ACCEPTED** (fondasi lokal + CI), dengan G-1..G-3 ditutup setelah deploy. Ditulis founder 2026-11-04 (D-24), **atau**
 - [ ] perubahan yang diminta: …
 
 Fase berikutnya menurut PRD v4: **Fase 3, Hermes + Telegram (proposal + approval)**. Prasyaratnya *research spike* R-02 lolos. Founder sudah menyampaikan ide multi-agent (Radar, Periset, Penulis, Pemeriksa fakta, Editor bahasa, Pemantau) dan kemungkinan memakai opencode. Sebelum Fase 3 dibangun, perlu dipastikan dulu: akses API/model dari server, dan syarat layanan untuk pemakaian otomatis.

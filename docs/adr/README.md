@@ -17,5 +17,6 @@ Status: `Proposed` → `Accepted` → `Superseded by ADR-XXX`. ADR yang sudah di
 | [ADR-009](ADR-009-identity-audit-schema.md) | Identity and audit schema shape | Accepted |
 | [ADR-010](ADR-010-sql-first-migrations.md) | SQL-first migrations with a checksum-verifying runner | Accepted (delegated) · supersedes the drizzle-kit part of ADR-003 |
 | [ADR-011..019](../phase-1/ADR-PROPOSALS.md) | Phase 1: content blocks, revision-bound approval, dynamic SSR, media storage, rollout flag, slugs, nonce CSP, keeping the Fastify API, citation and verification rules | Accepted (D-19) · kept in one file until each is used |
+| [ADR-020](ADR-020-agent-gateway.md) | Agent AI behind a tool gateway, proposal-only, AI off by default | Accepted (delegated) |
 
 Konteks audit: [`../phase-0/BASELINE.md`](../phase-0/BASELINE.md) · Usulan asli: [`../phase-0/ADR-PROPOSALS.md`](../phase-0/ADR-PROPOSALS.md) · Register keputusan founder: [`../decisions/DECISIONS.md`](../decisions/DECISIONS.md).

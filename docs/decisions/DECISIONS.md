@@ -30,6 +30,7 @@ Jangan pernah menulis password, recovery code, private key, atau token di file i
 | D-09 | 2026-11-04 | Kapan deploy produksi pertama | **Ditunda** sampai founder siap (validasi pembaca dan artikel awal) | Pilihan founder ("tunggu") | P1-10 (deploy, TEST-OPS di VPS, ACCEPTANCE Phase 1) menunggu. Semua bagian yang tidak butuh server sudah selesai | Founder memberi tanda mulai | — |
 | D-23 | 2026-11-04 | Mulai Phase 2 sebelum Phase 1 diterima? | **Ya**: founder minta "langsung ke phase selanjutnya aja sampai selesai, nanti siap deploy". Phase 2 dibangun dan diuji lokal/CI; Phase 1 tetap butuh deploy + **PHASE 1 ACCEPTED** | Deploy ditunda (D-09), pembangunan tidak perlu menunggu | Ingestion ke internet sungguhan baru jalan setelah deploy. Phase 3 (Hermes) tetap butuh research spike R-02 dan keputusan founder | Founder bisa menghentikan kapan saja | [phase-2/PLAN](../phase-2/PLAN.md) |
 | D-22 | 2026-11-04 | Logo NALARA | **Beringin tiga lapis** (foto profil IG "NALARA Media") untuk semua lini NALARA; wordmark `NALARA` tetap untuk masthead | Pilihan founder | Butuh versi vektor sederhana untuk ukuran kecil. Domain `nalara.media` **belum** dibeli (tetap D-08) | Entri baru di register ini | [docs/brand](../brand/README.md) |
+| D-24 | 2026-11-04 | Terima Phase 2? | **PHASE 2 ACCEPTED** (fondasi lokal + CI). Gate G-1..G-3 ditutup setelah deploy | Semua tes Phase 2 PASS, CI 6/6 di setiap PR | Ingestion ke internet sungguhan menunggu deploy (D-08/D-09) | Founder bisa mencabut lewat entri baru | [phase-2/ACCEPTANCE](../phase-2/ACCEPTANCE.md) |
 
 ## Keputusan yang masih OPEN
 
@@ -37,3 +38,5 @@ Jangan pernah menulis password, recovery code, private key, atau token di file i
 |---|---|---|---|
 | D-07 | OS laptop founder dan apakah Docker terpasang | Dokumentasi P0-003 | Untuk menulis instruksi setup lokal yang tepat |
 | D-08 | Provider VPS, spek CPU/RAM/disk, versi Ubuntu, domain dan kontrol DNS | Deploy publik pertama (gate R-02) | 2026-11-04: VPS dan domain **belum dibeli** (`nalara.media` belum dibeli). Tanpa ini, rehearsal TLS memakai CA lokal saja |
+| D-25 | Provider AI untuk agent NALARA (Fase 3) | Mengaktifkan AI di produksi (bukan untuk membangun Fase 3) | Hasil R-02: jalur langganan (ChatGPT/Codex lewat Hermes, opencode Go) tidak jelas boleh dipakai proses server otomatis. Default: **AI mati**. Founder memilih provider API berbayar per pemakaian secara eksplisit, plus batas biaya bulanan. Lihat [R-02](../phase-3/R-02-SPIKE.md) |
+| D-26 | Bot Telegram founder | Mengaktifkan notifikasi/approval Telegram | Founder membuat bot sendiri lewat @BotFather (gratis) dan memberi tahu **bahwa** token sudah diisi di server, bukan nilainya. Juga user ID dan chat ID numerik |
