@@ -727,6 +727,20 @@ try {
         (await page.getByText('Berita Resmi Statistik').count()) === 0,
         'verified filter shows a paused source',
       );
+
+      // P2-03b: a feed URL shows the feed panel; a paused source is never checked.
+      await page.goto(`${WEB}/os/sources?status=paused`);
+      await page.getByRole('link', { name: 'Berita Resmi Statistik' }).click();
+      await page
+        .getByLabel(/^URL feed RSS\/Atom/)
+        .fill('https://www.bps.go.id/id/pressrelease/rss');
+      await page.getByRole('button', { name: 'Simpan perubahan' }).click();
+      await page.getByText('Tersimpan (versi 3).').waitFor({ timeout: 10_000 });
+      await page.getByTestId('feed').getByText('Belum dicek').waitFor({ timeout: 10_000 });
+      await page.getByRole('button', { name: 'Cek feed sekarang' }).click();
+      await page
+        .getByText('Feed hanya dicek untuk sumber berstatus Terverifikasi.')
+        .waitFor({ timeout: 10_000 });
     },
   );
 

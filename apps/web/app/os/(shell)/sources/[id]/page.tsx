@@ -4,8 +4,13 @@ import { headers } from 'next/headers';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { ApiUnauthorized, getSource } from '../../../../../lib/api';
-import { SOURCE_STATUS_LABELS } from '../../../../../lib/source-messages';
+import {
+  FEED_STATUS_LABELS,
+  SOURCE_STATUS_LABELS,
+  feedErrorText,
+} from '../../../../../lib/source-messages';
 import { SourceForm } from '../source-form';
+import { CheckFeedButton } from './feed-panel';
 
 export const metadata: Metadata = { title: 'Sumber' };
 export const dynamic = 'force-dynamic';
@@ -18,14 +23,15 @@ const dateFormat = new Intl.DateTimeFormat('id-ID', {
 
 export default async function SourcePage({ params }: { readonly params: Promise<{ id: string }> }) {
   const { id } = await params;
-  let source;
+  let data;
   try {
-    source = await getSource(id, (await headers()).get('cookie'));
+    data = await getSource(id, (await headers()).get('cookie'));
   } catch (error) {
     if (error instanceof ApiUnauthorized) redirect('/os/login');
     throw error;
   }
-  if (source === null) notFound();
+  if (data === null) notFound();
+  const { source, checks } = data;
   return (
     <>
       <p>
@@ -37,6 +43,41 @@ export default async function SourcePage({ params }: { readonly params: Promise<
         {dateFormat.format(new Date(source.updatedAt))} WIB
       </p>
       <SourceForm key={source.id} source={source} />
+      {source.feedUrl !== null && (
+        <section aria-labelledby="feed" className="feed-panel" data-testid="feed">
+          <h2 id="feed">Feed</h2>
+          <p>
+            <span className={`status feed-status-${source.feedStatus}`}>
+              {FEED_STATUS_LABELS[source.feedStatus] ?? source.feedStatus}
+            </span>
+            {source.feedTitle !== null && <> · {source.feedTitle}</>}
+            {source.feedCheckedAt !== null && (
+              <span className="muted">
+                {' '}
+                · dicek {dateFormat.format(new Date(source.feedCheckedAt))} WIB
+              </span>
+            )}
+          </p>
+          {source.feedError !== null && <p className="error">{feedErrorText(source.feedError)}</p>}
+          <CheckFeedButton sourceId={source.id} />
+          {checks.length > 0 && (
+            <ol className="revision-list" aria-label="Riwayat cek feed">
+              {checks.map((check, index) => (
+                <li key={`${check.checkedAt}-${String(index)}`}>
+                  <strong>{check.ok ? 'Berhasil' : 'Gagal'}</strong>
+                  {check.ok
+                    ? ` · ${String(check.itemCount ?? 0)} item (${check.feedFormat ?? '?'})`
+                    : ` · ${feedErrorText(check.error)}`}{' '}
+                  <span className="muted">
+                    · {dateFormat.format(new Date(check.checkedAt))} WIB
+                    {check.durationMs !== null ? ` · ${String(check.durationMs)} ms` : ''}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      )}
     </>
   );
 }

@@ -22,6 +22,7 @@ interface Values {
   attribution: string;
   status: string;
   notes: string;
+  feedUrl: string;
 }
 
 const EMPTY: Values = {
@@ -34,6 +35,7 @@ const EMPTY: Values = {
   attribution: '',
   status: 'candidate',
   notes: '',
+  feedUrl: '',
 };
 
 function valuesOf(source: Source | undefined): Values {
@@ -48,6 +50,7 @@ function valuesOf(source: Source | undefined): Values {
     attribution: source.attribution ?? '',
     status: source.status,
     notes: source.notes ?? '',
+    feedUrl: source.feedUrl ?? '',
   };
 }
 
@@ -213,6 +216,23 @@ export function SourceForm({ source }: { readonly source?: Source }) {
         </select>
         <p id={field('status-help')} className="muted field-help">
           {SOURCE_STATUS_HELP}
+        </p>
+        <label htmlFor={field('feed')}>URL feed RSS/Atom (opsional)</label>
+        <input
+          id={field('feed')}
+          type="url"
+          inputMode="url"
+          value={values.feedUrl}
+          onChange={(event) => {
+            set('feedUrl')(event.target.value);
+          }}
+          maxLength={2048}
+          aria-describedby={field('feed-help')}
+          placeholder="mis. https://www.bps.go.id/id/pressrelease/rss"
+        />
+        <p id={field('feed-help')} className="muted field-help">
+          Hanya dipakai untuk sumber Terverifikasi. Isinya masuk ke inbox sebagai bahan untuk dicek,
+          tidak pernah diterbitkan otomatis.
         </p>
         <label htmlFor={field('notes')}>Catatan internal (opsional)</label>
         <textarea

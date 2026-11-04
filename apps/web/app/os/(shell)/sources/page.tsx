@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ApiUnauthorized, listSources } from '../../../../lib/api';
 import {
+  FEED_STATUS_LABELS,
   LICENSE_LABELS,
   SOURCE_STATUS_LABELS,
   SOURCE_TYPE_LABELS,
@@ -67,6 +68,8 @@ export default async function SourcesPage({
                 </span>{' '}
                 · {source.organization} · {SOURCE_TYPE_LABELS[source.type] ?? source.type} ·
                 lisensi: {LICENSE_LABELS[source.licenseStatus] ?? source.licenseStatus}
+                {source.feedStatus !== 'none' &&
+                  ` · feed: ${FEED_STATUS_LABELS[source.feedStatus] ?? source.feedStatus}`}
               </p>
             </li>
           ))}

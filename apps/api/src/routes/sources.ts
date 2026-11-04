@@ -7,7 +7,14 @@ import { SOURCE_STATUSES } from '../db/schema.ts';
 import type { schema } from '../db/schema.ts';
 import { AppError } from '../lib/errors.ts';
 import { parseOrThrow } from '../lib/validation.ts';
-import { createSource, getSource, listSources, updateSource } from '../modules/sources/sources.ts';
+import {
+  createSource,
+  getSource,
+  listSourceChecks,
+  listSources,
+  requestFeedCheck,
+  updateSource,
+} from '../modules/sources/sources.ts';
 import type { AuthGuards } from '../plugins/auth.ts';
 
 const listQuery = z.strictObject({ status: z.enum(SOURCE_STATUSES).optional() });
@@ -40,10 +47,21 @@ export function registerSourceRoutes(
   });
 
   app.get('/sources/:id', { config: { permission: 'sources.read' } }, async (request) => {
-    const source = await getSource(db, sourceId(request.params));
+    const id = sourceId(request.params);
+    const source = await getSource(db, id);
     if (source === null) throw new AppError('NOT_FOUND');
-    return { source };
+    return { source, checks: await listSourceChecks(db, id) };
   });
+
+  // Queue a feed check for the worker (P2-03b). 202: the result arrives in the check history.
+  app.post(
+    '/sources/:id/check-feed',
+    { config: { permission: 'sources.write' }, preHandler: guards.requireCsrf },
+    async (request, reply) => {
+      const queued = await requestFeedCheck(db, actor(request), sourceId(request.params));
+      return reply.code(202).send({ queued });
+    },
+  );
 
   app.post(
     '/sources',

@@ -21,6 +21,7 @@ import {
   publicationEvents,
   recoveryCodes,
   sessions,
+  sourceChecks,
   sources,
   users,
 } from '../../src/db/schema.ts';
@@ -112,6 +113,7 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         'publication_events',
         'recovery_codes',
         'sessions',
+        'source_checks',
         'sources',
         'users',
       ]);
@@ -208,6 +210,7 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         sources,
         mediaAssets,
         jobRuns,
+        sourceChecks,
       ]) {
         const { name, columns } = getTableConfig(table);
         const actual = await migrator.query<{ column_name: string; is_nullable: string }>(
