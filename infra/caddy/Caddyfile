@@ -19,8 +19,10 @@
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
-		# Phase 0 baseline. Next.js needs inline scripts/styles until nonce-based CSP lands.
-		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		# Default policy, only for responses that bring none (the "?" prefix): API JSON, images,
+		# build assets. HTML pages send their own per-request nonce policy (apps/web/proxy.ts,
+		# ADR-017), which this never overrides. Nothing served without one may run scripts.
+		?Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 		-Server
 		-X-Powered-By
 	}

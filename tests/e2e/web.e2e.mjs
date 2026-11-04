@@ -865,6 +865,61 @@ try {
   );
 
   await check(
+    'TEST-P1-10b',
+    'nonce CSP: page scripts run, injected inline script is blocked',
+    async () => {
+      // The policy: a fresh nonce per response, no 'unsafe-inline' for scripts.
+      const nonces = [];
+      for (const path of ['/', '/tentang']) {
+        const response = await fetch(`${WEB}${path}`);
+        const policy = response.headers.get('content-security-policy') ?? '';
+        const script = /script-src ([^;]+)/.exec(policy)?.[1] ?? '';
+        const nonce = /'nonce-([A-Za-z0-9+/=]+)'/.exec(script)?.[1];
+        assert(nonce !== undefined, `${path}: no nonce in ${policy}`);
+        assert(!script.includes('unsafe-inline'), `${path}: script-src allows inline: ${script}`);
+        assert(script.includes("'strict-dynamic'"), `${path}: no strict-dynamic`);
+        // Every script tag Next.js renders carries this response's nonce.
+        const html = await response.text();
+        const tags = html.match(/<script\b[^>]*>/g) ?? [];
+        assert(tags.length > 0, `${path}: no scripts rendered`);
+        const missing = tags.filter((tag) => !tag.includes(`nonce="${nonce}"`));
+        assert(missing.length === 0, `${path}: scripts without the nonce: ${missing.join(' ')}`);
+        nonces.push(nonce);
+      }
+      assert(new Set(nonces).size === nonces.length, 'nonce reused across responses');
+
+      // An inline script injected into the HTML (as an XSS would) must not run; the page's own
+      // scripts must, so the founder's forms still work.
+      const page = await newPage();
+      await page.addInitScript(() => {
+        window.__violations = [];
+        document.addEventListener('securitypolicyviolation', (event) => {
+          window.__violations.push(event.violatedDirective);
+        });
+      });
+      await page.route(`${WEB}/os/login`, async (route) => {
+        const original = await route.fetch();
+        const body = (await original.text()).replace(
+          '</body>',
+          '<script>window.__pwned = true</script></body>',
+        );
+        await route.fulfill({ response: original, body });
+      });
+      await page.goto(`${WEB}/os/login`);
+      await page.waitForFunction(() => window.__violations.length > 0, null, { timeout: 10_000 });
+      assert((await page.evaluate(() => window.__pwned)) === undefined, 'injected script ran');
+      assert(
+        (await page.evaluate(() => window.__violations)).every((d) => d.startsWith('script-src')),
+        'unexpected CSP violation kind',
+      );
+      // Next.js's own inline bootstrap scripts (nonced) did run. Every other check in this
+      // suite drives hydrated forms under the same policy.
+      const bootstrap = await page.evaluate(() => typeof self.__next_f);
+      assert(bootstrap === 'object', `Next.js inline bootstrap scripts did not run (${bootstrap})`);
+    },
+  );
+
+  await check(
     'TEST-WEB-04',
     'invalid or expired session cookie redirects (server-side check)',
     async () => {
@@ -983,7 +1038,11 @@ try {
     // error from any other check fails the run.
     const unexpected = consoleErrors.filter(
       (text) =>
-        !(text.startsWith('TEST-WEB-10: ') && /Minified React error|Server Components/.test(text)),
+        !(
+          text.startsWith('TEST-WEB-10: ') && /Minified React error|Server Components/.test(text)
+        ) &&
+        // TEST-P1-10b injects a script without a nonce on purpose; the browser reports the block.
+        !(text.startsWith('TEST-P1-10b: ') && /Content Security Policy/.test(text)),
     );
     assert(unexpected.length === 0, unexpected.join(' | '));
   });
@@ -1002,4 +1061,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 19 ? 0 : 1);
+process.exit(failed === 0 && results.length === 20 ? 0 : 1);
