@@ -142,4 +142,46 @@ Satu entri per tiket, format sama dengan Phase 1. Rencana: [PLAN.md](PLAN.md).
 - Security review: PASS. Fetch keluar pertama oleh worker; seluruhnya lewat fetch aman, hanya untuk sumber verified, dengan hak database per kolom.
 - Keputusan founder: PENDING
 
-**Next:** P2-04 — Ingestion (fetch berjadwal + dedup → `discovered_items`).
+### P2-04 — Ingestion (fetch berjadwal + dedup)
+- Commit: lihat PR `feat/P2-04-ingestion`
+- File berubah:
+  - baru: `db/migrations/0012_ingestion.sql`, `apps/api/src/worker/handlers/feed-fetch.ts`, `apps/api/tests/integration/ingestion.test.ts`;
+  - `apps/api/src/{db/schema,worker}.ts`, tes db.
+- Perilaku:
+  - **Penjadwal di worker** (tiap menit) memasukkan `feed_fetch` untuk feed yang jatuh tempo, dengan syarat:
+    - sumber `verified`, punya URL feed, dan status feed `ok`/`failing`;
+    - **bukan** `unchecked` (belum pernah lolos cek) dan **bukan** `quarantined`.
+    - Antrean menjaga satu job aktif per feed, jadi beberapa worker pun tidak membuat job dobel.
+  - **`feed_fetch`:**
+    - mengecek ulang syarat di atas saat job berjalan (dijeda di tengah → tanpa request);
+    - fetch sopan dengan `If-None-Match`/`If-Modified-Since`, sehingga feed yang tidak berubah cukup satu 304 tanpa parsing;
+    - feed sehat diambil kira-kira tiap jam; setelah gagal, jeda membesar (eksponensial + jitter, mulai sekitar 15 menit, maksimal 6 jam).
+  - **Item baru** masuk ke `discovered_items`:
+    - judul dan ringkasan teks polos, URL kanonik, id penerbit, waktu terbit;
+    - unik per (sumber, URL kanonik) lewat `ON CONFLICT DO NOTHING`, sehingga feed yang diambil berkali-kali, atau link yang sama dengan parameter pelacak, tidak pernah dobel;
+    - **sidik judul** (SHA-256 judul yang dinormalkan) menandai berita yang sama dari sumber berbeda, untuk inbox (P2-06).
+  - Setiap fetch tercatat di `ingestion_runs` (immutable): status HTTP, 304, jumlah item dilihat/baru, kode error, durasi. Item ditulis lebih dulu, lalu catatan run dengan angka final; FK ditunda sampai commit.
+  - **Hak akses:**
+    - worker hanya boleh menambah item dan run, tidak bisa mengubah status inbox;
+    - app hanya boleh mengubah status inbox (`status`, `status_changed_at`) dan tidak bisa mengubah judul atau isi;
+    - item dan run tidak bisa dihapus.
+  - Penjadwal memakai **jam database** (`now()`), jam yang sama dengan yang menulis `next_fetch_at`.
+- **Ditemukan saat tes:**
+  1. Versi awal menulis catatan run (immutable) **sebelum** item, sehingga jumlah "item baru" tidak bisa disimpan. Diubah: item dulu, run belakangan, FK `DEFERRABLE`.
+  2. Tes awalnya memanggil handler tanpa menutup job seperti yang dilakukan runner, sehingga antrean (benar) menolak menjadwalkan ulang. Helper tes kini menutup job (`finish`). Perbandingan "jatuh tempo" juga dipindah ke jam database supaya tidak bergantung pada selisih jam.
+- Test:
+  - `pnpm run check` → PASS **446/446**; `pnpm run test:backup` → PASS **11/11**; compose smoke → PASS **20/20**.
+  - Termasuk 5 tes ingestion dengan server feed lokal (ETag sungguhan), lulus 3 kali berturut-turut:
+    - item baru tersimpan sekali dengan ringkasan tanpa script;
+    - belum jatuh tempo → tanpa request;
+    - feed tidak berubah → 304 tanpa item;
+    - item lama di balik link pelacak tidak dobel, item baru masuk;
+    - catatan run per fetch;
+    - gagal → `failing`, hitungan gagal naik, jeda lebih panjang, lalu pulih ke `ok`;
+    - feed `unchecked`/`quarantined`/dijeda tidak dijadwalkan, dan job yang sumbernya dijeda di tengah tidak melakukan request;
+    - worker tidak bisa mengubah status inbox, app tidak bisa mengubah isi item, dan tidak ada yang bisa menghapus;
+    - sidik judul lintas sumber.
+- Security review: PASS. Semua fetch tetap lewat fetch aman, hanya sumber verified, isi feed disimpan sebagai teks polos, dan item tidak pernah tampil di situs publik.
+- Keputusan founder: PENDING
+
+**Next:** P2-05 — Retry + karantina feed bermasalah.

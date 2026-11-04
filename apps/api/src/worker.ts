@@ -1,11 +1,13 @@
 // Worker process entry point (P2-02, PRD v4 §5). Separate from the API: its own database role
-// (nalara_worker), no HTTP port, no session or MFA secrets. Handlers: feed_check (P2-03b); more
-// arrive with ingestion (P2-04). SIGTERM/SIGINT stop claiming and let the job in hand finish.
+// (nalara_worker), no HTTP port, no session or MFA secrets. Handlers: feed_check (P2-03b) and
+// feed_fetch with its scheduler (P2-04). SIGTERM/SIGINT stop claiming and let the job in hand
+// finish.
 import { writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { ConfigError, loadWorkerConfig } from './config/env.ts';
 import { createDatabase } from './db/client.ts';
 import { feedCheckHandler } from './worker/handlers/feed-check.ts';
+import { feedFetchHandler, scheduleDueFeeds } from './worker/handlers/feed-fetch.ts';
 import { startWorker } from './worker/runner.ts';
 import type { WorkerLog } from './worker/runner.ts';
 
@@ -43,7 +45,10 @@ function main(): void {
   const workerId = `${hostname()}-${String(process.pid)}`.slice(0, 100);
   const worker = startWorker(database.db, {
     workerId,
-    handlers: { feed_check: feedCheckHandler(database.db) },
+    handlers: {
+      feed_check: feedCheckHandler(database.db),
+      feed_fetch: feedFetchHandler(database.db),
+    },
     onBeat: () => {
       try {
         writeFileSync(HEARTBEAT_FILE, new Date().toISOString());
@@ -55,11 +60,24 @@ function main(): void {
   });
   line('info', { worker: workerId }, 'worker started');
 
+  // Feed scheduler (P2-04): queue due feeds every minute. Several workers may run this; the
+  // queue's one-active-job rule keeps each feed queued at most once.
+  const scheduler = setInterval(() => {
+    scheduleDueFeeds(database.db)
+      .then((queued) => {
+        if (queued > 0) line('info', { queued }, 'feeds queued');
+      })
+      .catch(() => {
+        line('warn', {}, 'feed scheduling failed; database unavailable?');
+      });
+  }, 60_000);
+
   let closing = false;
   const shutdown = (signal: string) => {
     if (closing) return;
     closing = true;
     line('info', { signal }, 'shutting down');
+    clearInterval(scheduler);
     void worker
       .stop()
       .then(() => database.close())

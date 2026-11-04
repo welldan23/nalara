@@ -15,6 +15,8 @@ import {
   auditEvents,
   categories,
   corrections,
+  discoveredItems,
+  ingestionRuns,
   jobRuns,
   loginChallenges,
   mediaAssets,
@@ -106,6 +108,8 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         'audit_events',
         'categories',
         'corrections',
+        'discovered_items',
+        'ingestion_runs',
         'job_runs',
         'login_challenges',
         'media_assets',
@@ -211,6 +215,8 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         mediaAssets,
         jobRuns,
         sourceChecks,
+        ingestionRuns,
+        discoveredItems,
       ]) {
         const { name, columns } = getTableConfig(table);
         const actual = await migrator.query<{ column_name: string; is_nullable: string }>(
