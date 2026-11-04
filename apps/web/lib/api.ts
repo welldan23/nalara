@@ -267,3 +267,59 @@ export async function listInbox(
     )) ?? { items: [], nextCursor: null, newCount: 0 }
   );
 }
+
+// --- Agent proposals (P3-01) ---
+
+export interface Proposal {
+  readonly id: string;
+  readonly kind: string;
+  readonly agentRole: string;
+  /** Written by an AI agent: shown as plain text only, never as markup or links. */
+  readonly payload: Readonly<Record<string, unknown>>;
+  readonly reason: string;
+  readonly targetType: string | null;
+  readonly targetId: string | null;
+  readonly targetVersion: number | null;
+  readonly status: string;
+  readonly failure: string | null;
+  readonly resultId: string | null;
+  readonly createdAt: string;
+  readonly expiresAt: string;
+  readonly decidedAt: string | null;
+}
+
+export interface ProposalDetail extends Proposal {
+  readonly target: { readonly label: string; readonly currentVersion: number | null } | null;
+  readonly decision: {
+    readonly decision: string;
+    readonly channel: string;
+    readonly decidedAt: string;
+  } | null;
+}
+
+export async function listProposals(
+  cookieHeader: string | null,
+  query: { readonly status?: string; readonly cursor?: string },
+): Promise<{ items: Proposal[]; nextCursor: string | null; pendingCount: number }> {
+  const params = new URLSearchParams();
+  if (query.status !== undefined) params.set('status', query.status);
+  if (query.cursor !== undefined) params.set('cursor', query.cursor);
+  const suffix = params.size > 0 ? `?${params.toString()}` : '';
+  return (
+    (await osGet<{ items: Proposal[]; nextCursor: string | null; pendingCount: number }>(
+      `/proposals${suffix}`,
+      cookieHeader,
+    )) ?? { items: [], nextCursor: null, pendingCount: 0 }
+  );
+}
+
+export async function getProposal(
+  cookieHeader: string | null,
+  id: string,
+): Promise<ProposalDetail | null> {
+  const body = await osGet<{ proposal: ProposalDetail }>(
+    `/proposals/${encodeURIComponent(id)}`,
+    cookieHeader,
+  );
+  return body?.proposal ?? null;
+}

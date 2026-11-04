@@ -719,3 +719,32 @@ main:focus {
 .evidence-url {
   overflow-wrap: anywhere;
 }
+
+/* Agent proposals (P3-01). Agent text wraps anywhere so a long string cannot widen the page. */
+.proposal {
+  overflow-wrap: anywhere;
+}
+.proposal-reason {
+  white-space: pre-line;
+}
+.proposal-payload {
+  margin: 0.5rem 0;
+}
+.proposal-payload div {
+  display: grid;
+  grid-template-columns: minmax(7rem, 12rem) 1fr;
+  gap: 0.5rem;
+}
+.proposal-payload dt {
+  font-weight: 600;
+}
+.proposal-payload dd {
+  margin: 0;
+  white-space: pre-line;
+}
+@media (max-width: 30rem) {
+  .proposal-payload div {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

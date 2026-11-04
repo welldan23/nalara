@@ -30,6 +30,8 @@ export const AUDIT_ACTIONS = {
   // `removed`: names of stripped metadata parts (e.g. "EXIF,XMP"), never their contents.
   'media.upload': ['mime', 'width', 'height', 'bytes', 'usage_basis', 'licensed', 'removed'],
   'media.update': ['version', 'usage_basis', 'licensed', 'changed'],
+  // Agent proposals (P3-01): what was decided, never the payload.
+  'proposal.decide': ['kind', 'decision', 'status', 'channel'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;

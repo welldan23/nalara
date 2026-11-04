@@ -17,3 +17,37 @@ Satu entri per tiket, format sama dengan Phase 2. Rencana: [PLAN.md](PLAN.md).
   - Karena itu AI mati secara default, dan provider dipilih founder (D-25).
 - Test: `pnpm exec vitest run tests/repo` (cek tautan docs) → PASS 28/28
 - Keputusan founder: rencana didelegasikan (D-14); D-25/D-26 baru dibutuhkan saat mengaktifkan
+
+### P3-01 — Proposal + approval
+- Commit: lihat PR `feat/P3-01-proposals`
+- File baru:
+  - `db/migrations/0015_ai_proposals.sql`
+  - `apps/api/src/modules/proposals/proposals.ts`, `apps/api/src/routes/proposals.ts`
+  - `apps/web/app/os/(shell)/usulan/{page,proposal-card,decision-buttons}.tsx`, `usulan/[id]/page.tsx`, `apps/web/lib/proposal-messages.ts`
+  - `apps/api/tests/integration/proposals.test.ts`
+- Data:
+  - `ai_action_proposals`: ditulis sekali, diputuskan sekali (trigger `nalara_proposal_once`). Payload maksimal 16 KB. Kedaluwarsa setelah 7 hari.
+  - `approvals`: satu keputusan per usulan, immutable.
+  - `agent_preferences`: satu baris dengan versi, berisi topik awal D-17.
+  - Role `nalara_app` hanya boleh mengubah kolom keputusan.
+- Perilaku:
+  - Lima jenis usulan: tambah sumber, ubah sumber, ubah preferensi, tandai item inbox, catatan pemeriksaan draft.
+  - Payload divalidasi per jenis saat diajukan dan sekali lagi saat diterapkan. Sumber yang diusulkan harus lolos validasi founder yang sama.
+  - Agent **tidak bisa** mengusulkan `status` sumber. Sumber dari usulan selalu `candidate`.
+  - Versi target dibaca server saat usulan diajukan, bukan dari agent. Kalau target berubah sebelum disetujui, usulan **gagal** (`target:changed`) dan tidak menimpa apa pun.
+  - Menyetujui menerapkan usulan dalam transaksi yang sama (savepoint). Kalau penerapan ditolak, usulan ditandai gagal dengan kode tetap, dan tidak ada yang setengah jadi.
+  - Usulan kedaluwarsa ditolak dan dicatat `expired`.
+  - Audit `proposal.decide` mencatat jenis, keputusan, hasil, dan kanal. Payload tidak dicatat.
+  - `/os/usulan` punya tab Menunggu/Disetujui/Ditolak/Gagal/Kedaluwarsa, halaman detail, dan tombol Setujui/Tolak. Teks dari agent tampil sebagai teks biasa, tidak pernah sebagai HTML atau tautan.
+- Test:
+  - `pnpm run check` → PASS **465/465**, termasuk 7 tes integrasi usulan:
+    - diterapkan sekali sebagai kandidat, dan diaudit;
+    - payload aneh, `status`, jenis/peran asing, dan target hilang ditolak;
+    - target berubah → gagal tanpa menimpa; status `verified` founder tetap;
+    - ditolak → tidak diterapkan; versi preferensi;
+    - kedaluwarsa;
+    - immutability di database (42501);
+    - sesi dan CSRF.
+  - `pnpm run test:e2e` → PASS **22/22**. TEST-P3-01 mencakup: markup dari agent tampil sebagai teks dan tidak jalan; tolak dan setujui lewat UI; sumber yang dibuat berstatus kandidat; tidak ada scroll horizontal di 320 px.
+  - `pnpm run test:backup` → PASS 11/11.
+- Keputusan founder: tidak ada yang baru

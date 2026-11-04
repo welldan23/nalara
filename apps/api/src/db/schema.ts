@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  smallint,
   text,
   timestamp,
   uuid,
@@ -395,6 +396,65 @@ export const evidenceSnapshots = pgTable('evidence_snapshots', {
   error: text('error'),
 });
 
+export const PROPOSAL_KINDS = [
+  'sources.propose_create',
+  'sources.propose_update',
+  'preferences.propose_update',
+  'inbox.propose_flag',
+  'articles.propose_note',
+] as const;
+export const AGENT_ROLES = ['radar', 'penulis', 'pemeriksa', 'periset', 'pemantau'] as const;
+export const PROPOSAL_STATUSES = ['pending', 'approved', 'rejected', 'failed', 'expired'] as const;
+export const PROPOSAL_TARGETS = ['source', 'preferences', 'discovered_item', 'article'] as const;
+
+/** Agent proposals (P3-01): written once, decided once by the founder. */
+export const aiActionProposals = pgTable('ai_action_proposals', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  kind: text('kind', { enum: PROPOSAL_KINDS }).notNull(),
+  agentRole: text('agent_role', { enum: AGENT_ROLES }).notNull(),
+  payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+  reason: text('reason').notNull(),
+  targetType: text('target_type', { enum: PROPOSAL_TARGETS }),
+  targetId: uuid('target_id'),
+  targetVersion: integer('target_version'),
+  status: text('status', { enum: PROPOSAL_STATUSES }).notNull().default('pending'),
+  failure: text('failure'),
+  resultId: uuid('result_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  decidedAt: timestamp('decided_at', { withTimezone: true }),
+});
+
+/** One immutable decision per proposal. */
+export const approvals = pgTable('approvals', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  proposalId: uuid('proposal_id')
+    .notNull()
+    .references(() => aiActionProposals.id),
+  decision: text('decision', { enum: ['approve', 'reject'] }).notNull(),
+  channel: text('channel', { enum: ['os', 'telegram'] }).notNull(),
+  decidedBy: uuid('decided_by')
+    .notNull()
+    .references(() => users.id),
+  decidedAt: timestamp('decided_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** The founder's wishes for the agents; a single versioned row. */
+export const agentPreferences = pgTable('agent_preferences', {
+  id: smallint('id').primaryKey().default(1),
+  topics: text('topics')
+    .array()
+    .notNull()
+    .default(sql`'{}'`),
+  notes: text('notes').notNull().default(''),
+  version: integer('version').notNull().default(1),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
   users,
   sessions,
@@ -413,4 +473,7 @@ export const schema = {
   ingestionRuns,
   discoveredItems,
   evidenceSnapshots,
+  aiActionProposals,
+  approvals,
+  agentPreferences,
 };
