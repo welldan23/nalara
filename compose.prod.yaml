@@ -82,7 +82,8 @@ services:
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
       TELEGRAM_FOUNDER_USER_ID: ${TELEGRAM_FOUNDER_USER_ID:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
-    networks: [backend, frontend]
+    # `agent`: the agent runner reaches the tool gateway here, and nothing else (P3-05).
+    networks: [backend, frontend, agent]
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:4000/health/ready']
       interval: 10s
@@ -124,6 +125,40 @@ services:
       db: { condition: service_healthy }
     stop_grace_period: 40s
     mem_limit: 256m
+
+  # Phase 3 agent runner (P3-03/P3-05, ADR-020): same image, NO database credentials. It reaches
+  # the API's tool gateway on the `agent` network and the AI provider on `egress`; it cannot reach
+  # the database, the web server or Caddy. Opt-in: started only with `--profile agent`, after a
+  # credential exists (`docker compose exec api node dist/cli/agent-credential.js create runner`).
+  # Without AI_BASE_URL (D-25) it stays idle.
+  agent:
+    <<: *hardened
+    image: nalara-api:local
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    profiles: [agent]
+    command: ['node', 'dist/agent.js']
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      AGENT_GATEWAY_URL: http://api:4000
+      AGENT_TOKEN: ${AGENT_TOKEN:-}
+      AGENT_ROLES: ${AGENT_ROLES:-}
+      AGENT_INTERVAL_SECONDS: ${AGENT_INTERVAL_SECONDS:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+    networks: [agent, egress]
+    healthcheck:
+      # The runner rewrites this file at least every 30 s, also while idle.
+      test: ['CMD-SHELL', 'test -n "$(find /tmp/nalara-agent.alive -mmin -1 2>/dev/null)"']
+      interval: 15s
+      timeout: 3s
+      retries: 4
+      start_period: 20s
+    depends_on:
+      api: { condition: service_healthy }
+    stop_grace_period: 20s
+    mem_limit: 192m
 
   web:
     <<: *hardened
@@ -178,8 +213,11 @@ networks:
   # Database traffic never leaves this network and it has no route outside the host.
   backend:
     internal: true
-  # Outbound internet for the worker only (P2-02). No other service joins it.
+  # Outbound internet for the worker (P2-02) and the agent runner (P3-05). Nothing else joins it.
   egress:
+  # The agent runner and the API only (P3-05): no database, no web, no Caddy, no route out.
+  agent:
+    internal: true
   frontend:
     ipam:
       config:

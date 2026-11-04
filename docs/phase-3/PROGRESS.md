@@ -160,3 +160,27 @@ Satu entri per tiket, format sama dengan Phase 2. Rencana: [PLAN.md](PLAN.md).
     - grant database.
   - Ditambah tes draft panjang (39 KB) yang tidak ditolak karena ukurannya.
 - Keputusan founder: D-26 (membuat bot) baru dibutuhkan setelah deploy. Langkahnya ada di runbook.
+
+### P3-05 — Compose + smoke untuk agent
+- Commit: lihat PR `feat/P3-05-agent-compose`
+- File berubah:
+  - `compose.prod.yaml`: service `agent` + jaringan `agent` (internal), dan API ikut bergabung ke jaringan `agent`
+  - `tests/smoke/compose.smoke.mjs`: TEST-OPS-09
+  - `tests/repo/ci.test.ts`
+- File baru: `docs/runbooks/agent-ai.md`
+- Perilaku:
+  - Service `agent` memakai image yang sama dan jalan dengan `dist/agent.js`. Ia **opt-in** lewat `--profile agent` dan bergantung pada API yang sehat.
+  - Jaringannya hanya `agent` (internal, hanya API) dan `egress` (provider AI).
+  - Tidak ada URL database atau password di environment-nya.
+  - Non-root, read-only, `cap_drop ALL`, `no-new-privileges`, memori 192 MB, dan healthcheck heartbeat.
+  - Tiga lapis "mati" secara default: profile, tanpa `AI_BASE_URL`, dan saklar di OS.
+- Test:
+  - Smoke Compose → PASS **21/21**. TEST-OPS-09 yang baru:
+    - kredensial dibuat lewat CLI di container API;
+    - agent sehat, dengan jaringan persis `agent` + `egress`;
+    - non-root;
+    - **tidak bisa** menjangkau `db:5432`, `web:3000`, maupun `caddy:443`, tapi bisa ke `api:4000`;
+    - tidak ada secret database atau sesi di environment;
+    - mulai dalam keadaan diam tanpa provider, dan token tidak muncul di log.
+  - `tests/repo`: service `agent` tanpa jaringan `backend` dan tanpa URL DB; hanya worker + agent yang memakai egress.
+- Keputusan founder: tidak ada yang baru. Langkah menyalakan ada di runbook (butuh deploy + D-25).

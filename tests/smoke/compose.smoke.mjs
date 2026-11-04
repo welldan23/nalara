@@ -741,6 +741,49 @@ try {
     },
   );
 
+  await check(
+    'TEST-OPS-09',
+    'agent runner: no database reach, gateway only, idle without a provider (P3-05)',
+    async () => {
+      const created = exec('api', 'node', 'dist/cli/agent-credential.js', 'create', 'smoke');
+      assert(created.status === 0, `credential not created: ${created.stderr.slice(0, 200)}`);
+      const token = created.stdout.trim().split('\n').at(-1) ?? '';
+      assert(/^[A-Za-z0-9_-]{43}$/.test(token), 'no token printed');
+      docker(compose('--profile', 'agent', 'up', '-d', 'agent'), {
+        env: { ...process.env, AGENT_TOKEN: token },
+      });
+      await waitHealthy(['agent']);
+      const networks = Object.keys(
+        JSON.parse(inspect('agent', '{{json .NetworkSettings.Networks}}')),
+      ).sort();
+      assert(
+        networks.length === 2 && networks[0].endsWith('_agent') && networks[1].endsWith('_egress'),
+        `agent networks: ${networks.join(',')}`,
+      );
+      const uid = exec('agent', 'id', '-u').stdout.trim();
+      assert(uid !== '' && uid !== '0', `agent runs as uid ${uid}`);
+      const reach = (host, port) =>
+        exec(
+          'agent',
+          'node',
+          '-e',
+          `require('net').connect(${String(port)},'${host}').on('connect',()=>process.exit(0)).on('error',()=>process.exit(3));setTimeout(()=>process.exit(4),3000)`,
+        ).status === 0;
+      assert(!reach('db', 5432), 'agent can reach the database');
+      assert(!reach('web', 3000), 'agent can reach the web server');
+      assert(!reach('caddy', 443), 'agent can reach the proxy');
+      assert(reach('api', 4000), 'agent cannot reach the API');
+      const env = exec('agent', 'env').stdout;
+      assert(
+        !/DATABASE_URL|PASSWORD|SESSION_SECRET|MFA_ENCRYPTION_KEY/.test(env),
+        'agent holds a DB or session secret',
+      );
+      const logs = docker(compose('logs', 'agent'));
+      assert(logs.includes('staying idle'), 'agent did not start idle without a provider');
+      assert(!logs.includes(token), 'agent logged its token');
+    },
+  );
+
   await check('TEST-COMPOSE-07', 'container stop is graceful', async () => {
     docker(compose('stop', 'api'));
     assert(
@@ -769,7 +812,7 @@ try {
     await waitHealthy(['api']);
   });
 } finally {
-  tryDocker(compose('down', '-v', '--remove-orphans'));
+  tryDocker(compose('--profile', 'agent', 'down', '-v', '--remove-orphans'));
   rmSync(workDir, { recursive: true, force: true });
 }
 
