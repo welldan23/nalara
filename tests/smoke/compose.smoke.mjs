@@ -21,6 +21,7 @@ const secrets = {
   POSTGRES_PASSWORD: hex(),
   DB_MIGRATOR_PASSWORD: hex(),
   DB_APP_PASSWORD: hex(),
+  DB_WORKER_PASSWORD: hex(),
   APP_BASE_URL: 'https://nalara.test',
   SESSION_SECRET: randomBytes(48).toString('base64'),
   MFA_ENCRYPTION_KEY: randomBytes(32).toString('base64'),
@@ -149,17 +150,17 @@ try {
   await waitHealthy(['db']);
   const migrate = tryDocker(compose('run', '--rm', 'migrate'));
   if (migrate.status !== 0) throw new Error(`migrate failed: ${migrate.stderr}`);
-  docker(compose('up', '-d', 'api', 'web', 'caddy'));
+  docker(compose('up', '-d', 'api', 'worker', 'web', 'caddy'));
 
   await check('TEST-COMPOSE-05', 'every service becomes healthy', async () => {
-    await waitHealthy(['db', 'api', 'web']);
+    await waitHealthy(['db', 'api', 'worker', 'web']);
   });
 
   await check(
     'TEST-COMPOSE-02',
     'database is private: no published ports, internal network, unreachable from web',
     async () => {
-      for (const service of ['db', 'api', 'web']) {
+      for (const service of ['db', 'api', 'worker', 'web']) {
         assert(docker(['port', containerId(service)]) === '', `${service} publishes ports`);
       }
       const networks = JSON.parse(inspect('db', '{{json .NetworkSettings.Networks}}'));
@@ -184,7 +185,7 @@ try {
   );
 
   await check('TEST-COMPOSE-03', 'application processes run as non-root', async () => {
-    for (const service of ['api', 'web']) {
+    for (const service of ['api', 'worker', 'web']) {
       const uid = exec(service, 'id', '-u').stdout.trim();
       assert(uid !== '' && uid !== '0', `${service} runs as uid ${uid}`);
     }
@@ -194,7 +195,7 @@ try {
   });
 
   await check('TEST-COMPOSE-06', 'restart policy and hardening are applied', async () => {
-    for (const service of ['db', 'api', 'web']) {
+    for (const service of ['db', 'api', 'worker', 'web']) {
       assert(
         inspect(service, '{{.HostConfig.RestartPolicy.Name}}') === 'unless-stopped',
         `${service} restart policy`,
@@ -217,6 +218,7 @@ try {
   await check('TEST-COMPOSE-09', 'read-only filesystems with writable /tmp only', async () => {
     for (const [service, path] of [
       ['api', '/app/apps/api/dist/x'],
+      ['worker', '/app/apps/api/dist/x'],
       ['web', '/app/x'],
       ['db', '/x'],
     ]) {
@@ -224,6 +226,66 @@ try {
       assert(exec(service, 'touch', '/tmp/ok').status === 0, `${service} cannot write /tmp`);
     }
   });
+
+  await check(
+    'TEST-COMPOSE-11',
+    'worker (P2-02): database and internet only, least-privilege role',
+    async () => {
+      const networks = Object.keys(
+        JSON.parse(inspect('worker', '{{json .NetworkSettings.Networks}}')),
+      ).sort();
+      assert(
+        networks.length === 2 &&
+          networks[0]?.endsWith('_backend') &&
+          networks[1]?.endsWith('_egress'),
+        `worker networks: ${networks.join(',')}`,
+      );
+      const egress = networks[1] ?? '';
+      assert(
+        docker(['network', 'inspect', '-f', '{{.Internal}}', egress]) === 'false',
+        'egress network has no route out',
+      );
+      // Only the worker is on the egress network.
+      const members = Object.values(
+        JSON.parse(docker(['network', 'inspect', '-f', '{{json .Containers}}', egress])),
+      ).map((container) => container.Name);
+      assert(
+        members.length === 1 && members[0]?.includes('worker'),
+        `egress members: ${members.join(',')}`,
+      );
+      const reach = (host, port) =>
+        exec(
+          'worker',
+          'node',
+          '-e',
+          `require('net').connect(${String(port)},'${host}').on('connect',()=>process.exit(0)).on('error',()=>process.exit(3));setTimeout(()=>process.exit(4),3000)`,
+        ).status;
+      assert(reach('db', 5432) === 0, 'worker cannot reach the database');
+      for (const [host, port] of [
+        ['web', 3000],
+        ['caddy', 443],
+      ]) {
+        assert(reach(host, port) !== 0, `worker can reach ${host}:${String(port)}`);
+      }
+      // The role sees the queue, nothing about people, sessions, articles or the audit log.
+      const can = (table, privilege) =>
+        exec(
+          'db',
+          'psql',
+          '-U',
+          'postgres',
+          '-d',
+          'nalara',
+          '-At',
+          '-c',
+          `SELECT has_table_privilege('nalara_worker', '${table}', '${privilege}')`,
+        ).stdout.trim();
+      assert(can('job_runs', 'UPDATE') === 't', 'worker cannot update the queue');
+      for (const table of ['users', 'sessions', 'recovery_codes', 'articles', 'audit_events']) {
+        assert(can(table, 'SELECT') === 'f', `worker can read ${table}`);
+      }
+    },
+  );
 
   await check(
     'TEST-COMPOSE-10',

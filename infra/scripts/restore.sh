@@ -43,6 +43,7 @@ sleep 2
 docker exec -i "$name" psql -v ON_ERROR_STOP=1 -q -U postgres <<SQL
 CREATE ROLE nalara_migrator;
 CREATE ROLE nalara_app;
+CREATE ROLE nalara_worker;
 CREATE DATABASE "$DB_NAME" OWNER nalara_migrator;
 SQL
 

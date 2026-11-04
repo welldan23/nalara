@@ -280,6 +280,28 @@ export const mediaAssets = pgTable('media_assets', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const JOB_KINDS = ['feed_check', 'feed_fetch', 'evidence_snapshot'] as const;
+export const JOB_STATUSES = ['queued', 'running', 'succeeded', 'failed'] as const;
+
+/** Worker job queue (P2-02). The API enqueues; the worker claims with a lease. */
+export const jobRuns = pgTable('job_runs', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  kind: text('kind', { enum: JOB_KINDS }).notNull(),
+  subjectId: uuid('subject_id'),
+  status: text('status', { enum: JOB_STATUSES }).notNull().default('queued'),
+  runAfter: timestamp('run_after', { withTimezone: true }).notNull().defaultNow(),
+  attempts: integer('attempts').notNull().default(0),
+  maxAttempts: integer('max_attempts').notNull().default(5),
+  lockedBy: text('locked_by'),
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  lastError: text('last_error'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+});
+
 export const schema = {
   users,
   sessions,
@@ -293,4 +315,5 @@ export const schema = {
   corrections,
   sources,
   mediaAssets,
+  jobRuns,
 };

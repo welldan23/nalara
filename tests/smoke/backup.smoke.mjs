@@ -74,6 +74,8 @@ try {
     `DB_MIGRATOR_PASSWORD=${migratorPassword}`,
     '-e',
     `DB_APP_PASSWORD=${hex()}`,
+    '-e',
+    `DB_WORKER_PASSWORD=${hex()}`,
     '-v',
     `${join(root, 'db', 'init')}:/docker-entrypoint-initdb.d:ro`,
     IMAGE,
