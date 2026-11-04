@@ -23,6 +23,9 @@ export const PERMISSIONS = [
   // Agent proposals (P3-01): reading them, and deciding (which applies them).
   'proposals.read',
   'proposals.decide',
+  // AI settings: kill switch, quotas, agent preferences (P3-02).
+  'ai.read',
+  'ai.write',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 

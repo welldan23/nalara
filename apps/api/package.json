@@ -10,6 +10,7 @@
     "db:migrate": "node --env-file-if-exists=../../.env src/db/migrate-cli.ts",
     "db:status": "node --env-file-if-exists=../../.env src/db/migrate-cli.ts --check",
     "founder:bootstrap": "node --env-file-if-exists=../../.env src/cli/bootstrap-founder.ts",
+    "agent:credential": "node --env-file-if-exists=../../.env src/cli/agent-credential.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

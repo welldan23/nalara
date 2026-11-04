@@ -426,3 +426,27 @@ export function describeConfig(config: Config): Record<string, unknown> {
     ...(config.rateLimitMax === undefined ? {} : { rateLimitMax: config.rateLimitMax }),
   };
 }
+
+export interface AdminCliConfig {
+  readonly nodeEnv: NodeEnv;
+  /** Application-role connection. */
+  readonly databaseUrl: string;
+}
+
+const adminCliSchema = z.object({
+  NODE_ENV: schema.shape.NODE_ENV,
+  DATABASE_URL: required('DATABASE_URL'),
+});
+
+/** Config for small admin CLIs on the server (P3-02 agent credentials). */
+export function loadAdminCliConfig(env: RawEnv = process.env): AdminCliConfig {
+  const issues = typoIssues(env);
+  const parsed = adminCliSchema.safeParse(nonEmpty(env));
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) issues.push(issue.message);
+    throw new ConfigError(issues);
+  }
+  checkDatabaseUrl('DATABASE_URL', parsed.data.DATABASE_URL, issues);
+  if (issues.length > 0) throw new ConfigError(issues);
+  return { nodeEnv: parsed.data.NODE_ENV, databaseUrl: parsed.data.DATABASE_URL };
+}

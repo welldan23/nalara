@@ -36,6 +36,9 @@ export default async function OsShellLayout({ children }: { readonly children: R
             <Link href="/os/usulan">Usulan</Link>
           </li>
           <li>
+            <Link href="/os/ai">Agent AI</Link>
+          </li>
+          <li>
             <Link href="/os/sources">Sumber</Link>
           </li>
           <li>

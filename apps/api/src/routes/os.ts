@@ -10,6 +10,7 @@ import { registerArticleRoutes } from './articles.ts';
 import { registerInboxRoutes } from './inbox.ts';
 import { registerMediaRoutes } from './media.ts';
 import { registerProposalRoutes } from './proposals.ts';
+import { registerAiRoutes } from './ai.ts';
 import { registerSourceRoutes } from './sources.ts';
 
 export interface OsRoutesOptions {
@@ -27,5 +28,6 @@ export const osRoutes: FastifyPluginAsync<OsRoutesOptions> = (app, { guards, db 
   registerMediaRoutes(app, { db, guards });
   registerInboxRoutes(app, { db, guards });
   registerProposalRoutes(app, { db, guards });
+  registerAiRoutes(app, { db, guards });
   return Promise.resolve();
 };

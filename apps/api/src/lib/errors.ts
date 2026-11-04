@@ -20,6 +20,9 @@ export const ERROR_CODES = {
   PAYLOAD_TOO_LARGE: { status: 413, message: 'Request body too large' },
   UNSUPPORTED_MEDIA_TYPE: { status: 415, message: 'Content-Type must be application/json' },
   RATE_LIMITED: { status: 429, message: 'Too many requests' },
+  // Agent gateway (P3-02).
+  QUOTA_EXCEEDED: { status: 429, message: 'Daily agent quota reached' },
+  AGENT_DISABLED: { status: 503, message: 'AI agents are switched off' },
   INTERNAL: { status: 500, message: 'Internal server error' },
   NOT_READY: { status: 503, message: 'Service not ready' },
 } as const;

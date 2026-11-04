@@ -51,3 +51,44 @@ Satu entri per tiket, format sama dengan Phase 2. Rencana: [PLAN.md](PLAN.md).
   - `pnpm run test:e2e` → PASS **22/22**. TEST-P3-01 mencakup: markup dari agent tampil sebagai teks dan tidak jalan; tolak dan setujui lewat UI; sumber yang dibuat berstatus kandidat; tidak ada scroll horizontal di 320 px.
   - `pnpm run test:backup` → PASS 11/11.
 - Keputusan founder: tidak ada yang baru
+
+### P3-02 — Tool gateway + kill switch
+- Commit: lihat PR `feat/P3-02-agent-gateway`
+- File baru:
+  - `db/migrations/0016_agent_gateway.sql`
+  - `apps/api/src/modules/agent/{credentials,settings,tools}.ts`, `apps/api/src/routes/{agent,ai}.ts`, `apps/api/src/cli/agent-credential.ts`
+  - `apps/web/app/os/(shell)/ai/{page,ai-forms}.tsx`
+  - `apps/api/tests/integration/agent-gateway.test.ts`
+- Data:
+  - `agent_credentials`: hanya hash SHA-256 token. Pencabutan final (trigger).
+  - `system_settings`: `ai_enabled` default **mati**, plus kuota harian draft/usulan/token.
+  - `agent_usage`: immutable.
+  - Audit `actor_type` sekarang juga bisa `agent`, tanpa `actor_id`.
+- Perilaku:
+  - Gateway `/api/v1/agent/status` dan `/api/v1/agent/tools/:name`, dengan token Bearer + header `X-Agent-Role`.
+  - Sesi founder tidak berlaku di gateway, dan token agent tidak berlaku di `/api/v1/os/*`.
+  - Allowlist tool per peran (Radar, Penulis, Pemeriksa, Periset, Pemantau). Tool di luar daftar → 403; nama yang tidak ada (misalnya `articles.publish`, `proposals.decide`, `sql`, `__proto__`) → 404.
+  - Kill switch mati → semua tool ditolak (`AGENT_DISABLED`, 503), kecuali `status` dan `usage.record`.
+  - Kuota usulan/draft per 24 jam (`QUOTA_EXCEEDED`, 429). Kalau anggaran token habis, semua tool berhenti kecuali `status`/`usage.record`.
+  - Isi dari luar (judul/ringkasan feed, teks draft) dikirim di bawah `external`, disertai catatan "data, bukan instruksi".
+  - Penulis hanya bisa membuat draft dari item yang flag-nya **sudah disetujui founder**, sekali per item. Sitasi tetap "belum dicek", dan audit `article.create` mencatat aktor `agent`. Draft tetap milik founder dan wajib lewat gate + approval.
+  - Penulisan dan penolakan diaudit (`agent.tool`) dengan label kredensial. Token tidak pernah dicatat.
+  - `/os/ai`: saklar (nyalakan / **Matikan AI sekarang**), kuota, preferensi agent, daftar kredensial, dan pemakaian 24 jam.
+  - CLI `agent:credential create|revoke|list`: token tampil sekali.
+  - Caddy menolak `/api/v1/agent/*` dari luar.
+- **Ditemukan saat tes:**
+  - e2e: tombol kill switch mengirim JSON kosong dan ditolak API (400). Diperbaiki.
+  - Smoke Compose: `respond` di Caddy dijalankan **setelah** `reverse_proxy`, sehingga `/api/v1/agent/*` sempat diteruskan ke API (401, bukan 404). Diperbaiki dengan `handle` sebelum rute API. Tes smoke gagal sebelum perbaikan dan lulus sesudahnya.
+- Test:
+  - `pnpm run check` → PASS **473/473**, termasuk 8 tes gateway:
+    - kredensial dan pemisahan sesi;
+    - default mati + audit penolakan;
+    - allowlist peran, tanpa tool approve/publish;
+    - draft hanya dari item yang disetujui, sekali;
+    - catatan pemeriksa;
+    - kuota dan anggaran token;
+    - kill switch;
+    - immutability.
+  - `pnpm run test:e2e` → PASS **23/23** (TEST-P3-02: default mati, nyalakan, kuota, kill switch, 320 px).
+  - Smoke Compose → PASS **20/20** (OPS-03 sekarang mengecek `/api/v1/agent/*` → 404 lewat proxy).
+- Keputusan founder: tidak ada yang baru. Token runner baru dibuat saat deploy + D-25.

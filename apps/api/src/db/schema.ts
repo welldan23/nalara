@@ -78,7 +78,7 @@ export const auditEvents = pgTable('audit_events', {
   id: uuid('id')
     .primaryKey()
     .default(sql`uuidv7()`),
-  actorType: text('actor_type', { enum: ['founder', 'system'] }).notNull(),
+  actorType: text('actor_type', { enum: ['founder', 'system', 'agent'] }).notNull(),
   actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
   action: text('action').notNull(),
   resourceType: text('resource_type'),
@@ -455,6 +455,44 @@ export const agentPreferences = pgTable('agent_preferences', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Gateway credentials for the agent runner (P3-02): only the token's SHA-256 is stored. */
+export const agentCredentials = pgTable('agent_credentials', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  label: text('label').notNull(),
+  tokenHash: bytea('token_hash').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+});
+
+/** Kill switch and daily quotas; a single versioned row, AI off by default. */
+export const systemSettings = pgTable('system_settings', {
+  id: smallint('id').primaryKey().default(1),
+  aiEnabled: boolean('ai_enabled').notNull().default(false),
+  dailyDraftQuota: integer('daily_draft_quota').notNull().default(3),
+  dailyProposalQuota: integer('daily_proposal_quota').notNull().default(30),
+  dailyTokenQuota: integer('daily_token_quota').notNull().default(200000),
+  version: integer('version').notNull().default(1),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Token use per model call, reported by the runner. Immutable. */
+export const agentUsage = pgTable('agent_usage', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  credentialId: uuid('credential_id')
+    .notNull()
+    .references(() => agentCredentials.id),
+  agentRole: text('agent_role', { enum: AGENT_ROLES }).notNull(),
+  model: text('model').notNull(),
+  inputTokens: integer('input_tokens').notNull(),
+  outputTokens: integer('output_tokens').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
   users,
   sessions,
@@ -476,4 +514,7 @@ export const schema = {
   aiActionProposals,
   approvals,
   agentPreferences,
+  agentCredentials,
+  systemSettings,
+  agentUsage,
 };

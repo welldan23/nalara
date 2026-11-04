@@ -101,6 +101,12 @@ button {
   color: var(--color-ivory);
   cursor: pointer;
 }
+/* The AI kill switch (P3-02). */
+button.danger {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: var(--color-ivory);
+}
 button.secondary {
   background: transparent;
   color: var(--color-forest);
