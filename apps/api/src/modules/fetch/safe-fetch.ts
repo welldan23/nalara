@@ -8,6 +8,8 @@
 // - Redirects are followed by hand, at most `maxRedirects`, and every hop is checked again.
 // - One deadline for the whole fetch, a byte limit on the body after decompression (gzip bombs),
 //   and an allowlist of content types.
+// - GET by default. POST (P3-03, calls to an AI provider) sends a JSON body and never follows a
+//   redirect: a provider that redirects is refused rather than having the body replayed elsewhere.
 // Every refusal is a FetchBlocked with a stable reason; nothing here throws the URL or body back.
 import { lookup as dnsLookup } from 'node:dns/promises';
 import http from 'node:http';
@@ -59,6 +61,10 @@ export interface SafeFetchOptions {
   /** Extra request headers (e.g. If-None-Match). Host and Connection cannot be set. */
   readonly headers?: Readonly<Record<string, string>>;
   readonly userAgent?: string;
+  /** Default GET. POST sends `body` as JSON and refuses redirects. */
+  readonly method?: 'GET' | 'POST';
+  /** JSON request body for POST; at most 1 MiB once serialised. */
+  readonly body?: unknown;
   /** Tests only. Production uses PUBLIC_ONLY. */
   readonly policy?: AddressPolicy;
   /** Tests only: replaces DNS. */
@@ -156,6 +162,7 @@ function request(
   target: Target,
   options: SafeFetchOptions,
   signal: AbortSignal,
+  payload: Buffer | null,
 ): Promise<{ response: http.IncomingMessage; request: http.ClientRequest }> {
   // Hand Node the address we already checked: no second DNS lookup can change it.
   const pinned: LookupFunction = (_host, lookupOptions, callback) => {
@@ -173,6 +180,10 @@ function request(
   for (const [key, value] of Object.entries(options.headers ?? {})) {
     if (!FORBIDDEN_HEADERS.has(key.toLowerCase())) headers[key.toLowerCase()] = value;
   }
+  if (payload !== null) {
+    headers['content-type'] = 'application/json';
+    headers['content-length'] = String(payload.length);
+  }
   const client = target.url.protocol === 'https:' ? https : http;
   return new Promise((resolve, reject) => {
     const req = client.request(
@@ -181,7 +192,7 @@ function request(
         hostname: target.host,
         port: target.port,
         path: `${target.url.pathname}${target.url.search}`,
-        method: 'GET',
+        method: payload === null ? 'GET' : 'POST',
         headers,
         lookup: pinned,
         signal,
@@ -198,7 +209,7 @@ function request(
     req.on('error', (error) => {
       reject(signal.aborted ? new FetchBlocked('timeout') : error);
     });
-    req.end();
+    req.end(payload ?? undefined);
   });
 }
 
@@ -234,7 +245,13 @@ export async function safeFetch(
   options: SafeFetchOptions = {},
 ): Promise<SafeResponse> {
   const maxBytes = options.maxBytes ?? 2 * 1024 * 1024;
-  const maxRedirects = options.maxRedirects ?? 3;
+  const post = options.method === 'POST';
+  const maxRedirects = post ? 0 : (options.maxRedirects ?? 3);
+  let payload: Buffer | null = null;
+  if (post) {
+    payload = Buffer.from(JSON.stringify(options.body ?? null), 'utf8');
+    if (payload.length > 1024 * 1024) throw new FetchBlocked('too_large');
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => {
     controller.abort();
@@ -245,7 +262,7 @@ export async function safeFetch(
       const target = await resolveTarget(url, options);
       let response: http.IncomingMessage;
       try {
-        ({ response } = await request(target, options, controller.signal));
+        ({ response } = await request(target, options, controller.signal, payload));
       } catch (error) {
         if (error instanceof FetchBlocked) throw error;
         throw new FetchBlocked(controller.signal.aborted ? 'timeout' : 'network');

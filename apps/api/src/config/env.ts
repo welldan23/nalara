@@ -48,6 +48,8 @@ export const SECRET_ENV_KEYS = [
   'WORKER_DATABASE_URL',
   'SESSION_SECRET',
   'MFA_ENCRYPTION_KEY',
+  'AGENT_TOKEN',
+  'AI_API_KEY',
 ] as const;
 
 /** Every variable NALARA understands. Used by the typo guard and by .env.example tests. */
@@ -68,6 +70,14 @@ export const KNOWN_ENV_KEYS = [
   'RATE_LIMIT_MAX',
   'FOUNDER_EMAIL',
   'BACKUP_DESTINATION',
+  // Agent runner only (P3-03).
+  'AGENT_GATEWAY_URL',
+  'AGENT_TOKEN',
+  'AGENT_ROLES',
+  'AGENT_INTERVAL_SECONDS',
+  'AI_BASE_URL',
+  'AI_API_KEY',
+  'AI_MODEL',
 ] as const;
 
 /**
@@ -449,4 +459,103 @@ export function loadAdminCliConfig(env: RawEnv = process.env): AdminCliConfig {
   checkDatabaseUrl('DATABASE_URL', parsed.data.DATABASE_URL, issues);
   if (issues.length > 0) throw new ConfigError(issues);
   return { nodeEnv: parsed.data.NODE_ENV, databaseUrl: parsed.data.DATABASE_URL };
+}
+
+const AGENT_ROLE_NAMES = ['radar', 'penulis', 'pemeriksa', 'periset', 'pemantau'] as const;
+export type AgentRoleName = (typeof AGENT_ROLE_NAMES)[number];
+
+export interface AgentProviderConfig {
+  /** OpenAI-compatible base URL, e.g. https://api.example.com/v1 (https only). */
+  readonly baseUrl: string;
+  readonly apiKey: string;
+  readonly model: string;
+}
+
+export interface AgentRunnerConfig {
+  readonly nodeEnv: NodeEnv;
+  readonly logLevel: LogLevel;
+  /** The API's internal address; the runner talks to nothing else inside NALARA. */
+  readonly gatewayUrl: string;
+  readonly token: string;
+  readonly roles: readonly AgentRoleName[];
+  readonly intervalSeconds: number;
+  /** null until the founder picks a provider (D-25): the runner then stays idle. */
+  readonly provider: AgentProviderConfig | null;
+}
+
+const agentSchema = z.object({
+  NODE_ENV: schema.shape.NODE_ENV,
+  LOG_LEVEL: schema.shape.LOG_LEVEL,
+  AGENT_GATEWAY_URL: required('AGENT_GATEWAY_URL'),
+  AGENT_TOKEN: required('AGENT_TOKEN'),
+  AGENT_ROLES: z.string().default(AGENT_ROLE_NAMES.join(',')),
+  AGENT_INTERVAL_SECONDS: z.coerce
+    .number({ error: 'AGENT_INTERVAL_SECONDS must be a number' })
+    .int({ error: 'AGENT_INTERVAL_SECONDS must be a whole number' })
+    .min(60, { error: 'AGENT_INTERVAL_SECONDS must be at least 60' })
+    .max(86_400, { error: 'AGENT_INTERVAL_SECONDS must be at most 86400' })
+    .default(1800),
+  AI_BASE_URL: z.string().optional(),
+  AI_API_KEY: z.string().optional(),
+  AI_MODEL: z.string().optional(),
+});
+
+/**
+ * Config for the agent runner (P3-03, ADR-020): a gateway token and, optionally, an AI provider.
+ * No database URL, session or MFA secret is read here: the runner has none.
+ */
+export function loadAgentRunnerConfig(env: RawEnv = process.env): AgentRunnerConfig {
+  const issues = typoIssues(env);
+  const parsed = agentSchema.safeParse(nonEmpty(env));
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) issues.push(issue.message);
+    throw new ConfigError(issues);
+  }
+  const data = parsed.data;
+  const gateway = parseUrl(data.AGENT_GATEWAY_URL);
+  if (gateway === undefined || !['http:', 'https:'].includes(gateway.protocol)) {
+    issues.push('AGENT_GATEWAY_URL must be an http(s) URL');
+  } else if (gateway.username !== '' || gateway.password !== '') {
+    issues.push('AGENT_GATEWAY_URL must not contain credentials');
+  }
+  if (!/^[A-Za-z0-9_-]{43}$/.test(data.AGENT_TOKEN)) {
+    issues.push('AGENT_TOKEN must be the token printed by agent:credential create');
+  }
+  const roles = data.AGENT_ROLES.split(',').map((role) => role.trim());
+  const known: readonly string[] = AGENT_ROLE_NAMES;
+  if (roles.length === 0 || roles.some((role) => !known.includes(role))) {
+    issues.push(`AGENT_ROLES must be a comma-separated list of ${AGENT_ROLE_NAMES.join(', ')}`);
+  }
+  // The provider counts as configured only once its base URL is set; the example file's
+  // placeholder key alone does not switch anything on.
+  let provider: AgentProviderConfig | null = null;
+  if (data.AI_BASE_URL !== undefined) {
+    const base = parseUrl(data.AI_BASE_URL);
+    if (base?.protocol !== 'https:' || base.username !== '' || base.password !== '') {
+      issues.push('AI_BASE_URL must be an https URL without credentials');
+    }
+    if (data.AI_API_KEY === undefined) issues.push('AI_API_KEY is required with AI_BASE_URL');
+    else {
+      const problem = notPlaceholder('AI_API_KEY')(data.AI_API_KEY);
+      if (problem !== undefined) issues.push(problem);
+    }
+    if (data.AI_MODEL === undefined || !/^[A-Za-z0-9._:/-]{1,100}$/.test(data.AI_MODEL)) {
+      issues.push('AI_MODEL is required with AI_BASE_URL (letters, digits, . _ : / -)');
+    }
+    provider = {
+      baseUrl: data.AI_BASE_URL.replace(/\/+$/, ''),
+      apiKey: data.AI_API_KEY ?? '',
+      model: data.AI_MODEL ?? '',
+    };
+  }
+  if (issues.length > 0) throw new ConfigError(issues);
+  return {
+    nodeEnv: data.NODE_ENV,
+    logLevel: data.LOG_LEVEL,
+    gatewayUrl: data.AGENT_GATEWAY_URL.replace(/\/+$/, ''),
+    token: data.AGENT_TOKEN,
+    roles: [...new Set(roles)] as AgentRoleName[],
+    intervalSeconds: data.AGENT_INTERVAL_SECONDS,
+    provider,
+  };
 }

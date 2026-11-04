@@ -92,3 +92,35 @@ Satu entri per tiket, format sama dengan Phase 2. Rencana: [PLAN.md](PLAN.md).
   - `pnpm run test:e2e` → PASS **23/23** (TEST-P3-02: default mati, nyalakan, kuota, kill switch, 320 px).
   - Smoke Compose → PASS **20/20** (OPS-03 sekarang mengecek `/api/v1/agent/*` → 404 lewat proxy).
 - Keputusan founder: tidak ada yang baru. Token runner baru dibuat saat deploy + D-25.
+
+### P3-03 — Runner agent
+- Commit: lihat PR `feat/P3-03-agent-runner`
+- File baru:
+  - `apps/api/src/agent.ts` (proses, `dist/agent.js`)
+  - `apps/api/src/agent/{runner,model,roles,gateway-client}.ts`
+  - `apps/api/tests/integration/agent-runner.test.ts`
+- File berubah:
+  - `apps/api/src/modules/fetch/safe-fetch.ts`: mendukung POST JSON, tanpa redirect, maksimal 1 MiB
+  - `apps/api/src/config/env.ts`: `loadAgentRunnerConfig`
+  - `.env.example`
+- Perilaku:
+  - Runner **tidak punya kredensial database**. Ia hanya memegang token gateway dan (nanti) API key provider. Konfig runner bahkan tidak membaca URL database.
+  - Tanpa `AI_BASE_URL` (D-25 belum diputuskan), runner hidup tapi diam. Placeholder di `.env.example` saja tidak menyalakan apa pun.
+  - Adapter OpenAI-compatible (`/chat/completions` dengan tool calling) lewat fetch aman: hanya https dan alamat publik, POST tanpa redirect, maksimal 2 MiB, batas waktu 90 detik.
+  - Satu tugas per peran per putaran (default tiap 30 menit), maksimal 8 langkah model per tugas.
+  - Model hanya melihat tool perannya. Panggilan ke tool lain (misalnya `articles_publish`, `proposals_decide`, `sql`) dijawab "tidak tersedia" di runner dan **tidak pernah dikirim ke gateway**. Gateway tetap mengecek ulang allowlist.
+  - Prompt sistem menegaskan bahwa isi `external` = data, bukan instruksi, dan melarang mengarang kutipan, angka, sumber, atau URL.
+  - Pemakaian token tiap panggilan model dilaporkan ke gateway (`usage.record`).
+  - Kill switch, kuota habis, atau token dicabut → tugas berhenti seketika.
+  - Teks dari model tidak pernah di-log, hanya jumlah, kode, dan hasil.
+- Test:
+  - `pnpm run check` → PASS **481/481**. Termasuk:
+    - 5 tes integrasi runner (API sungguhan di port lokal + model palsu HTTPS):
+      - diam tanpa provider atau saat AI mati (0 panggilan model);
+      - peran Radar: hanya tool-nya yang terlihat, isi luar berlabel `external`, pemakaian tercatat;
+      - **model yang termakan prompt injection** dari feed (mencoba publish, approve, tambah sumber, SQL) → 4 panggilan ditolak di runner, jumlah sumber dan artikel terbit tidak berubah, tidak ada approval, hanya ada usulan `pending`;
+      - kill switch di tengah tugas → berhenti di langkah itu;
+      - error model dan batas langkah, dan satu peran gagal tidak menghentikan peran lain.
+    - 1 tes POST di fetch aman.
+    - 2 tes konfig runner.
+- Keputusan founder: tidak ada yang baru. D-25 (provider) baru dibutuhkan untuk menyalakan runner sungguhan.
