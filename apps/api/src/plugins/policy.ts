@@ -17,6 +17,9 @@ export const PERMISSIONS = [
   // Media library (P1-09).
   'media.read',
   'media.write',
+  // Inbox of discovered feed items (P2-06).
+  'inbox.read',
+  'inbox.write',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 

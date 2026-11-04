@@ -223,3 +223,33 @@ export async function getMedia(id: string, cookieHeader: string | null): Promise
   const body = await osGet<{ media: Media }>(`/media/${encodeURIComponent(id)}`, cookieHeader);
   return body?.media ?? null;
 }
+
+// --- Inbox (P2-06) ---
+
+export interface InboxItem {
+  readonly id: string;
+  readonly title: string;
+  readonly url: string;
+  readonly summary: string;
+  readonly publishedAt: string | null;
+  readonly firstSeenAt: string;
+  readonly status: string;
+  readonly source: { readonly id: string; readonly name: string; readonly organization: string };
+  readonly alsoIn: number;
+}
+
+export async function listInbox(
+  cookieHeader: string | null,
+  query: { readonly status?: string; readonly cursor?: string },
+): Promise<{ items: InboxItem[]; nextCursor: string | null; newCount: number }> {
+  const params = new URLSearchParams();
+  if (query.status !== undefined) params.set('status', query.status);
+  if (query.cursor !== undefined) params.set('cursor', query.cursor);
+  const suffix = params.size > 0 ? `?${params.toString()}` : '';
+  return (
+    (await osGet<{ items: InboxItem[]; nextCursor: string | null; newCount: number }>(
+      `/inbox${suffix}`,
+      cookieHeader,
+    )) ?? { items: [], nextCursor: null, newCount: 0 }
+  );
+}
