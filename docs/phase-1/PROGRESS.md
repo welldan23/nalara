@@ -359,4 +359,24 @@ Format per tiket mengikuti PRD v4 §13. Rencana: [BASELINE.md](BASELINE.md) · K
 - Security review: PASS. Kepercayaan pada `X-Forwarded-For` hanya untuk dua alamat internal tetap. Port web tidak terbuka ke host (TEST-OPS-04), dan Caddy menimpa header dari klien.
 - Keputusan founder: PENDING
 
-**Next:** P1-10 — Deploy + hardening (butuh D-04, D-08, D-09). Sambil menunggu: CSP berbasis nonce (ADR-017).
+### P1-10b — CSP berbasis nonce (ADR-017)
+- Commit: lihat PR `feat/P1-10b-csp-nonce`. Bagian P1-10 yang tidak butuh server; menutup risiko Phase 0 R-04.
+- File berubah: `apps/web/proxy.ts`, `infra/caddy/Caddyfile`, `docs/security/threat-model.md`, `tests/e2e/web.e2e.mjs`, `tests/smoke/compose.smoke.mjs`.
+- Perilaku:
+  - **Setiap halaman HTML** mendapat CSP dengan nonce acak baru (16 byte) per respons: `script-src 'self' 'nonce-…' 'strict-dynamic'`, **tanpa `'unsafe-inline'`**. Next.js memasang nonce itu di semua script-nya sendiri. Script sisipan (XSS) tidak jalan.
+  - Direktif lain: `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`.
+  - Style tetap `'unsafe-inline'` (dibutuhkan Next.js dan blok token). Ini **risiko sisa yang diterima**: injeksi CSS tidak bisa menjalankan script.
+  - Caddy kini memasang CSP **hanya bila respons belum membawa CSP** (prefix `?`). Defaultnya ketat untuk respons non-HTML (JSON API, aset): `default-src 'none'`. CSP halaman dan CSP gambar (`sandbox`) tidak pernah ditimpa.
+  - Pengalihan `/os` ke login tetap seperti sebelumnya (UX saja, bukan batas keamanan).
+- Test:
+  - `pnpm run check` → PASS **371/371**.
+  - `pnpm run test:e2e` → PASS **20/20**. Cek baru TEST-P1-10b:
+    - CSP berisi nonce, tanpa `'unsafe-inline'` untuk script, dengan `'strict-dynamic'`;
+    - **semua** tag `<script>` di HTML membawa nonce respons itu, dan nonce selalu baru per respons;
+    - script inline yang disisipkan ke HTML halaman login **tidak jalan**, browser melaporkan pelanggaran `script-src`, sementara script bootstrap Next.js tetap jalan;
+    - semua cek lain (form login, MFA, editor, media) berjalan di bawah CSP yang sama tanpa pelanggaran (cek console).
+  - `node tests/smoke/compose.smoke.mjs` → PASS **19/19**. Cek baru TEST-OPS-08: lewat Caddy, halaman membawa tepat satu CSP dengan nonce (berbeda per respons), dan JSON API membawa default ketat.
+- Security review: PASS. XSS yang lolos escaping React tetap tidak bisa menjalankan script.
+- Keputusan founder: PENDING
+
+**Next:** P1-10 — Deploy + hardening + `docs/phase-1/ACCEPTANCE.md`. Butuh keputusan founder D-04 (tujuan backup offsite), D-08 (VPS + domain), D-09 (deploy sekarang atau tidak).

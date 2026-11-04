@@ -641,6 +641,29 @@ try {
     },
   );
 
+  await check(
+    'TEST-OPS-08',
+    'CSP through the proxy: nonce policy on pages, strict default elsewhere, never both',
+    async () => {
+      const policies = (path) =>
+        curl('--cacert', caFile, '-D', '-', '-o', '/dev/null', `https://${SITE}${path}`)
+          .stdout.split(/\r?\n/)
+          .filter((line) => /^content-security-policy:/i.test(line))
+          .map((line) => line.slice(line.indexOf(':') + 1).trim());
+      const page = policies('/');
+      assert(page.length === 1, `/ has ${String(page.length)} CSP headers`);
+      const script = /script-src ([^;]+)/.exec(page[0] ?? '')?.[1] ?? '';
+      assert(/'nonce-[A-Za-z0-9+/=]+'/.test(script), `/ script-src without nonce: ${script}`);
+      assert(!script.includes('unsafe-inline'), `/ script-src allows inline: ${script}`);
+      assert(policies('/')[0] !== page[0], 'nonce reused across responses');
+      const api = policies('/api/v1/nope');
+      assert(
+        api.length === 1 && api[0]?.startsWith("default-src 'none'"),
+        `API default CSP: ${JSON.stringify(api)}`,
+      );
+    },
+  );
+
   await check('TEST-COMPOSE-07', 'container stop is graceful', async () => {
     docker(compose('stop', 'api'));
     assert(

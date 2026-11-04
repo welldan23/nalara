@@ -24,7 +24,7 @@ Skala dampak: **Kritis** (akses founder atau data bocor), **Tinggi** (layanan ma
 | T-04 | Replay kode TOTP atau challenge | Tinggi | `totp_last_step` menolak kode lama; challenge sekali pakai, 5 menit, maks. percobaan | TEST-MFA-03..06 | — |
 | T-05 | Recovery code bocor atau dipakai ulang | Kritis | Hanya hash SHA-256, sekali pakai, ditampilkan sekali, bisa dirotasi | TEST-MFA-07..09 | Founder wajib menyimpannya offline |
 | T-06 | CSRF pada endpoint yang mengubah state | Tinggi | Cek `Origin`/`Sec-Fetch-Site`, token CSRF HMAC, SameSite=Lax, wajib `application/json` | TEST-CSRF-01..10 | — |
-| T-07 | XSS di web | Tinggi | React escaping, tanpa `dangerouslySetInnerHTML`, CSP dasar, cookie HttpOnly | TEST-WEB-09 | CSP masih `'unsafe-inline'` (Phase 8) |
+| T-07 | XSS di web | Tinggi | React escaping, tanpa `dangerouslySetInnerHTML`, CSP nonce per request tanpa `'unsafe-inline'` untuk script (P1-10b, ADR-017), cookie HttpOnly | TEST-WEB-09, TEST-P1-10b, TEST-OPS-08 | Style masih `'unsafe-inline'`: injeksi CSS tidak bisa menjalankan script |
 | T-08 | Enumerasi akun | Sedang | Respons dan waktu sama untuk akun ada/tidak ada; tanpa registrasi | TEST-AUTH-03 | — |
 | T-09 | Melewati otorisasi lewat UI | Kritis | API memeriksa sesi di setiap route `/api/v1/os/*`; `proxy.ts` hanya UX | TEST-SESSION-*, TEST-WEB-02/04 | — |
 | T-10 | DB mati → sesi dianggap valid | Kritis | Lookup sesi gagal tertutup (503, bukan lolos) | TEST-SESSION-10 | — |
