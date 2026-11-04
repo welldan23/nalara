@@ -290,4 +290,56 @@ Format per tiket mengikuti PRD v4 §13. Rencana: [BASELINE.md](BASELINE.md) · K
 - Masalah diketahui: sitasi artikel belum bisa ditautkan langsung ke sumber terdaftar (`source_id` opsional, KP1-11). Sitasi tetap memakai URL penerbit. Tautan ini bisa ditambahkan tanpa mengubah aturan hash revisi.
 - Keputusan founder: PENDING
 
-**Next:** P1-09 — Media.
+### P1-09 — Media
+- Commit: lihat PR `feat/P1-09-media`
+- File berubah:
+  - `db/migrations/0009_media.sql`, `apps/api/src/db/schema.ts`;
+  - `apps/api/src/modules/media/{image,media}.ts`, `apps/api/src/routes/{media,os,public,articles}.ts`;
+  - `apps/api/src/modules/articles/{content,markdown,gate,warnings,workflow}.ts`, `modules/public/articles.ts`, `plugins/policy.ts`, `modules/audit/audit.ts`, `app.ts`;
+  - `infra/caddy/Caddyfile`;
+  - `apps/web/app/os/(shell)/media/{page,media-form}.tsx`, `media/[id]/page.tsx`, `apps/web/components/article-body.tsx`, editor dan halaman artikel, `apps/web/lib/{api,public-api,editor-messages,media-messages}.ts`, `globals.css`;
+  - `docs/phase-1/ADR-PROPOSALS.md` (ADR-014 revisi 1);
+  - tes: `apps/api/tests/{unit/image,integration/media,integration/db}.test.ts`, `apps/api/tests/support/images.ts`, `tests/e2e/web.e2e.mjs`, `tests/smoke/{backup,compose}.smoke.mjs`.
+- Perilaku:
+  - **Unggah di `/os/media`.**
+    - Hanya PNG, JPEG, dan WebP, dikenali dari **byte awal berkas**, bukan nama atau tipe yang dikirim. SVG, GIF, HTML, PDF, dan lainnya ditolak.
+    - Maksimal 5 MB dan 6000 px per sisi (maksimal 36 juta piksel), supaya tidak ada "bom dekompresi".
+    - Berkas rusak ditolak (CRC PNG, struktur segmen JPEG, ukuran RIFF WebP).
+  - **Metadata dibuang tanpa re-encode** (tanpa library native):
+    - yang dibuang: EXIF (GPS, kamera, waktu), XMP, IPTC, komentar, chunk teks PNG, dan byte apa pun setelah akhir gambar;
+    - yang dipertahankan: profil warna; untuk JPEG juga orientasi, ditulis ulang sebagai EXIF minimal, supaya foto HP tidak miring;
+    - audit `media.upload` hanya mencatat **nama** bagian yang dibuang.
+  - **Teks alternatif wajib sejak unggah.** Lisensi dan atribusi boleh menyusul, tetapi artikel bergambar **tidak bisa disetujui atau diterbitkan** sebelum keduanya terisi (gate `image_license_missing`, dicek ulang saat publish dan koreksi).
+  - **Dasar pemakaian:** karya sendiri / berlisensi / rilis resmi / domain publik / AI. Gambar AI berlabel "Ilustrasi AI" untuk pembaca.
+  - **Pasang di artikel** dengan blok `:::gambar` + `media: <id>`, yang bisa disalin dari halaman gambar. Gambar Markdown `![]()` tetap ditolak, dan id yang tidak ada di pustaka ditolak saat simpan.
+  - **Penyimpanan:** di PostgreSQL (ADR-014 revisi 1), jadi backup terenkripsi dan restore drill otomatis ikut mencakup gambar.
+    - Byte tidak bisa diubah (role app hanya boleh UPDATE kolom deskripsi).
+    - Gambar tidak pernah dihapus.
+  - **Penyajian publik:** hanya gambar yang dipakai artikel terbit **dan** berlisensi. Selain itu 404, sama seperti id tak dikenal.
+    - Header: `Content-Type` dari hasil deteksi, `nosniff`, `CSP: default-src 'none'; sandbox`, ETag.
+    - Pembaca melihat teks alternatif, keterangan, dan atribusi.
+  - **Batas ukuran request:**
+    - Caddy mengizinkan 8 MB hanya untuk `POST /api/v1/os/media`; route API lain tetap 1 MB.
+    - API memeriksa sesi founder **sebelum** membaca body unggahan.
+  - Hook global API kini memasang `cache-control: no-store` hanya bila route tidak memasang sendiri (route gambar memakai cache).
+- Test:
+  - `pnpm run check` → PASS **371/371**, termasuk:
+    - 11 tes unit gambar: magic bytes, strip PNG/JPEG/WebP, orientasi, trailing data, berkas rusak, batas dimensi;
+    - 9 tes integrasi media: strip + audit, tolak non-gambar, alt wajib, gate lisensi sampai terbit, publik 404 di luar artikel terbit, id tak dikenal, byte immutable dan tak bisa dihapus, sesi dicek sebelum body dibaca, label AI.
+  - `pnpm run test:e2e` → PASS **19/19**. Cek baru TEST-P1-09:
+    - JPEG asli dari browser diberi EXIF palsu "GPS" + data sampah, lalu diunggah;
+    - byte tersimpan bersih dan tetap bisa ditampilkan;
+    - gate menahan approve sampai lisensi diisi, lalu artikel terbit;
+    - pembaca anonim melihat gambar, teks alternatif, dan atribusi; byte publik bersih; 320 px tanpa scroll.
+  - `pnpm run test:backup` → PASS **10/10**. Baris gambar 512 KiB kembali utuh byte-per-byte, dan checksum-nya cocok setelah restore.
+  - `node tests/smoke/compose.smoke.mjs` → PASS **17/17**. Cek baru TEST-OPS-06: lewat Caddy, body 2 MB ke route unggah sampai ke API (401 sebelum di-parse), sedangkan route API lain → 413.
+- Security review: PASS.
+  - Tidak ada SVG atau format yang bisa menjalankan skrip.
+  - Tipe file ditentukan dari byte, tidak pernah dari klien.
+  - Metadata pribadi dibuang sebelum disimpan.
+  - Gambar draf tidak bocor ke publik.
+  - Batas body dibuka hanya untuk satu route, dan route itu terautentikasi lebih dulu.
+- Masalah diketahui: gambar belum dikecilkan atau dibuat versi responsif (butuh decode/re-encode, tanpa sharp). Founder sebaiknya mengunggah gambar yang sudah berukuran wajar (misalnya lebar 1600 px).
+- Keputusan founder: PENDING
+
+**Next:** P1-10 — Deploy + hardening (butuh D-04, D-08, D-09).

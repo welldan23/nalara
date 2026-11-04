@@ -10,6 +10,7 @@ import type { schema } from '../../db/schema.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { Block, Citation } from '../articles/content.ts';
 import { verificationLevel } from '../articles/verification.ts';
+import { mediaForBody } from '../media/media.ts';
 import type { VerificationLevel } from '../articles/verification.ts';
 
 type Db = NodePgDatabase<typeof schema>;
@@ -53,6 +54,17 @@ export interface PublicArticle extends PublicArticleSummary {
   readonly firstPublishedAt: Date;
   /** Substantial corrections only, oldest first (PRD v4 §7, AC-MEDIA-05). */
   readonly corrections: PublicCorrection[];
+  /** Images the body uses, by id (P1-09). Served from /api/v1/public/media/:id. */
+  readonly media: Record<string, PublicMedia>;
+}
+
+export interface PublicMedia {
+  readonly altText: string;
+  readonly caption: string | null;
+  readonly attribution: string | null;
+  readonly width: number;
+  readonly height: number;
+  readonly aiGenerated: boolean;
 }
 
 export interface PublicCorrection {
@@ -188,9 +200,24 @@ export async function publicArticle(db: Db, slug: string): Promise<PublicArticle
     .from(corrections)
     .where(and(eq(corrections.articleId, row.id), isNotNull(corrections.visibleAt)))
     .orderBy(asc(corrections.visibleAt), asc(corrections.id));
+  const body = row.body as Block[];
+  const media: Record<string, PublicMedia> = {};
+  for (const [id, asset] of await mediaForBody(db, body)) {
+    // Published content passed the gate; an image whose licence was removed since is left out.
+    if (!asset.licensed) continue;
+    media[id] = {
+      altText: asset.altText,
+      caption: asset.caption,
+      attribution: asset.attribution,
+      width: asset.width,
+      height: asset.height,
+      aiGenerated: asset.aiGenerated,
+    };
+  }
   return {
     ...toSummary(row),
-    body: row.body as Block[],
+    body,
+    media,
     citations: citations.map((citation) => ({
       id: citation.id,
       url: citation.url,

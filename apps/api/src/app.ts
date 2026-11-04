@@ -99,7 +99,9 @@ export async function buildApp(config: AppConfig, deps: AppDependencies): Promis
   app.addHook('onSend', async (request, reply) => {
     reply.header(REQUEST_ID_HEADER, request.id);
     reply.header('x-content-type-options', 'nosniff');
-    reply.header('cache-control', 'no-store');
+    // API answers are private and fresh by default; only a route that opts in (image files,
+    // P1-09) sets its own caching.
+    if (!reply.hasHeader('cache-control')) reply.header('cache-control', 'no-store');
   });
 
   app.setNotFoundHandler((request, reply) => {

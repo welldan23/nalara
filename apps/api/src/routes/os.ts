@@ -7,6 +7,7 @@ import type { schema } from '../db/schema.ts';
 import type { AuthGuards } from '../plugins/auth.ts';
 import { enforcePolicy } from '../plugins/policy.ts';
 import { registerArticleRoutes } from './articles.ts';
+import { registerMediaRoutes } from './media.ts';
 import { registerSourceRoutes } from './sources.ts';
 
 export interface OsRoutesOptions {
@@ -21,5 +22,6 @@ export const osRoutes: FastifyPluginAsync<OsRoutesOptions> = (app, { guards, db 
   app.get('/ping', { config: { permission: 'os.access' } }, () => Promise.resolve({ ok: true }));
   registerArticleRoutes(app, { db, guards });
   registerSourceRoutes(app, { db, guards });
+  registerMediaRoutes(app, { db, guards });
   return Promise.resolve();
 };

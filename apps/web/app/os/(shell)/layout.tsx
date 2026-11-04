@@ -32,6 +32,9 @@ export default async function OsShellLayout({ children }: { readonly children: R
           <li>
             <Link href="/os/sources">Sumber</Link>
           </li>
+          <li>
+            <Link href="/os/media">Media</Link>
+          </li>
         </ul>
         <div className="os-account">
           <span className="muted">{founder.email}</span>

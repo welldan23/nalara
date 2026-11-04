@@ -247,6 +247,39 @@ export const sources = pgTable('sources', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const MEDIA_MIMES = ['image/png', 'image/jpeg', 'image/webp'] as const;
+export const USAGE_BASES = [
+  'own_work',
+  'licensed',
+  'official_release',
+  'public_domain',
+  'ai_generated',
+] as const;
+
+/** Media library (P1-09, ADR-020). Bytes immutable (column grants); never deleted. */
+export const mediaAssets = pgTable('media_assets', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  mime: text('mime', { enum: MEDIA_MIMES }).notNull(),
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  byteSize: integer('byte_size').notNull(),
+  data: bytea('data').notNull(),
+  sha256: bytea('sha256').notNull(),
+  altText: text('alt_text').notNull(),
+  caption: text('caption'),
+  usageBasis: text('usage_basis', { enum: USAGE_BASES }).notNull(),
+  license: text('license'),
+  attribution: text('attribution'),
+  version: integer('version').notNull().default(1),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
   users,
   sessions,
@@ -259,4 +292,5 @@ export const schema = {
   publicationEvents,
   corrections,
   sources,
+  mediaAssets,
 };

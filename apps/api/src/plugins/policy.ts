@@ -14,6 +14,9 @@ export const PERMISSIONS = [
   // Source Registry (P1-05).
   'sources.read',
   'sources.write',
+  // Media library (P1-09).
+  'media.read',
+  'media.write',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 

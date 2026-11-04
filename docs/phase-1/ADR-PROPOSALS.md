@@ -62,6 +62,18 @@ Status: **ACCEPTED** (D-19, 2026-11-04). Revisi 2 (2026-11-04): disesuaikan deng
   - Lisensi yang diterima: milik sendiri, domain publik, atau lisensi terbuka yang jelas. Ilustrasi AI wajib berlabel "Ilustrasi" di halaman publik. Dasar "berita aktual"/fair use tidak dipakai tanpa review legal (R-04).
   - `backup.sh` ikut mengarsipkan volume media (tar → `age`). Restore drill memeriksa checksum file.
 - **Konsekuensi:** pindah ke S3 nanti lewat ADR baru, dengan `storage_key` yang tetap sama.
+- **Revisi 1 (P1-09, 2026-11-04) — byte gambar disimpan di PostgreSQL, bukan volume.** Aturan lain di atas tetap berlaku. Yang berubah:
+  - Kolom `media_assets.data` (bytea), maksimal 5 MiB per gambar setelah metadata dibuang.
+  - Alasannya:
+    1. Backup `pg_dump` + `age` dan restore drill yang sudah teruji otomatis ikut mencakup gambar, tanpa skrip, volume, atau kunci tambahan.
+    2. Referensi artikel → gambar dan byte gambarnya selalu konsisten dalam satu snapshot.
+    3. Container API tetap berfilesystem read-only.
+  - Byte tidak bisa diubah: role app hanya punya izin UPDATE kolom deskripsi. Baris tidak pernah dihapus.
+  - **Disajikan lewat `/api/v1/public/media/:id`** (Caddy sudah meneruskan `/api/*`), hanya bila gambar dipakai revisi yang disetujui dari artikel terbit **dan** punya lisensi + atribusi. Selain itu 404. Pratinjau founder lewat `/api/v1/os/media/:id/file`.
+  - Unggahan berupa JSON base64 (API tetap JSON-only). Caddy mengizinkan 8 MB **hanya** untuk `POST /api/v1/os/media`; route lain tetap 1 MB. API memeriksa sesi **sebelum** membaca body unggahan.
+  - Orientasi foto JPEG dipertahankan sebagai blok EXIF minimal (hanya tag Orientation), supaya foto HP tidak tampil miring.
+  - `usage_basis`: `own_work`, `licensed`, `official_release` (hanya bila lisensinya tertulis mengizinkan pemakaian media), `public_domain`, `ai_generated` (berlabel "Ilustrasi AI").
+  - **Batas:** cocok untuk Phase 1 (puluhan sampai ratusan gambar). Bila ukuran database mulai membebani backup, pindah ke object storage lewat ADR baru; id media tetap sama.
 
 ## ADR-015 — Flag rollout publik lewat environment
 

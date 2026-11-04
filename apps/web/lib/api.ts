@@ -2,6 +2,7 @@
 // credentials and makes no authorization decisions: it forwards the browser's cookies and
 // trusts only what the API answers.
 import 'server-only';
+import type { MediaRender } from '../components/article-body';
 
 export interface Founder {
   readonly id: string;
@@ -73,6 +74,8 @@ export interface ArticleDetail {
   };
   readonly verification: VerificationLevel;
   readonly gate: readonly string[];
+  /** Images the current body uses (P1-09); `licensed` false means the gate will block. */
+  readonly media: Readonly<Record<string, MediaRender & { readonly licensed: boolean }>>;
   readonly events: readonly {
     readonly action: string;
     readonly fromStatus: string;
@@ -167,4 +170,33 @@ export async function getSource(id: string, cookieHeader: string | null): Promis
   // The id comes from the URL: encode it so it can only ever be one path segment.
   const body = await osGet<{ source: Source }>(`/sources/${encodeURIComponent(id)}`, cookieHeader);
   return body?.source ?? null;
+}
+
+// --- Media library (P1-09) ---
+
+export interface Media {
+  readonly id: string;
+  readonly mime: string;
+  readonly width: number;
+  readonly height: number;
+  readonly byteSize: number;
+  readonly altText: string;
+  readonly caption: string | null;
+  readonly usageBasis: string;
+  readonly license: string | null;
+  readonly attribution: string | null;
+  readonly version: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export async function listMedia(cookieHeader: string | null): Promise<Media[]> {
+  const body = await osGet<{ media: Media[] }>('/media', cookieHeader);
+  return body?.media ?? [];
+}
+
+export async function getMedia(id: string, cookieHeader: string | null): Promise<Media | null> {
+  // The id comes from the URL: encode it so it can only ever be one path segment.
+  const body = await osGet<{ media: Media }>(`/media/${encodeURIComponent(id)}`, cookieHeader);
+  return body?.media ?? null;
 }

@@ -14,6 +14,7 @@ import { migrate } from '../../apps/api/src/db/migrate.ts';
 import { MIGRATIONS_DIR } from '../../apps/api/src/db/migrations-dir.ts';
 import { hashPassword } from '../../apps/api/src/modules/auth/password.ts';
 import { totpAt } from '../../apps/api/src/modules/auth/totp.ts';
+import { SECRET as PRIVATE_METADATA, exif, segment } from '../../apps/api/tests/support/images.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const { chromium } = createRequire(import.meta.url)('playwright');
@@ -726,6 +727,140 @@ try {
   );
 
   await check(
+    'TEST-P1-09',
+    'media: strip metadata, alt required, licence gate, public image',
+    async () => {
+      assert(signedIn !== null, 'needs the signed-in page from TEST-WEB-03b');
+      const page = signedIn;
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto(`${WEB}/os/media`);
+      // A real, decodable JPEG drawn by the browser, then a fake camera EXIF block (with the
+      // "GPS" marker) inserted after SOI and junk appended after the end of the image.
+      const dataUrl = await page.evaluate(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 320;
+        canvas.height = 200;
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#1f3a2e';
+        context.fillRect(0, 0, 320, 200);
+        context.fillStyle = '#c9a96e';
+        context.fillRect(40, 60, 240, 80);
+        return canvas.toDataURL('image/jpeg', 0.9);
+      });
+      const plain = Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
+      const photo = Buffer.concat([
+        plain.subarray(0, 2),
+        segment(0xe1, exif(1)),
+        plain.subarray(2),
+        Buffer.from(PRIVATE_METADATA),
+      ]);
+      assert(photo.includes(Buffer.from(PRIVATE_METADATA)), 'fixture lacks the metadata marker');
+
+      const input = page.getByLabel(/^Berkas gambar/);
+      await input.setInputFiles({ name: 'foto.jpg', mimeType: 'image/jpeg', buffer: photo });
+      // Alt text is required: the browser stops the form, then the API would too.
+      await page
+        .getByLabel('Teks alternatif (wajib)')
+        .fill('Kotak emas di atas latar hijau tua, TEST fixture');
+      await page.getByRole('button', { name: 'Unggah gambar' }).click();
+      await page.waitForURL(/\/os\/media\/[0-9a-f-]{36}$/, { timeout: 10_000 });
+      const mediaId = page.url().split('/').at(-1);
+      const snippet = (await page.getByTestId('snippet').textContent()) ?? '';
+      assert(snippet.includes(`media: ${mediaId}`), `snippet: ${snippet}`);
+      const stored = await page.request.get(`${WEB}/api/v1/os/media/${mediaId}/file`);
+      const storedBytes = Buffer.from(await stored.body());
+      assert(stored.headers()['content-type'] === 'image/jpeg', 'stored type');
+      assert(!storedBytes.includes(Buffer.from(PRIVATE_METADATA)), 'metadata survived the upload');
+      assert(!storedBytes.includes(Buffer.from('Exif')), 'EXIF block survived the upload');
+      assert(
+        await page
+          .locator('.media-preview img')
+          .evaluate((img) => img.complete && img.naturalWidth === 320),
+        'stripped JPEG does not decode in the browser',
+      );
+
+      // An article with the image cannot be approved while the licence is missing.
+      await page.goto(`${WEB}/os/newsroom/baru`);
+      await page.getByLabel('Judul', { exact: true }).fill('Artikel bergambar');
+      await page.getByLabel('Ringkasan (dek)').fill('TEST fixture dengan gambar.');
+      await page
+        .getByLabel('Isi', { exact: true })
+        .fill(`## Konteks\n\nIsi TEST fixture.\n\n${snippet}`);
+      await page.getByRole('button', { name: 'Tambah sumber' }).click();
+      await page
+        .getByLabel('Sumber 1: URL')
+        .fill('https://www.bps.go.id/id/pressrelease/2026/11/01/gambar.html');
+      await page.getByLabel('Penerbit').fill('Badan Pusat Statistik');
+      await page.getByLabel('Sumber primer').check();
+      await page.getByLabel('Sudah dicek').check();
+      await page.getByRole('button', { name: 'Pratinjau' }).click();
+      await page.locator('.preview-article .article-image img').waitFor({ timeout: 10_000 });
+      await page.getByRole('button', { name: 'Simpan draft' }).click();
+      await page.waitForURL(/\/os\/newsroom\/[0-9a-f-]{36}$/, { timeout: 10_000 });
+      const articleUrl = page.url();
+      assert(
+        ((await page.getByTestId('gate').textContent()) ?? '').includes('lisensi atau atribusinya'),
+        'gate does not mention the image licence',
+      );
+      await page.getByRole('button', { name: 'Ajukan untuk review' }).click();
+      await page.getByRole('button', { name: 'Setujui revisi ini' }).waitFor();
+      await page.getByRole('button', { name: 'Setujui revisi ini' }).click();
+      const blocked = await page
+        .locator('.workflow ul.error[role="alert"]')
+        .textContent({ timeout: 10_000 });
+      assert(blocked?.includes('lisensi atau atribusinya'), `image gate did not block: ${blocked}`);
+
+      await page.goto(`${WEB}/os/media/${mediaId}`);
+      await page.getByLabel('Lisensi (wajib sebelum terbit)').fill('Milik NALARA');
+      await page.getByLabel('Atribusi (wajib sebelum terbit)').fill('Ilustrasi: NALARA');
+      await page.getByRole('button', { name: 'Simpan perubahan' }).click();
+      await page.getByText('Tersimpan (versi 2).').waitFor({ timeout: 10_000 });
+
+      await page.goto(articleUrl);
+      await page.getByRole('button', { name: 'Setujui revisi ini' }).click();
+      await page.getByRole('button', { name: 'Terbitkan' }).waitFor({ timeout: 10_000 });
+      await page.getByRole('button', { name: 'Terbitkan' }).click();
+      await page.getByRole('button', { name: 'Terbitkan koreksi' }).waitFor({ timeout: 10_000 });
+
+      // Readers see the image with its alt text and credit, served by the public route.
+      const reader = await newPage();
+      await reader.goto(`${WEB}/artikel/artikel-bergambar`);
+      const image = reader.locator('article.reading .article-image img');
+      await image.waitFor({ timeout: 10_000 });
+      assert(
+        (await image.getAttribute('alt')) === 'Kotak emas di atas latar hijau tua, TEST fixture',
+        'alt text',
+      );
+      assert(
+        (await image.getAttribute('src')) === `/api/v1/public/media/${mediaId}`,
+        'public image route',
+      );
+      assert(
+        await image.evaluate((img) => img.complete && img.naturalWidth === 320),
+        'public image does not load',
+      );
+      assert(
+        ((await reader.locator('.article-image figcaption').textContent()) ?? '').includes(
+          'Ilustrasi: NALARA',
+        ),
+        'credit line missing',
+      );
+      const publicFile = await reader.request.get(`${WEB}/api/v1/public/media/${mediaId}`);
+      assert(
+        !Buffer.from(await publicFile.body()).includes(Buffer.from(PRIVATE_METADATA)),
+        'public bytes leak',
+      );
+      await shot(reader, '14-article-image');
+      await reader.setViewportSize({ width: 320, height: 640 });
+      await reader.goto(`${WEB}/artikel/artikel-bergambar`);
+      const overflow = await reader.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      assert(overflow <= 0, `article with image overflows by ${overflow}px`);
+    },
+  );
+
+  await check(
     'TEST-WEB-04',
     'invalid or expired session cookie redirects (server-side check)',
     async () => {
@@ -863,4 +998,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 18 ? 0 : 1);
+process.exit(failed === 0 && results.length === 19 ? 0 : 1);

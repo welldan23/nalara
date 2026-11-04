@@ -4,9 +4,9 @@
 import { useRouter } from 'next/navigation';
 import { useId, useState } from 'react';
 import type { SyntheticEvent } from 'react';
-import { ArticleBody, CitationList } from '../../../../components/article-body';
+import { ArticleBody, CitationList, previewImageSrc } from '../../../../components/article-body';
 import type { Citation, VerificationLevel } from '../../../../lib/api';
-import type { Block } from '../../../../components/article-body';
+import type { Block, MediaRender } from '../../../../components/article-body';
 import {
   TYPE_LABELS,
   WARNING_MESSAGES,
@@ -39,6 +39,7 @@ interface Warning {
 interface Preview {
   readonly blocks: Block[];
   readonly issues: { line: number; rule: string }[];
+  readonly media: Readonly<Record<string, MediaRender>>;
 }
 
 function today(): string {
@@ -164,7 +165,7 @@ export function Editor(props: {
         warnings: Warning[];
         verification: VerificationLevel;
       };
-      setPreview({ blocks: body.blocks, issues: body.issues });
+      setPreview({ blocks: body.blocks, issues: body.issues, media: body.media });
       setWarnings(body.warnings);
       setVerification(body.verification);
     } catch {
@@ -564,7 +565,13 @@ export function Editor(props: {
             <article className="preview-article">
               <h1>{values.title === '' ? 'Tanpa judul' : values.title}</h1>
               {values.dek !== '' && <p className="dek">{values.dek}</p>}
-              <ArticleBody blocks={preview.blocks} citations={values.citations} />
+              <ArticleBody
+                blocks={preview.blocks}
+                citations={values.citations}
+                media={preview.media}
+                imageSrc={previewImageSrc}
+                preview
+              />
               <CitationList citations={values.citations} />
             </article>
           </>
