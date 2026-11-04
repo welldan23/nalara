@@ -224,6 +224,7 @@ export const LICENSE_STATUSES = [
   'restricted',
 ] as const;
 export const SOURCE_STATUSES = ['candidate', 'verified', 'paused', 'disabled'] as const;
+export const FEED_STATUSES = ['none', 'unchecked', 'ok', 'failing', 'quarantined'] as const;
 
 /** Source Registry (P1-05). Never deleted: disabled instead; changes are audited. */
 export const sources = pgTable('sources', {
@@ -239,6 +240,16 @@ export const sources = pgTable('sources', {
   attribution: text('attribution'),
   status: text('status', { enum: SOURCE_STATUSES }).notNull().default('candidate'),
   notes: text('notes'),
+  // Feed (P2-03b). Written by the founder (feedUrl) and by the worker (the rest).
+  feedUrl: text('feed_url'),
+  feedStatus: text('feed_status', { enum: FEED_STATUSES }).notNull().default('none'),
+  feedTitle: text('feed_title'),
+  feedCheckedAt: timestamp('feed_checked_at', { withTimezone: true }),
+  feedError: text('feed_error'),
+  consecutiveFailures: integer('consecutive_failures').notNull().default(0),
+  nextFetchAt: timestamp('next_fetch_at', { withTimezone: true }),
+  etag: text('etag'),
+  lastModified: text('last_modified'),
   version: integer('version').notNull().default(1),
   createdBy: uuid('created_by')
     .notNull()
@@ -302,6 +313,23 @@ export const jobRuns = pgTable('job_runs', {
   finishedAt: timestamp('finished_at', { withTimezone: true }),
 });
 
+/** Every feed check (P2-03b). Immutable. */
+export const sourceChecks = pgTable('source_checks', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  sourceId: uuid('source_id')
+    .notNull()
+    .references(() => sources.id),
+  ok: boolean('ok').notNull(),
+  httpStatus: integer('http_status'),
+  feedFormat: text('feed_format', { enum: ['rss', 'atom', 'rdf'] }),
+  itemCount: integer('item_count'),
+  error: text('error'),
+  durationMs: integer('duration_ms'),
+  checkedAt: timestamp('checked_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
   users,
   sessions,
@@ -316,4 +344,5 @@ export const schema = {
   sources,
   mediaAssets,
   jobRuns,
+  sourceChecks,
 };

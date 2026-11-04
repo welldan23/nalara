@@ -156,9 +156,25 @@ export interface Source {
   readonly attribution: string | null;
   readonly status: string;
   readonly notes: string | null;
+  readonly feedUrl: string | null;
+  readonly feedStatus: string;
+  readonly feedTitle: string | null;
+  readonly feedCheckedAt: string | null;
+  readonly feedError: string | null;
+  readonly consecutiveFailures: number;
   readonly version: number;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+export interface SourceCheck {
+  readonly ok: boolean;
+  readonly httpStatus: number | null;
+  readonly feedFormat: string | null;
+  readonly itemCount: number | null;
+  readonly error: string | null;
+  readonly durationMs: number | null;
+  readonly checkedAt: string;
 }
 
 export async function listSources(cookieHeader: string | null, status?: string): Promise<Source[]> {
@@ -167,10 +183,15 @@ export async function listSources(cookieHeader: string | null, status?: string):
   return body?.sources ?? [];
 }
 
-export async function getSource(id: string, cookieHeader: string | null): Promise<Source | null> {
+export async function getSource(
+  id: string,
+  cookieHeader: string | null,
+): Promise<{ source: Source; checks: SourceCheck[] } | null> {
   // The id comes from the URL: encode it so it can only ever be one path segment.
-  const body = await osGet<{ source: Source }>(`/sources/${encodeURIComponent(id)}`, cookieHeader);
-  return body?.source ?? null;
+  return osGet<{ source: Source; checks: SourceCheck[] }>(
+    `/sources/${encodeURIComponent(id)}`,
+    cookieHeader,
+  );
 }
 
 // --- Media library (P1-09) ---

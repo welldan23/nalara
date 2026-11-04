@@ -670,3 +670,9 @@ main:focus {
   border: 1px solid var(--color-ink-muted);
   overflow-x: auto;
 }
+
+/* Feed state of a source (P2-03b). */
+.feed-panel {
+  margin-top: 2rem;
+  overflow-wrap: anywhere;
+}

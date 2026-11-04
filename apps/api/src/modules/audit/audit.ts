@@ -23,6 +23,7 @@ export const AUDIT_ACTIONS = {
   'source.create': ['version', 'status', 'license_status'],
   // `changed`: comma-separated field names only, never their values.
   'source.update': ['version', 'status', 'license_status', 'changed'],
+  'source.check_feed': ['queued'],
   // `removed`: names of stripped metadata parts (e.g. "EXIF,XMP"), never their contents.
   'media.upload': ['mime', 'width', 'height', 'bytes', 'usage_basis', 'licensed', 'removed'],
   'media.update': ['version', 'usage_basis', 'licensed', 'changed'],

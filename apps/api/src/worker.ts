@@ -1,10 +1,11 @@
 // Worker process entry point (P2-02, PRD v4 §5). Separate from the API: its own database role
-// (nalara_worker), no HTTP port, no session or MFA secrets. Handlers are registered by the
-// ingestion tickets (P2-03+). SIGTERM/SIGINT stop claiming and let the job in hand finish.
+// (nalara_worker), no HTTP port, no session or MFA secrets. Handlers: feed_check (P2-03b); more
+// arrive with ingestion (P2-04). SIGTERM/SIGINT stop claiming and let the job in hand finish.
 import { writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { ConfigError, loadWorkerConfig } from './config/env.ts';
 import { createDatabase } from './db/client.ts';
+import { feedCheckHandler } from './worker/handlers/feed-check.ts';
 import { startWorker } from './worker/runner.ts';
 import type { WorkerLog } from './worker/runner.ts';
 
@@ -42,7 +43,7 @@ function main(): void {
   const workerId = `${hostname()}-${String(process.pid)}`.slice(0, 100);
   const worker = startWorker(database.db, {
     workerId,
-    handlers: {},
+    handlers: { feed_check: feedCheckHandler(database.db) },
     onBeat: () => {
       try {
         writeFileSync(HEARTBEAT_FILE, new Date().toISOString());
