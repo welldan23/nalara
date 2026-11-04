@@ -56,7 +56,7 @@ describe.skipIf(!databaseAvailable)('inbox', { timeout: 60_000 }, () => {
     for (const [name, organization] of [
       ['Berita Resmi Statistik', 'Badan Pusat Statistik'],
       ['Siaran Pers BI', 'Bank Indonesia'],
-    ]) {
+    ] as const) {
       const row = await migrator.query<{ id: string }>(
         `INSERT INTO sources (name, organization, type, official_url, license_status, status, feed_url, feed_status, created_by)
          VALUES ($1, $2, 'statistics', $3, 'open', 'verified', $4, 'ok', $5) RETURNING id`,
