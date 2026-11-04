@@ -204,6 +204,49 @@ export const corrections = pgTable('corrections', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const SOURCE_TYPES = [
+  'statistics',
+  'central_bank',
+  'ministry',
+  'regulator',
+  'legislation',
+  'company',
+  'academic',
+  'international',
+  'media',
+  'other',
+] as const;
+export const LICENSE_STATUSES = [
+  'unknown',
+  'open',
+  'attribution_required',
+  'permission_required',
+  'restricted',
+] as const;
+export const SOURCE_STATUSES = ['candidate', 'verified', 'paused', 'disabled'] as const;
+
+/** Source Registry (P1-05). Never deleted: disabled instead; changes are audited. */
+export const sources = pgTable('sources', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  name: text('name').notNull(),
+  organization: text('organization').notNull(),
+  type: text('type', { enum: SOURCE_TYPES }).notNull(),
+  officialUrl: text('official_url').notNull(),
+  licenseStatus: text('license_status', { enum: LICENSE_STATUSES }).notNull().default('unknown'),
+  licenseNote: text('license_note'),
+  attribution: text('attribution'),
+  status: text('status', { enum: SOURCE_STATUSES }).notNull().default('candidate'),
+  notes: text('notes'),
+  version: integer('version').notNull().default(1),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
   users,
   sessions,
@@ -215,4 +258,5 @@ export const schema = {
   articleRevisions,
   publicationEvents,
   corrections,
+  sources,
 };

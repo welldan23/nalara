@@ -20,6 +20,9 @@ export const AUDIT_ACTIONS = {
   'article.publish': ['version', 'verification'],
   'article.archive': ['version'],
   'article.correct': ['version', 'verification', 'substantial'],
+  'source.create': ['version', 'status', 'license_status'],
+  // `changed`: comma-separated field names only, never their values.
+  'source.update': ['version', 'status', 'license_status', 'changed'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;

@@ -11,6 +11,9 @@ export const PERMISSIONS = [
   'articles.write',
   // Approve and publish: kept separate so a future editor role can write without publishing.
   'articles.publish',
+  // Source Registry (P1-05).
+  'sources.read',
+  'sources.write',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
