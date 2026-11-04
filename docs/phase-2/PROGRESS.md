@@ -277,4 +277,7 @@ Satu entri per tiket, format sama dengan Phase 1. Rencana: [PLAN.md](PLAN.md).
 - Security review: PASS. Fetch ke URL pilihan founder tetap terlindungi SSRF. Konten pihak ketiga hanya disimpan dan diunduh, tidak pernah dirender.
 - Keputusan founder: PENDING
 
-**Next:** P2-08 — Penerimaan Phase 2 (`docs/phase-2/ACCEPTANCE.md`).
+### P2-08 — Penerimaan Phase 2
+- Commit: lihat PR `docs/P2-08-acceptance`
+- File: `docs/phase-2/ACCEPTANCE.md` (ringkasan untuk founder, tiket + PR, matriks tes, exit PRD v4 §11, gate setelah deploy, risiko, keputusan).
+- Keputusan founder: PENDING (**PHASE 2 ACCEPTED** atau perubahan).
