@@ -5,12 +5,19 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatDate } from '../../components/public';
 import { publicCorrections } from '../../lib/public-api';
+import { pageAlternates, pageOpenGraph } from '../../lib/site';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Koreksi',
   description: 'Daftar koreksi substansial atas artikel NALARA.',
+  alternates: pageAlternates('/koreksi'),
+  openGraph: pageOpenGraph({
+    title: 'Koreksi',
+    description: 'Daftar koreksi substansial atas artikel NALARA.',
+    path: '/koreksi',
+  }),
 };
 
 export default async function CorrectionsPage() {

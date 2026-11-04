@@ -1,27 +1,44 @@
 // Articles of one topic, newest first, with "older articles" paging (P1-06).
 import type { Metadata } from 'next';
+import { cache } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArticleCard } from '../../../components/public';
 import { publicArticles, publicCategories } from '../../../lib/public-api';
+import { pageAlternates, pageOpenGraph } from '../../../lib/site';
 
 export const dynamic = 'force-dynamic';
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
-async function topic(slug: string) {
+// Metadata and page share one request per render (React cache).
+const topic = cache(async (slug: string) => {
   if (!SLUG.test(slug)) return null;
   const categories = await publicCategories();
   return categories?.find((category) => category.slug === slug) ?? null;
-}
+});
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   readonly params: Promise<{ slug: string }>;
+  readonly searchParams: Promise<{ setelah?: string | string[] }>;
 }): Promise<Metadata> {
   const found = await topic((await params).slug);
-  return found === null ? {} : { title: found.name, description: found.description ?? undefined };
+  if (found === null) return {};
+  const path = `/topik/${found.slug}`;
+  const description = found.description ?? undefined;
+  return {
+    title: found.name,
+    description,
+    alternates: pageAlternates(path),
+    openGraph: pageOpenGraph({ title: found.name, path, ...(description ? { description } : {}) }),
+    // Older pages are for readers; search engines get the topic page and the sitemap instead.
+    ...((await searchParams).setelah !== undefined
+      ? { robots: { index: false, follow: true } }
+      : {}),
+  };
 }
 
 export default async function TopicPage({

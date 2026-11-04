@@ -95,6 +95,8 @@ services:
     environment:
       NODE_ENV: production
       API_BASE_URL: http://api:4000
+      # Public origin for canonical URLs, sitemap and RSS (P1-08).
+      APP_BASE_URL: ${APP_BASE_URL:?set APP_BASE_URL}
     networks: [frontend]
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/']

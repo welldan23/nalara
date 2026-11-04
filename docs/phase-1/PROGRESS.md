@@ -207,4 +207,50 @@ Format per tiket mengikuti PRD v4 §13. Rencana: [BASELINE.md](BASELINE.md) · K
   - Endpoint publik hanya membaca koreksi dengan `visible_at` terisi, dari artikel terbit, dan tetap 404 selama flag peluncuran mati.
 - Keputusan founder: PENDING
 
-**Next:** P1-08 — SEO dasar.
+### P1-08 — SEO dasar
+- Commit: lihat PR `feat/P1-08-seo`
+- File berubah:
+  - `apps/web/app/{robots.ts,sitemap.ts,rss.xml/route.ts,os/layout.tsx}` (baru), `apps/web/lib/{site,launch,xml}.ts` (baru);
+  - metadata di `apps/web/app/{layout,page}.tsx`, `tentang`, `koreksi`, `topik/[slug]`, `artikel/[slug]`;
+  - `apps/web/lib/public-api.ts`, `apps/web/next.config.ts`, `compose.prod.yaml`;
+  - `apps/api/src/{config/env,app}.ts`, `.env.example`;
+  - tes: `apps/web/tests/site.test.ts`, `apps/api/tests/unit/env.test.ts`, `tests/e2e/web.e2e.mjs`, `tests/smoke/compose.smoke.mjs`.
+- Perilaku:
+  - **Indexing ikut status peluncuran, dari satu sumber: API.** Web menanyakan API publik; bila 404 (belum launch), API mati, atau `APP_BASE_URL` tidak ada, web **gagal tertutup**:
+    - semua halaman `noindex, nofollow`;
+    - `robots.txt` = `Disallow: /`;
+    - sitemap kosong;
+    - RSS 404.
+  - **Setelah launch:**
+    - `robots.txt` mengizinkan situs, kecuali `/os` dan `/api/`, dan menunjuk ke sitemap;
+    - `sitemap.xml` berisi beranda, topik, semua artikel terbit (dengan `lastModified`; dibatasi 3000 artikel supaya tidak bisa berputar terus), `/koreksi`, `/tentang`;
+    - `rss.xml` berisi 30 artikel terbaru, teks di-escape untuk XML.
+  - **Per halaman:**
+    - URL canonical;
+    - Open Graph (nama situs, `id_ID`, logo beringin 512 px); artikel memakai tipe `article` dengan waktu terbit, waktu ubah, dan topik;
+    - kartu Twitter `summary`;
+    - tautan RSS;
+    - ikon tab dan apple-touch dari logo.
+  - Halaman topik lanjutan (`?setelah=`) diberi `noindex, follow`.
+  - **`/os` selalu tertutup** untuk mesin pencari, sudah launch atau belum: meta `noindex, nofollow`, header `X-Robots-Tag: noindex, nofollow, noarchive`, dan disallow di robots.txt.
+  - Kebocoran di Next.js yang ditangani: `openGraph` dan `alternates` di halaman **mengganti** milik layout (bukan digabung), jadi field situs diulang lewat helper `pageOpenGraph` / `pageAlternates`. Artikel dan topik di-fetch sekali per render (React `cache`).
+  - Compose: service web kini menerima `APP_BASE_URL`.
+- Test:
+  - `pnpm run check` → PASS **346/346**:
+    - tes unit origin situs (origin rusak, origin dengan path, atau `javascript:` ditolak) dan escape XML;
+    - tes env untuk `RATE_LIMIT_MAX`.
+  - `pnpm run test:e2e` → PASS **17/17**:
+    - **TEST-P1-08:** robots, sitemap (tanpa artikel belum terbit dan tanpa `/os`), RSS, canonical, Open Graph, meta robots artikel, halaman topik lanjutan `noindex`, serta `/os` dengan meta dan header noindex.
+    - **TEST-P1-08b:** saat API mati, robots disallow, sitemap kosong, halaman noindex.
+  - `node tests/smoke/compose.smoke.mjs` → PASS **16/16**. Cek baru TEST-OPS-05: stack produksi sebelum launch menolak mesin pencari dan `/os` mengirim `X-Robots-Tag`.
+  - **Ditemukan saat e2e:** seluruh suite e2e memanggil API dari 127.0.0.1, jadi berbagi satu jatah rate limit (300/menit) dan mulai kena 429.
+    - Ditambahkan `RATE_LIMIT_MAX`, khusus tes (rentang 30–100000). **Ditolak di produksi**, sehingga batas bawaan selalu berlaku di server sungguhan.
+    - Ditambahkan juga `E2E_LOG_DIR` untuk menyimpan log server saat debugging.
+- Security review: PASS. Tidak ada jalan untuk meng-index konten sebelum launch, karena status launch tidak disimpan di web. Origin canonical divalidasi.
+- Masalah diketahui:
+  - **R-12 (Sedang, sebelum launch, P1-10):** di produksi, panggilan server-side dari web ke API datang dari satu IP container web. Semua pembaca berbagi satu jatah 300/menit; dengan 2–3 panggilan per halaman, itu kira-kira 100 halaman per menit sebelum 429.
+    - Opsi perbaikan: web meneruskan IP pembaca dan masuk `TRUSTED_PROXIES` dengan IP tetap; atau kunci rate limit terpisah untuk panggilan internal web; ditambah cache singkat untuk data publik.
+    - Dikerjakan di hardening P1-10 dan wajib diuji beban sebelum launch.
+- Keputusan founder: PENDING
+
+**Next:** P1-05 — Source Registry.

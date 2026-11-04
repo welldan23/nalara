@@ -1,17 +1,41 @@
 import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
+import { connection } from 'next/server';
 import type { ReactNode } from 'react';
 import { publicCategories } from '../lib/public-api';
 import type { PublicCategory } from '../lib/public-api';
+import { SITE_DESCRIPTION, SITE_IMAGE, SITE_NAME, SITE_TAGLINE, siteOrigin } from '../lib/site';
+import { siteLaunched } from '../lib/launch';
 import { tokenCss } from '../lib/tokens';
 import './globals.css';
 
-export const metadata: Metadata = {
-  title: { default: 'NALARA', template: '%s · NALARA' },
-  description: 'Biar semua paham.',
-  // Indexing stays off until launch (KP1-15); P1-08 ties this to the launch flag.
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  // Evaluated per request: the launch state lives in the API, never in the build.
+  await connection();
+  const origin = siteOrigin();
+  const launched = origin !== null && (await siteLaunched());
+  return {
+    ...(origin === null ? {} : { metadataBase: origin }),
+    title: { default: `${SITE_NAME} · ${SITE_TAGLINE}`, template: `%s · ${SITE_NAME}` },
+    description: SITE_DESCRIPTION,
+    applicationName: SITE_NAME,
+    // Indexing only after launch (ADR-015, KP1-15); /os additionally sends X-Robots-Tag.
+    robots: launched ? { index: true, follow: true } : { index: false, follow: false },
+    openGraph: {
+      siteName: SITE_NAME,
+      locale: 'id_ID',
+      type: 'website',
+      images: [{ ...SITE_IMAGE, alt: 'Logo NALARA, pohon beringin' }],
+    },
+    twitter: { card: 'summary' },
+    icons: { icon: '/brand/nalara-beringin-64.png', apple: '/brand/nalara-beringin-192.png' },
+    ...(launched
+      ? {
+          alternates: { types: { 'application/rss+xml': [{ url: '/rss.xml', title: SITE_NAME }] } },
+        }
+      : {}),
+  };
+}
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1 };
 

@@ -38,7 +38,7 @@ export type AppConfig = Pick<
   Config,
   'logLevel' | 'nodeEnv' | 'appOrigin' | 'session' | 'mfaEncryptionKey'
 > &
-  Partial<Pick<Config, 'trustedProxies' | 'publicSiteEnabled'>>;
+  Partial<Pick<Config, 'trustedProxies' | 'publicSiteEnabled' | 'rateLimitMax'>>;
 
 export const BODY_LIMIT_BYTES = 16 * 1024;
 export const REQUEST_TIMEOUT_MS = 10_000;
@@ -91,7 +91,7 @@ export async function buildApp(config: AppConfig, deps: AppDependencies): Promis
 
   await app.register(rateLimit, {
     global: true,
-    max: deps.rateLimitMax ?? 300,
+    max: deps.rateLimitMax ?? config.rateLimitMax ?? 300,
     timeWindow: '1 minute',
     errorResponseBuilder: () => new AppError('RATE_LIMITED'),
   });

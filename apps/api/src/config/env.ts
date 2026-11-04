@@ -34,6 +34,11 @@ export interface Config {
    * fresh deployment never shows content before the founder decides to launch.
    */
   readonly publicSiteEnabled: boolean;
+  /**
+   * Requests per minute per client IP across the API (default 300). Tests only: refused in
+   * production, where the default always applies.
+   */
+  readonly rateLimitMax?: number;
 }
 
 /** Variables whose values must never appear in logs or error messages. */
@@ -58,6 +63,7 @@ export const KNOWN_ENV_KEYS = [
   'PORT',
   'TRUSTED_PROXIES',
   'PUBLIC_SITE_ENABLED',
+  'RATE_LIMIT_MAX',
   'FOUNDER_EMAIL',
   'BACKUP_DESTINATION',
 ] as const;
@@ -140,6 +146,12 @@ const schema = z.object({
   PUBLIC_SITE_ENABLED: z
     .enum(['true', 'false'], { error: 'PUBLIC_SITE_ENABLED must be true or false' })
     .default('false'),
+  RATE_LIMIT_MAX: z.coerce
+    .number({ error: 'RATE_LIMIT_MAX must be an integer between 30 and 100000' })
+    .int({ error: 'RATE_LIMIT_MAX must be an integer between 30 and 100000' })
+    .min(30, { error: 'RATE_LIMIT_MAX must be an integer between 30 and 100000' })
+    .max(100_000, { error: 'RATE_LIMIT_MAX must be an integer between 30 and 100000' })
+    .optional(),
 });
 
 type RawEnv = Readonly<Record<string, string | undefined>>;
@@ -206,6 +218,10 @@ export function loadConfig(env: RawEnv = process.env): Config {
     issues.push('TRUSTED_PROXIES must be a comma-separated list of IP addresses or CIDR ranges');
   }
 
+  if (production && raw.RATE_LIMIT_MAX !== undefined) {
+    issues.push('RATE_LIMIT_MAX is for tests only and is not allowed in production');
+  }
+
   if (issues.length > 0 || appUrl === undefined || mfaKey === undefined) {
     throw new ConfigError(issues);
   }
@@ -220,6 +236,7 @@ export function loadConfig(env: RawEnv = process.env): Config {
     port: raw.PORT,
     trustedProxies,
     publicSiteEnabled: raw.PUBLIC_SITE_ENABLED === 'true',
+    ...(raw.RATE_LIMIT_MAX === undefined ? {} : { rateLimitMax: raw.RATE_LIMIT_MAX }),
   };
 }
 
@@ -370,5 +387,6 @@ export function describeConfig(config: Config): Record<string, unknown> {
     logLevel: config.logLevel,
     port: config.port,
     publicSiteEnabled: config.publicSiteEnabled,
+    ...(config.rateLimitMax === undefined ? {} : { rateLimitMax: config.rateLimitMax }),
   };
 }

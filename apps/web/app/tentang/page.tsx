@@ -1,10 +1,17 @@
 // About, method and verification labels (P1-06, PRD v4 §1, §7). Static text: no data from the API.
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { pageAlternates, pageOpenGraph } from '../../lib/site';
 
 export const metadata: Metadata = {
   title: 'Tentang',
   description: 'Misi NALARA, cara kami menulis, dan arti label verifikasi.',
+  alternates: pageAlternates('/tentang'),
+  openGraph: pageOpenGraph({
+    title: 'Tentang NALARA',
+    description: 'Misi NALARA, cara kami menulis, dan arti label verifikasi.',
+    path: '/tentang',
+  }),
 };
 
 export default function AboutPage() {
