@@ -29,6 +29,7 @@ import {
 } from '../modules/articles/workflow.ts';
 import type { TransitionAction } from '../modules/articles/workflow.ts';
 import { styleWarnings } from '../modules/articles/warnings.ts';
+import { assertMediaExist, mediaForBody } from '../modules/media/media.ts';
 import type { AuthGuards } from '../plugins/auth.ts';
 
 /** Drafts are larger than the global 16 KiB API body limit (ADR-011). */
@@ -132,6 +133,8 @@ export function registerArticleRoutes(
     const article = await getArticle(db, id);
     if (article === null) throw new AppError('NOT_FOUND');
     const revisions = await listRevisions(db, id);
+    // Stored bodies were validated against the block schema when they were written.
+    const media = await mediaForBody(db, article.current.body as Block[]);
     return {
       article,
       revisions: revisions.map((revision) => ({
@@ -154,8 +157,9 @@ export function registerArticleRoutes(
           body: article.current.body as Block[],
           citations: article.current.citations as Citation[],
         },
-        { sourceException: article.sourceException },
+        { sourceException: article.sourceException, media },
       ).blockers,
+      media: Object.fromEntries(media),
       events: await listPublicationEvents(db, id),
       corrections: await listCorrections(db, id),
     };
@@ -176,6 +180,7 @@ export function registerArticleRoutes(
         input.bodySource,
         input.citations.map((citation) => citation.id),
       );
+      await assertMediaExist(db, body);
       return correctPublished(db, actor(request), id, {
         expectedVersion: input.expectedVersion,
         changeNote: input.changeNote,
@@ -230,6 +235,7 @@ export function registerArticleRoutes(
         input.bodySource,
         input.citations.map((citation) => citation.id),
       );
+      await assertMediaExist(db, body);
       const content = {
         title: input.title,
         dek: input.dek,
@@ -267,6 +273,7 @@ export function registerArticleRoutes(
         input.bodySource,
         input.citations.map((citation) => citation.id),
       );
+      await assertMediaExist(db, body);
       const content = {
         title: input.title,
         dek: input.dek,
@@ -298,17 +305,19 @@ export function registerArticleRoutes(
       bodyLimit: EDITOR_BODY_LIMIT_BYTES,
       preHandler: guards.requireCsrf,
     },
-    (request) => {
+    async (request) => {
       const input = parseOrThrow(previewSchema, request.body);
       const { blocks, issues } = parseMarkdown(input.bodySource, {
         citationIds: input.citations.map((citation) => citation.id),
       });
-      return Promise.resolve({
+      return {
         blocks,
         issues,
         verification: verificationLevel(input.citations),
         warnings: styleWarnings({ title: input.title, dek: input.dek, body: blocks }),
-      });
+        // Images the preview can draw; an id missing here is not in the library.
+        media: Object.fromEntries(await mediaForBody(db, blocks)),
+      };
     },
   );
 }

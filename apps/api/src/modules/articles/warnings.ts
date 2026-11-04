@@ -44,6 +44,8 @@ function blockText(block: Block): string {
       return block.content.map((part) => part.text).join('');
     case 'stat':
       return `${block.label} ${block.value} ${block.unit}`;
+    case 'image':
+      return '';
   }
 }
 

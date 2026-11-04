@@ -3,7 +3,7 @@
 // and can never show founder-only data, even to the founder.
 import 'server-only';
 import { cache } from 'react';
-import type { Block, CitationView } from '../components/article-body';
+import type { Block, CitationView, MediaRender } from '../components/article-body';
 import type { VerificationLevel } from './api';
 
 export interface PublicCategory {
@@ -30,6 +30,8 @@ export interface PublicArticle extends PublicArticleSummary {
   readonly firstPublishedAt: string;
   /** Substantial corrections, oldest first. */
   readonly corrections: readonly PublicCorrection[];
+  /** Licensed images the body uses, by id (P1-09). */
+  readonly media: Readonly<Record<string, MediaRender>>;
 }
 
 export interface PublicCorrection {

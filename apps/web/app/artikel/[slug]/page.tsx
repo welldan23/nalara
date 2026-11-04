@@ -100,7 +100,7 @@ export default async function ArticlePage({
           <strong>Catatan redaksi:</strong> {article.sourceException}
         </p>
       )}
-      <ArticleBody blocks={article.body} citations={article.citations} />
+      <ArticleBody blocks={article.body} citations={article.citations} media={article.media} />
       {article.methodNote !== null && (
         <section aria-labelledby="metode" className="method">
           <h2 id="metode">Catatan metode</h2>

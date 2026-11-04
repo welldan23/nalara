@@ -98,6 +98,8 @@ export const blockSchema = z.discriminatedUnion('type', [
     label: plainText(LIMITS.statField).min(1),
     citationId: z.uuid(),
   }),
+  // An image from the media library (P1-09). Alt text, caption and credit live on the asset.
+  z.strictObject({ type: z.literal('image'), mediaId: z.uuid() }),
 ]);
 
 export type Block = z.infer<typeof blockSchema>;

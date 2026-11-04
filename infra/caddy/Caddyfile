@@ -25,7 +25,22 @@
 		-X-Powered-By
 	}
 
-	request_body {
+	# 1 MB for every request, except image uploads to the media library (P1-09): 5 MiB images
+	# travel as base64 in JSON. The API re-checks the session before it reads that body.
+	@media_upload {
+		method POST
+		path /api/v1/os/media
+	}
+	@not_media_upload {
+		not {
+			method POST
+			path /api/v1/os/media
+		}
+	}
+	request_body @media_upload {
+		max_size 8MB
+	}
+	request_body @not_media_upload {
 		max_size 1MB
 	}
 

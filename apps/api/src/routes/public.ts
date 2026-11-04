@@ -15,6 +15,8 @@ import {
   publicCategories,
   publicCorrections,
 } from '../modules/public/articles.ts';
+import { getPublicMediaFile } from '../modules/media/media.ts';
+import { mediaId, sendImage } from './media.ts';
 
 export interface PublicRoutesOptions {
   readonly db: NodePgDatabase<typeof schema>;
@@ -57,6 +59,14 @@ export const publicRoutes: FastifyPluginAsync<PublicRoutesOptions> = (app, { db,
     const article = await publicArticle(db, params.slug);
     if (article === null) throw new AppError('NOT_FOUND');
     return { article };
+  });
+
+  // Images of published articles only, licensed and credited (P1-09); everything else 404.
+  app.get('/media/:id', async (request, reply) => {
+    requireLaunch();
+    const file = await getPublicMediaFile(db, mediaId(request.params));
+    if (file === null) throw new AppError('NOT_FOUND');
+    return sendImage(reply, file, 'public, max-age=3600');
   });
 
   app.get('/corrections', async () => {

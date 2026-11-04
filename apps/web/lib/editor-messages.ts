@@ -3,7 +3,12 @@
 export const RULE_MESSAGES: Readonly<Record<string, string>> = {
   h1_not_allowed: 'Judul utama (#) diisi di kolom Judul. Pakai ## atau ### untuk subjudul.',
   html_not_supported: 'HTML tidak didukung. Tulis sebagai teks biasa.',
-  image_not_supported: 'Gambar belum didukung di isi artikel (menyusul di P1-09).',
+  image_not_supported:
+    'Gambar Markdown tidak dipakai. Unggah di Media, lalu salin blok :::gambar dari sana.',
+  image_unclosed: 'Blok :::gambar belum ditutup dengan :::.',
+  image_field_unknown: 'Blok :::gambar hanya berisi satu baris: media: <id>.',
+  image_media_invalid: 'Id media di blok :::gambar tidak valid. Salin ulang dari halaman Media.',
+  image_media_unknown: 'Gambar di blok :::gambar tidak ada di pustaka media.',
   code_not_supported: 'Blok kode atau baris berindentasi tidak didukung.',
   table_not_supported: 'Tabel belum didukung.',
   link_must_be_https: 'Tautan harus https:// lengkap, tanpa username atau password.',
@@ -92,6 +97,7 @@ export function describeField(path: string, rule: string): string {
     return `Sumber ${String(Number(index) + 1)}, ${CITATION_FIELDS[key] ?? key}: ${message}`;
   }
   if (path === 'description') return 'Tulis apa yang dikoreksi (10–500 karakter).';
+  if (path === 'bodySource') return RULE_MESSAGES[rule] ?? `Isi artikel tidak valid (${rule}).`;
   if (path === 'content' && rule === 'unchanged') {
     return 'Belum ada perubahan isi. Koreksi harus mengubah sesuatu.';
   }
@@ -106,6 +112,8 @@ export const GATE_MESSAGES: Readonly<Record<string, string>> = {
   stat_source_unverified: 'Ada angka yang sumbernya belum dicek.',
   empty_body: 'Isi artikel masih kosong.',
   revision_changed_after_approval: 'Isi berubah setelah disetujui. Ajukan review lagi.',
+  image_license_missing:
+    'Ada gambar yang lisensi atau atribusinya belum diisi. Lengkapi di halaman Media.',
 };
 
 export const EVENT_LABELS: Readonly<Record<string, string>> = {

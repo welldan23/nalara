@@ -28,7 +28,26 @@ export type Block =
       readonly period: string;
       readonly label: string;
       readonly citationId: string;
-    };
+    }
+  | { readonly type: 'image'; readonly mediaId: string };
+
+/** What the body needs to draw one library image (P1-09). */
+export interface MediaRender {
+  readonly altText: string;
+  readonly caption: string | null;
+  readonly attribution: string | null;
+  readonly width: number;
+  readonly height: number;
+  readonly aiGenerated: boolean;
+}
+
+interface ImageOptions {
+  readonly media: Readonly<Record<string, MediaRender>>;
+  /** URL of an image's bytes: the public route for readers, the founder route for previews. */
+  readonly imageSrc: (mediaId: string) => string;
+  /** Previews say so when an image is missing; readers just do not see it. */
+  readonly preview: boolean;
+}
 
 function isSafeHref(href: string): boolean {
   try {
@@ -65,12 +84,51 @@ export interface CitationView {
   readonly primary: boolean;
 }
 
+function ImageView({
+  mediaId,
+  images,
+}: {
+  readonly mediaId: string;
+  readonly images: ImageOptions;
+}): ReactNode {
+  const asset = images.media[mediaId];
+  if (asset === undefined) {
+    return images.preview ? (
+      <p className="image-missing">Gambar tidak ada di pustaka media, atau belum berlisensi.</p>
+    ) : null;
+  }
+  const hasCaption = asset.caption !== null || asset.attribution !== null || asset.aiGenerated;
+  return (
+    <figure className="article-image">
+      {/* Bytes come stripped and size-checked from the API; next/image would need sharp (ADR-001). */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={images.imageSrc(mediaId)}
+        alt={asset.altText}
+        width={asset.width}
+        height={asset.height}
+        loading="lazy"
+        decoding="async"
+      />
+      {hasCaption && (
+        <figcaption>
+          {asset.caption !== null && <span>{asset.caption} </span>}
+          {asset.attribution !== null && <span className="credit">{asset.attribution}</span>}
+          {asset.aiGenerated && <span className="badge">Ilustrasi AI</span>}
+        </figcaption>
+      )}
+    </figure>
+  );
+}
+
 function BlockView({
   block,
   citations,
+  images,
 }: {
   readonly block: Block;
   readonly citations: readonly CitationView[];
+  readonly images: ImageOptions;
 }): ReactNode {
   switch (block.type) {
     case 'paragraph':
@@ -117,6 +175,8 @@ function BlockView({
           <StatSource citationId={block.citationId} citations={citations} />
         </figure>
       );
+    case 'image':
+      return <ImageView mediaId={block.mediaId} images={images} />;
   }
 }
 
@@ -137,17 +197,29 @@ function StatSource({
   );
 }
 
+export const publicImageSrc = (mediaId: string) =>
+  `/api/v1/public/media/${encodeURIComponent(mediaId)}`;
+export const previewImageSrc = (mediaId: string) =>
+  `/api/v1/os/media/${encodeURIComponent(mediaId)}/file`;
+
 export function ArticleBody({
   blocks,
   citations = [],
+  media = {},
+  imageSrc = publicImageSrc,
+  preview = false,
 }: {
   readonly blocks: readonly Block[];
   readonly citations?: readonly CitationView[];
+  readonly media?: Readonly<Record<string, MediaRender>>;
+  readonly imageSrc?: (mediaId: string) => string;
+  readonly preview?: boolean;
 }): ReactNode {
+  const images: ImageOptions = { media, imageSrc, preview };
   return (
     <div className="article-body">
       {blocks.map((block, index) => (
-        <BlockView key={index} block={block} citations={citations} />
+        <BlockView key={index} block={block} citations={citations} images={images} />
       ))}
     </div>
   );

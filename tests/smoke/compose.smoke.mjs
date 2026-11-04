@@ -437,6 +437,41 @@ try {
   );
 
   await check(
+    'TEST-OPS-06',
+    'large bodies: only the media upload route takes more than 1 MB',
+    async () => {
+      // 2 MB of JSON: refused by Caddy (413) anywhere but POST /api/v1/os/media, where it reaches
+      // the API and stops at the session check (401) before being parsed.
+      const big = join(workDir, 'big.json');
+      writeFileSync(big, `{"data":"${'A'.repeat(2 * 1024 * 1024)}"}`);
+      const post = (path) =>
+        curl(
+          '--cacert',
+          caFile,
+          '-o',
+          '/dev/null',
+          '-w',
+          '%{http_code}',
+          '-H',
+          'content-type: application/json',
+          '-H',
+          `origin: https://${SITE}`,
+          '--data-binary',
+          `@${big}`,
+          `https://${SITE}${path}`,
+        ).stdout;
+      const media = post('/api/v1/os/media');
+      assert(media === '401', `media upload answered ${media}`);
+      // API routes that read a body. (Next.js pages ignore request bodies, and Caddy's limit only
+      // applies to bytes actually read, so the web app is not a meaningful case here.)
+      for (const path of ['/api/v1/auth/login', '/api/v1/os/articles', '/api/v1/os/sources']) {
+        const code = post(path);
+        assert(code === '413', `${path} accepted 2 MB (answered ${code})`);
+      }
+    },
+  );
+
+  await check(
     'TEST-OPS-04',
     'only 80/443 are exposed; API, web and Postgres ports are closed on the host',
     async () => {

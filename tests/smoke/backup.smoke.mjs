@@ -103,6 +103,14 @@ try {
     source,
     `INSERT INTO audit_events (actor_type, action, result) SELECT 'system', 'founder.bootstrap', 'success' FROM generate_series(1, 25)`,
   );
+  // A 512 KiB image row: media lives in PostgreSQL (ADR-020), so the dump must carry its bytes.
+  psql(
+    source,
+    `INSERT INTO media_assets (mime, width, height, byte_size, data, sha256, alt_text, usage_basis, created_by)
+     SELECT 'image/png', 10, 10, 524288, d, sha256(d), 'TEST fixture image', 'own_work', u.id
+     FROM (SELECT decode(repeat('a5', 524288), 'hex') AS d) AS bytes, users u`,
+  );
+  const mediaSource = psql(source, `SELECT encode(sha256(data), 'hex') FROM media_assets`);
 
   for (const name of ['key', 'other'])
     must('age-keygen', ['-o', join(work, `${name}.txt`)], { stdio: 'pipe' });
@@ -279,6 +287,16 @@ try {
     assert(
       psql(restored, 'SELECT count(*) FROM audit_events') === sourceBefore,
       'audit rows differ',
+    );
+    // Image bytes survive byte for byte, and still match their stored checksum (P1-09).
+    assert(
+      psql(restored, `SELECT encode(sha256(data), 'hex') FROM media_assets`) === mediaSource &&
+        mediaSource.length === 64,
+      'media bytes differ after restore',
+    );
+    assert(
+      psql(restored, 'SELECT count(*) FROM media_assets WHERE sha256 = sha256(data)') === '1',
+      'media checksum broken after restore',
     );
   });
 

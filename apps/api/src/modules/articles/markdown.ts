@@ -1,6 +1,7 @@
 // Restricted Markdown → content blocks (ADR-011, P1-02). Deliberately small: only what an
-// explainer article needs. Anything else (HTML, images, code, tables) is refused with the line
-// number, instead of being passed through or silently dropped.
+// explainer article needs. Anything else (HTML, Markdown images, code, tables) is refused with the
+// line number, instead of being passed through or silently dropped. Images come only from the
+// media library through a :::gambar block.
 //
 //   ## Heading / ### Subheading
 //   paragraph text, **bold**, *italic* or _italic_, [link text](https://…)
@@ -15,7 +16,12 @@
 //   label: Inflasi tahunan
 //   sumber: 1             (number of the citation in the article's source list)
 //   :::
+//   :::gambar             (an image from the media library, P1-09; alt text, caption and
+//   media: <id>            credit come from the library, so they are written in one place)
+//   :::
 import type { Block } from './content.ts';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export type ParseRule =
   | 'h1_not_allowed'
@@ -31,7 +37,10 @@ export type ParseRule =
   | 'stat_unclosed'
   | 'stat_field_missing'
   | 'stat_field_unknown'
-  | 'stat_source_unknown';
+  | 'stat_source_unknown'
+  | 'image_unclosed'
+  | 'image_field_unknown'
+  | 'image_media_invalid';
 
 export interface ParseIssue {
   readonly line: number;
@@ -237,6 +246,41 @@ export function parseMarkdown(source: string, options: ParseOptions = {}): Parse
         continue;
       }
       blocks.push({ type: 'stat', value, unit, period, label, citationId });
+      continue;
+    }
+
+    if (raw.trim() === ':::gambar') {
+      const start = lineNo;
+      let mediaId: string | undefined;
+      let closed = false;
+      let broken = false;
+      index += 1;
+      while (index < lines.length) {
+        const current = (lines[index] ?? '').trim();
+        index += 1;
+        if (current === ':::') {
+          closed = true;
+          break;
+        }
+        if (current === '') continue;
+        const match = /^media\s*:\s*(.*)$/.exec(current);
+        if (match === null) {
+          issues.push({ line: index, rule: 'image_field_unknown' });
+          broken = true;
+          continue;
+        }
+        mediaId = (match[1] ?? '').trim().toLowerCase();
+      }
+      if (!closed) {
+        issues.push({ line: start, rule: 'image_unclosed' });
+        continue;
+      }
+      if (broken) continue;
+      if (mediaId === undefined || !UUID.test(mediaId)) {
+        issues.push({ line: start, rule: 'image_media_invalid' });
+        continue;
+      }
+      blocks.push({ type: 'image', mediaId });
       continue;
     }
 

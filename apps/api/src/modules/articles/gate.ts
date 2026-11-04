@@ -13,7 +13,15 @@ export type GateBlocker =
   /** Nothing to publish. */
   | 'empty_body'
   /** Publish only: the current revision is not exactly the approved one (set by the workflow). */
-  | 'revision_changed_after_approval';
+  | 'revision_changed_after_approval'
+  /** An image without a known licence and credit line, or missing from the library (P1-09). */
+  | 'image_license_missing';
+
+/** What the gate needs to know about each image an article uses. */
+export interface GateMedia {
+  readonly license: string | null;
+  readonly attribution: string | null;
+}
 
 export interface GateResult {
   readonly verification: VerificationLevel;
@@ -22,7 +30,11 @@ export interface GateResult {
 
 export function publishGate(
   content: Pick<RevisionContent, 'body' | 'citations'>,
-  options: { readonly sourceException?: string | null } = {},
+  options: {
+    readonly sourceException?: string | null;
+    /** Every image the body references, by id. A missing entry blocks publishing. */
+    readonly media?: ReadonlyMap<string, GateMedia>;
+  } = {},
 ): GateResult {
   const verification = verificationLevel(content.citations);
   const blockers: GateBlocker[] = [];
@@ -40,5 +52,12 @@ export function publishGate(
   // Unverified statistics are blocked even with an exception: the exception covers "no source",
   // never "a number we have not checked" (PRD v4 §7).
   if (unverifiedStat) blockers.push('stat_source_unverified');
+  const media = options.media ?? new Map<string, GateMedia>();
+  const unlicensed = content.body.some((block) => {
+    if (block.type !== 'image') return false;
+    const asset = media.get(block.mediaId);
+    return asset?.license == null || asset.attribution == null;
+  });
+  if (unlicensed) blockers.push('image_license_missing');
   return { verification, blockers };
 }
