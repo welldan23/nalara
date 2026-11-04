@@ -9,6 +9,7 @@ import { enforcePolicy } from '../plugins/policy.ts';
 import { registerArticleRoutes } from './articles.ts';
 import { registerInboxRoutes } from './inbox.ts';
 import { registerMediaRoutes } from './media.ts';
+import { registerProposalRoutes } from './proposals.ts';
 import { registerSourceRoutes } from './sources.ts';
 
 export interface OsRoutesOptions {
@@ -25,5 +26,6 @@ export const osRoutes: FastifyPluginAsync<OsRoutesOptions> = (app, { guards, db 
   registerSourceRoutes(app, { db, guards });
   registerMediaRoutes(app, { db, guards });
   registerInboxRoutes(app, { db, guards });
+  registerProposalRoutes(app, { db, guards });
   return Promise.resolve();
 };

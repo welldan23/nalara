@@ -27,6 +27,9 @@ import {
   sourceChecks,
   sources,
   users,
+  aiActionProposals,
+  approvals,
+  agentPreferences,
 } from '../../src/db/schema.ts';
 import {
   connect,
@@ -104,6 +107,9 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1`,
       );
       expect(tables.rows.map((row) => row.table_name)).toEqual([
+        'agent_preferences',
+        'ai_action_proposals',
+        'approvals',
         'article_revisions',
         'articles',
         'audit_events',
@@ -220,6 +226,9 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         ingestionRuns,
         discoveredItems,
         evidenceSnapshots,
+        aiActionProposals,
+        approvals,
+        agentPreferences,
       ]) {
         const { name, columns } = getTableConfig(table);
         const actual = await migrator.query<{ column_name: string; is_nullable: string }>(

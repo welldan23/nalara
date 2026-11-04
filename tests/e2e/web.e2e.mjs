@@ -1026,6 +1026,83 @@ try {
   );
 
   await check(
+    'TEST-P3-01',
+    'agent proposals: shown as text, applied only when the founder approves',
+    async () => {
+      assert(signedIn !== null, 'needs the signed-in page from TEST-WEB-03b');
+      const page = signedIn;
+      await page.setViewportSize({ width: 1280, height: 900 });
+      // Filed as the agent gateway would (the gateway itself is tested in integration).
+      const db = await connect(database.migratorUrl);
+      try {
+        await db.query(
+          `INSERT INTO ai_action_proposals (kind, agent_role, payload, reason)
+           VALUES ('sources.propose_create', 'periset', $1, $2),
+                  ('preferences.propose_update', 'radar', '{"topics":["Energi"]}', 'Topik baru')`,
+          [
+            JSON.stringify({
+              source: {
+                name: 'Rilis OJK',
+                organization: 'Otoritas Jasa Keuangan',
+                type: 'regulator',
+                officialUrl: 'https://www.ojk.go.id/id/berita-dan-kegiatan/siaran-pers',
+              },
+            }),
+            'Sumber resmi <img src=x onerror="window.__pwned=1"> sektor keuangan',
+          ],
+        );
+      } finally {
+        await db.end();
+      }
+
+      await page.goto(`${WEB}/os`);
+      await page.getByRole('link', { name: 'Usulan', exact: true }).click();
+      await page.waitForURL(`${WEB}/os/usulan`);
+      const list = page.getByTestId('proposals');
+      await list.getByText('Tambah sumber baru (sebagai kandidat)').waitFor({ timeout: 10_000 });
+      assert((await page.getByRole('link', { name: /^Menunggu \(2\)$/ }).count()) === 1, 'count');
+      // Agent text is text: the markup shows up literally and never runs.
+      await list.getByText('<img src=x onerror="window.__pwned=1">', { exact: false }).waitFor();
+      assert((await list.locator('img').count()) === 0, 'agent markup rendered as an element');
+      assert((await page.evaluate(() => window.__pwned)) === undefined, 'agent markup ran');
+      await shot(page, '16-usulan');
+
+      await list
+        .locator('li', { hasText: 'Ubah preferensi agent' })
+        .getByRole('button', { name: 'Tolak' })
+        .click();
+      await page.getByRole('link', { name: /^Menunggu \(1\)$/ }).waitFor({ timeout: 10_000 });
+      await list
+        .locator('li', { hasText: 'Rilis OJK' })
+        .getByRole('button', { name: 'Setujui' })
+        .click();
+      await page.getByText('Belum ada usulan yang menunggu.').waitFor({ timeout: 10_000 });
+
+      await page.goto(`${WEB}/os/usulan?status=approved`);
+      await page.getByRole('link', { name: 'Tambah sumber baru (sebagai kandidat)' }).click();
+      await page.getByRole('link', { name: 'Buka sumber yang dibuat' }).click();
+      await page.waitForURL(/\/os\/sources\/[0-9a-f-]{36}$/, { timeout: 10_000 });
+      await page.getByRole('heading', { name: 'Rilis OJK', level: 1 }).waitFor({ timeout: 10_000 });
+      const verify = await connect(database.migratorUrl);
+      try {
+        const row = await verify.query(
+          `SELECT status FROM sources WHERE official_url LIKE 'https://www.ojk.go.id/%'`,
+        );
+        assert(row.rows[0]?.status === 'candidate', 'approved source is not a candidate');
+      } finally {
+        await verify.end();
+      }
+
+      await page.setViewportSize({ width: 320, height: 640 });
+      await page.goto(`${WEB}/os/usulan?status=approved`);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      assert(overflow <= 0, `proposals overflow by ${overflow}px`);
+    },
+  );
+
+  await check(
     'TEST-WEB-04',
     'invalid or expired session cookie redirects (server-side check)',
     async () => {
@@ -1167,4 +1244,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 21 ? 0 : 1);
+process.exit(failed === 0 && results.length === 22 ? 0 : 1);

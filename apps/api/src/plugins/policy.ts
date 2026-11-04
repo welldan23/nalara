@@ -20,6 +20,9 @@ export const PERMISSIONS = [
   // Inbox of discovered feed items (P2-06).
   'inbox.read',
   'inbox.write',
+  // Agent proposals (P3-01): reading them, and deciding (which applies them).
+  'proposals.read',
+  'proposals.decide',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
