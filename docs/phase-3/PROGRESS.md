@@ -184,3 +184,9 @@ Satu entri per tiket, format sama dengan Phase 2. Rencana: [PLAN.md](PLAN.md).
     - mulai dalam keadaan diam tanpa provider, dan token tidak muncul di log.
   - `tests/repo`: service `agent` tanpa jaringan `backend` dan tanpa URL DB; hanya worker + agent yang memakai egress.
 - Keputusan founder: tidak ada yang baru. Langkah menyalakan ada di runbook (butuh deploy + D-25).
+
+### P3-06 — Penerimaan Phase 3
+- Commit: lihat PR `docs/P3-06-acceptance`
+- File baru: `docs/phase-3/ACCEPTANCE.md`. Isinya: ringkasan, tiket, matriks tes, exit PRD v4 §11 (keempatnya **PASS** lokal/CI), gate G-1..G-3 (D-25, D-26, mutu agent), risiko R-P3-01..07, dan kotak keputusan.
+- Test: `pnpm exec vitest run tests/repo` (cek tautan docs) → PASS
+- Keputusan founder: **PENDING** (PHASE 3 ACCEPTED atau minta perubahan)
