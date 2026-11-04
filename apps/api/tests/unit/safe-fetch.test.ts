@@ -19,6 +19,15 @@ const seen: {
 }[] = [];
 
 const routes: Record<string, (req: IncomingMessage, res: ServerResponse) => void> = {
+  '/echo': (req, res) => {
+    let body = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk: string) => (body += chunk));
+    req.on('end', () => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ method: req.method, type: req.headers['content-type'], body }));
+    });
+  },
   '/feed': (_req, res) => {
     res.writeHead(200, { 'content-type': 'application/rss+xml; charset=utf-8', etag: '"v1"' });
     res.end('<rss><channel><title>ok</title></channel></rss>');
@@ -247,5 +256,25 @@ describe('safeFetch', () => {
     expect(notModified.status).toBe(304);
     // A caller cannot override Host.
     expect(seen.at(-1)?.host).toBe(`feed.test:${String(port)}`);
+  });
+
+  it('POSTs a JSON body (P3-03), never follows a redirect, and keeps the address checks', async () => {
+    const answer = await safeFetch(url('/echo'), local({ method: 'POST', body: { a: 1 } }));
+    expect(JSON.parse(answer.body.toString())).toEqual({
+      method: 'POST',
+      type: 'application/json',
+      body: '{"a":1}',
+    });
+    expect(await reason(safeFetch(url('/redirect/0'), local({ method: 'POST', body: {} })))).toBe(
+      'redirect_limit',
+    );
+    expect(
+      await reason(safeFetch('http://169.254.169.254/v1/chat', { method: 'POST', body: {} })),
+    ).toBe('address');
+    expect(
+      await reason(
+        safeFetch(url('/echo'), local({ method: 'POST', body: 'x'.repeat(1024 * 1024 + 1) })),
+      ),
+    ).toBe('too_large');
   });
 });

@@ -12,6 +12,7 @@ import {
   describeConfig,
   loadConfig,
   loadMigratorConfig,
+  loadAgentRunnerConfig,
 } from '../../src/config/env.ts';
 
 // Obvious, low-entropy fixture values: test-only, never real secrets.
@@ -255,6 +256,8 @@ describe('TEST-ENV-08 secret absent in startup log', () => {
       'WORKER_DATABASE_URL',
       'SESSION_SECRET',
       'MFA_ENCRYPTION_KEY',
+      'AGENT_TOKEN',
+      'AI_API_KEY',
     ]);
   });
 });
@@ -367,5 +370,74 @@ describe('TRUSTED_PROXIES', () => {
     expect(issuesFor({ ...validEnv, TRUSTED_PROXIES: value })).toContain(
       'TRUSTED_PROXIES must be a comma-separated list of IP addresses or CIDR ranges',
     );
+  });
+});
+
+describe('loadAgentRunnerConfig (P3-03)', () => {
+  const token = 'A'.repeat(43);
+  const base = { NODE_ENV: 'production', AGENT_GATEWAY_URL: 'http://api:4000', AGENT_TOKEN: token };
+  const issues = (env: Record<string, string>) => {
+    try {
+      loadAgentRunnerConfig(env);
+      return [];
+    } catch (error) {
+      return (error as { issues: string[] }).issues;
+    }
+  };
+
+  it('needs only the gateway and its token, and stays idle without a provider', () => {
+    expect(loadAgentRunnerConfig(base)).toMatchObject({
+      gatewayUrl: 'http://api:4000',
+      roles: ['radar', 'penulis', 'pemeriksa', 'periset', 'pemantau'],
+      intervalSeconds: 1800,
+      provider: null,
+    });
+    // The example file's placeholder key alone switches nothing on.
+    expect(
+      loadAgentRunnerConfig({ ...base, AI_API_KEY: 'REPLACE_WITH_AI_PROVIDER_KEY' }).provider,
+    ).toBeNull();
+    // It never needs (or reads) a database URL.
+    expect(Object.keys(loadAgentRunnerConfig(base))).not.toContain('databaseUrl');
+  });
+
+  it('refuses bad tokens, roles, intervals and providers', () => {
+    expect(issues({ ...base, AGENT_TOKEN: 'short' })).toEqual([
+      'AGENT_TOKEN must be the token printed by agent:credential create',
+    ]);
+    expect(issues({ ...base, AGENT_ROLES: 'radar,founder' })[0]).toMatch(/AGENT_ROLES/);
+    expect(issues({ ...base, AGENT_INTERVAL_SECONDS: '5' })[0]).toMatch(/at least 60/);
+    expect(issues({ ...base, AGENT_GATEWAY_URL: 'http://u:p@api:4000' })[0]).toMatch(/credentials/);
+    expect(
+      issues({
+        ...base,
+        AI_BASE_URL: 'http://provider.example/v1',
+        AI_API_KEY: 'k',
+        AI_MODEL: 'm',
+      }),
+    ).toEqual(['AI_BASE_URL must be an https URL without credentials']);
+    expect(issues({ ...base, AI_BASE_URL: 'https://provider.example/v1' })).toEqual([
+      'AI_API_KEY is required with AI_BASE_URL',
+      'AI_MODEL is required with AI_BASE_URL (letters, digits, . _ : / -)',
+    ]);
+    expect(
+      issues({
+        ...base,
+        AI_BASE_URL: 'https://provider.example/v1',
+        AI_API_KEY: 'REPLACE_WITH_AI_PROVIDER_KEY',
+        AI_MODEL: 'm',
+      }),
+    ).toEqual(['AI_API_KEY still contains a placeholder value']);
+    expect(
+      loadAgentRunnerConfig({
+        ...base,
+        AI_BASE_URL: 'https://provider.example/v1/',
+        AI_API_KEY: 'fixture-key',
+        AI_MODEL: 'vendor/model-1',
+        AGENT_ROLES: 'radar, pemantau',
+      }),
+    ).toMatchObject({
+      roles: ['radar', 'pemantau'],
+      provider: { baseUrl: 'https://provider.example/v1', model: 'vendor/model-1' },
+    });
   });
 });
