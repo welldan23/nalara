@@ -16,7 +16,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -301,6 +301,71 @@ try {
   });
 
   await check(
+    'TEST-BACKUP-11',
+    'offsite copy (D-04): ciphertext only, never overwritten, hash-verified, restorable',
+    async () => {
+      // A local folder stands in for the Google Drive remote: same rclone commands, no account.
+      const remote = join(work, 'offsite');
+      mkdirSync(remote, { mode: 0o700 });
+      const offsite = (extra = {}) =>
+        run('bash', [join(scripts, 'offsite.sh')], {
+          env: scriptEnv({ OFFSITE_REMOTE: remote, ...extra }),
+        });
+      const first = offsite();
+      assert(first.status === 0, `offsite.sh failed: ${first.stderr}`);
+      const copied = join(remote, basename(archive));
+      assert(readFileSync(copied).equals(readFileSync(archive)), 'remote copy differs');
+      assert(offsite().status === 0, 'second run (nothing new) failed');
+
+      // A changed remote copy is detected, and never silently overwritten.
+      const genuine = readFileSync(copied);
+      writeFileSync(copied, Buffer.concat([genuine, Buffer.from('x')]));
+      const tampered = offsite();
+      assert(tampered.status !== 0, 'tampered remote copy was not detected');
+      writeFileSync(copied, genuine);
+
+      // Anything that is not age ciphertext stops the upload, whatever its name.
+      const plain = join(backupDir, 'nalara-20260101T000000Z.dump.age');
+      writeFileSync(plain, 'PGDMP plaintext dump', { mode: 0o600 });
+      const refused = offsite();
+      assert(
+        refused.status !== 0 && /not an age archive/.test(refused.stderr),
+        'plaintext uploaded',
+      );
+      assert(!readdirSync(remote).includes(basename(plain)), 'plaintext reached the remote');
+      rmSync(plain);
+
+      // Remote retention: copies older than OFFSITE_KEEP_DAYS go; recent ones stay.
+      const old = join(remote, 'nalara-20250101T000000Z.dump.age');
+      writeFileSync(old, readFileSync(archive));
+      must('touch', ['-d', '120 days ago', old]);
+      assert(offsite({ OFFSITE_KEEP_DAYS: '90' }).status === 0, 'retention run failed');
+      assert(!readdirSync(remote).includes(basename(old)), 'old remote copy kept');
+      assert(readdirSync(remote).includes(basename(archive)), 'recent remote copy deleted');
+
+      // A world-readable rclone config (it holds the Drive token) is refused.
+      const config = join(work, 'rclone.conf');
+      writeFileSync(config, '', { mode: 0o644 });
+      const loose = offsite({ RCLONE_CONFIG: config });
+      assert(loose.status !== 0 && /mode 600/.test(loose.stderr), 'loose rclone config accepted');
+
+      // The offsite copy restores to the same data as the source.
+      const fromOffsite = run('bash', [
+        join(scripts, 'restore.sh'),
+        copied,
+        join(work, 'key.txt'),
+        `${restored}-offsite`,
+      ]);
+      assert(fromOffsite.status === 0, `restore from offsite failed: ${fromOffsite.stderr}`);
+      assert(
+        psql(`${restored}-offsite`, `SELECT encode(sha256(data), 'hex') FROM media_assets`) ===
+          mediaSource,
+        'offsite restore differs',
+      );
+    },
+  );
+
+  await check(
     'TEST-BACKUP-08',
     'retention keeps 7 daily + 4 weekly; dry run deletes nothing',
     async () => {
@@ -353,7 +418,13 @@ try {
     assert(stale.status === 1 && /ALERT/.test(stale.stderr), 'no alert for a stale backup');
   });
 } finally {
-  for (const name of [source, restored, `${restored}-wrong`, `${restored}-bad`])
+  for (const name of [
+    source,
+    restored,
+    `${restored}-wrong`,
+    `${restored}-bad`,
+    `${restored}-offsite`,
+  ])
     run('docker', ['rm', '-f', name]);
   rmSync(work, { recursive: true, force: true });
 }
@@ -365,4 +436,4 @@ for (const result of results) {
 }
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
-process.exit(failed === 0 && results.length === 10 ? 0 : 1);
+process.exit(failed === 0 && results.length === 11 ? 0 : 1);

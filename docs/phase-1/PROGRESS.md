@@ -379,4 +379,31 @@ Format per tiket mengikuti PRD v4 §13. Rencana: [BASELINE.md](BASELINE.md) · K
 - Security review: PASS. XSS yang lolos escaping React tetap tidak bisa menjalankan script.
 - Keputusan founder: PENDING
 
-**Next:** P1-10 — Deploy + hardening + `docs/phase-1/ACCEPTANCE.md`. Butuh keputusan founder D-04 (tujuan backup offsite), D-08 (VPS + domain), D-09 (deploy sekarang atau tidak).
+### P1-10c — Backup offsite ke Google Drive (D-04)
+- Commit: lihat PR `feat/P1-10c-offsite-backup`
+- Keputusan founder (2026-11-04):
+  - **D-04 = Google Drive**;
+  - **D-08 = VPS dan domain belum dibeli**;
+  - **D-09 = deploy ditunda**.
+  - Dicatat di `docs/decisions/DECISIONS.md`.
+- File berubah: `infra/scripts/offsite.sh` (baru), `tests/smoke/backup.smoke.mjs`, `.github/workflows/ci.yml` (memasang rclone di job backup), `docs/runbooks/backup-restore.md` §7, `docs/decisions/DECISIONS.md`.
+- Perilaku:
+  - `offsite.sh` menyalin backup terenkripsi ke remote rclone (`gdrive:nalara-backups`). Pengamannya:
+    - **menolak mengunggah apa pun** bila ada berkas yang bukan ciphertext `age`;
+    - salinan yang isinya berbeda tidak pernah ditimpa (`--checksum --immutable`) dan dianggap error;
+    - setiap arsip dicek dengan hash setelah diunggah;
+    - salinan di Drive yang lebih tua dari 90 hari dihapus (masuk tempat sampah Drive dulu, 30 hari);
+    - `rclone.conf` yang bukan mode 600 ditolak.
+  - Runbook berisi setup sekali jalan: otorisasi di laptop founder dengan scope `drive.file` (rclone hanya bisa melihat berkas buatannya sendiri), config di server, unggahan pertama, restore dari Drive, dan risiko sisa.
+- Test: `pnpm run test:backup` → PASS **11/11**. Cek baru TEST-BACKUP-11, memakai folder lokal sebagai pengganti Drive (perintah rclone yang sama, tanpa akun):
+  - salinan identik;
+  - jalan kedua tetap sukses;
+  - salinan remote yang diubah terdeteksi;
+  - plaintext ditolak dan tidak sampai ke remote;
+  - retensi menghapus yang lama dan menyimpan yang baru;
+  - config longgar ditolak;
+  - **restore dari salinan offsite** menghasilkan data yang sama (checksum gambar cocok).
+- NOT RUN: unggahan ke Google Drive sungguhan. Ini butuh server (D-08) dan otorisasi akun founder, dan dicatat sebagai gate di runbook §7.
+- Keputusan founder: PENDING
+
+**Next:** P1-10 — Deploy + hardening + `docs/phase-1/ACCEPTANCE.md`. **Ditunda (D-09)** sampai founder siap dan VPS + domain dibeli (D-08).
