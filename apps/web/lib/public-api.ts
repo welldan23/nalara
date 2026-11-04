@@ -27,6 +27,17 @@ export interface PublicArticle extends PublicArticleSummary {
   readonly methodNote: string | null;
   readonly sourceException: string | null;
   readonly firstPublishedAt: string;
+  /** Substantial corrections, oldest first. */
+  readonly corrections: readonly PublicCorrection[];
+}
+
+export interface PublicCorrection {
+  readonly description: string;
+  readonly visibleAt: string;
+}
+
+export interface PublicCorrectionEntry extends PublicCorrection {
+  readonly article: { readonly slug: string; readonly title: string };
 }
 
 function apiBaseUrl(): string {
@@ -72,4 +83,10 @@ export async function publicArticle(slug: string): Promise<PublicArticle | null>
   // The slug comes from the URL: encode it so it can only ever be one path segment.
   const body = await publicGet<{ article: PublicArticle }>(`/articles/${encodeURIComponent(slug)}`);
   return body?.article ?? null;
+}
+
+/** null while the site is not launched (ADR-015). */
+export async function publicCorrections(): Promise<PublicCorrectionEntry[] | null> {
+  const body = await publicGet<{ corrections: PublicCorrectionEntry[] }>('/corrections');
+  return body?.corrections ?? null;
 }

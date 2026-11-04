@@ -1,5 +1,6 @@
 // About, method and verification labels (P1-06, PRD v4 §1, §7). Static text: no data from the API.
 import type { Metadata } from 'next';
+import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Tentang',
@@ -42,7 +43,11 @@ export default function AboutPage() {
       </dl>
 
       <h2>Koreksi</h2>
-      <p>Kalau kami keliru, kami memperbaikinya secara terbuka. Riwayat perubahan tidak dihapus.</p>
+      <p>
+        Kalau kami keliru, kami memperbaikinya secara terbuka dan riwayat perubahan tidak dihapus.
+        Koreksi soal fakta, angka, atau kutipan ditandai di artikelnya dan tercantum di{' '}
+        <Link href="/koreksi">halaman koreksi</Link> beserta tanggalnya.
+      </p>
     </article>
   );
 }

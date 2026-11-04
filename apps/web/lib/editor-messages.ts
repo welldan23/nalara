@@ -91,6 +91,10 @@ export function describeField(path: string, rule: string): string {
     const message = RULE_MESSAGES[rule] ?? `Isian tidak valid (${rule}).`;
     return `Sumber ${String(Number(index) + 1)}, ${CITATION_FIELDS[key] ?? key}: ${message}`;
   }
+  if (path === 'description') return 'Tulis apa yang dikoreksi (10–500 karakter).';
+  if (path === 'content' && rule === 'unchanged') {
+    return 'Belum ada perubahan isi. Koreksi harus mengubah sesuatu.';
+  }
   const line = /^bodySource\.line\.(\d+)$/.exec(path)?.[1];
   const message = RULE_MESSAGES[rule] ?? `Isian tidak valid (${rule}).`;
   return line === undefined ? `${path}: ${message}` : `Baris ${line}: ${message}`;
@@ -110,4 +114,5 @@ export const EVENT_LABELS: Readonly<Record<string, string>> = {
   approve: 'Disetujui',
   publish: 'Diterbitkan',
   archive: 'Diarsipkan',
+  correct: 'Koreksi diterbitkan',
 };

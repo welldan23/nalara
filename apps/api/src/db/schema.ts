@@ -156,7 +156,14 @@ export const articleRevisions = pgTable('article_revisions', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const PUBLICATION_ACTIONS = ['submit', 'return', 'approve', 'publish', 'archive'] as const;
+export const PUBLICATION_ACTIONS = [
+  'submit',
+  'return',
+  'approve',
+  'publish',
+  'archive',
+  'correct',
+] as const;
 
 export const publicationEvents = pgTable('publication_events', {
   id: uuid('id')
@@ -180,6 +187,23 @@ export const publicationEvents = pgTable('publication_events', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const corrections = pgTable('corrections', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  articleId: uuid('article_id')
+    .notNull()
+    .references(() => articles.id),
+  revisionId: uuid('revision_id').notNull(),
+  description: text('description').notNull(),
+  substantial: boolean('substantial').notNull(),
+  visibleAt: timestamp('visible_at', { withTimezone: true }),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
   users,
   sessions,
@@ -190,4 +214,5 @@ export const schema = {
   articles,
   articleRevisions,
   publicationEvents,
+  corrections,
 };

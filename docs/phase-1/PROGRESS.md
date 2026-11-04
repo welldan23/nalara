@@ -165,4 +165,46 @@ Format per tiket mengikuti PRD v4 §13. Rencana: [BASELINE.md](BASELINE.md) · K
 - Security review: PASS. Pemisahan publik/privat ditegakkan di API (satu filter), tidak hanya di UI.
 - Keputusan founder: PENDING
 
-**Next:** P1-07 — Koreksi.
+### P1-07 — Koreksi
+- Commit: lihat PR `feat/P1-07-corrections`
+- File berubah:
+  - `db/migrations/0007_corrections.sql`, `apps/api/src/db/schema.ts`;
+  - `apps/api/src/modules/articles/{workflow,articles}.ts`, `modules/public/articles.ts`, `modules/audit/audit.ts`;
+  - `apps/api/src/routes/{articles,public}.ts`;
+  - `apps/web/app/os/(shell)/newsroom/{editor.tsx,[id]/page.tsx}`, `apps/web/app/artikel/[slug]/page.tsx`, `apps/web/app/koreksi/page.tsx`, `apps/web/app/tentang/page.tsx`, `apps/web/lib/{api,public-api,editor-messages}.ts`, `globals.css`;
+  - tes: `apps/api/tests/integration/{corrections,db}.test.ts`, `tests/e2e/web.e2e.mjs`.
+- Perilaku:
+  - Artikel terbit tidak bisa diedit biasa. Satu-satunya jalan mengubah isinya adalah **satu aksi khusus founder: "Terbitkan koreksi"** (`POST /api/v1/os/articles/:id/correct`, izin `articles.publish`, CSRF).
+  - Dalam satu transaksi terkunci, koreksi:
+    - membuat revisi baru (revisi lama tetap ada dan tidak bisa diubah);
+    - menjalankan **gerbang publish yang sama** (angka tanpa sumber yang dicek tetap ditolak);
+    - langsung menjadikan revisi baru sebagai revisi yang disetujui dan tayang, dengan hash yang cocok;
+    - mencatat baris `corrections` (tidak bisa diubah atau dihapus), event status `correct`, dan audit `article.correct`.
+  - Ditolak bila: artikel tidak berstatus terbit, versi basi (409), isi tidak berubah, atau keterangan koreksi kurang dari 10 / lebih dari 500 karakter.
+  - **Koreksi substansial** (fakta, angka, kutipan) tampil ke pembaca:
+    - kotak "Koreksi" di artikel, dengan tanggal;
+    - halaman publik baru `/koreksi`;
+    - API publik `GET /api/v1/public/corrections`.
+  - **Koreksi kecil** (mis. salah ketik) hanya tercatat di riwayat internal. Batasan di database: `visible_at` terisi jika dan hanya jika koreksinya substansial.
+  - OS menampilkan bagian "Riwayat koreksi" (substansial/kecil, tampil/internal) dan label "Koreksi diterbitkan" di riwayat status. Centang "substansial" default-nya aktif.
+- Test:
+  - `pnpm run check` → PASS **330/330**, termasuk 5 tes integrasi koreksi baru:
+    - revisi baru langsung tayang, revisi lama utuh, hash yang disetujui cocok;
+    - substansial tampil di artikel dan `/corrections`, yang kecil tidak;
+    - draft/arsip ditolak, isi tak berubah dan keterangan pendek → 400, versi basi → 409;
+    - gerbang sumber memblokir koreksi tanpa mengubah apa pun;
+    - koreksi tidak bisa di-UPDATE atau di-DELETE (42501);
+    - cek skema Drizzle mencakup tabel `corrections`.
+  - `pnpm run test:e2e` → PASS **15/15**. Cek baru TEST-P1-07:
+    - koreksi tanpa keterangan ditolak;
+    - koreksi substansial lalu koreksi kecil lewat UI;
+    - pembaca melihat isi terkoreksi dan hanya koreksi substansial, di artikel dan di `/koreksi`;
+    - tanpa scroll horizontal di 320 px.
+  - `pnpm run test:backup` → PASS **10/10** (migrasi 0007 ikut di-restore).
+- Security review: PASS.
+  - Koreksi tidak bisa melewati gerbang sumber.
+  - Riwayat tidak bisa dihapus: revisi, koreksi, dan event semuanya immutable.
+  - Endpoint publik hanya membaca koreksi dengan `visible_at` terisi, dari artikel terbit, dan tetap 404 selama flag peluncuran mati.
+- Keputusan founder: PENDING
+
+**Next:** P1-08 — SEO dasar.

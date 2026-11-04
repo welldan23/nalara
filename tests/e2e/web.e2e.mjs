@@ -176,6 +176,7 @@ try {
   let secret = Buffer.alloc(0);
   /** Signed-in page from TEST-WEB-03b, reused because a TOTP step can be used only once. */
   let signedIn = null;
+  let publishedEditorUrl = null;
   await check('TEST-WEB-03', 'first login with MFA enrolment, private shell, logout', async () => {
     const page = await newPage();
     await page.goto(`${WEB}/os/login`);
@@ -428,10 +429,16 @@ try {
       (await page.getByText('Artikel kembali ke draft').count()) === 0,
       'a stale "back to draft" notice is still shown after publishing',
     );
+    // Published: no plain edits any more, only "publish a correction" (P1-07).
     assert(
-      await page.getByLabel('Judul', { exact: true }).isDisabled(),
-      'published article is still editable',
+      (await page.getByRole('button', { name: /^Simpan versi/ }).count()) === 0,
+      'published article still offers a plain save',
     );
+    assert(
+      (await page.getByRole('button', { name: 'Terbitkan koreksi' }).count()) === 1,
+      'published article does not offer a correction',
+    );
+    publishedEditorUrl = page.url();
     await shot(page, '9-published');
 
     // An unsourced article is blocked by the gate until the founder writes an exception.
@@ -507,6 +514,70 @@ try {
       assert(overflow <= 0, `${path} overflows by ${overflow}px`);
     }
   });
+
+  await check(
+    'TEST-P1-07',
+    'corrections: substantial is public, minor stays internal',
+    async () => {
+      assert(signedIn !== null && publishedEditorUrl !== null, 'needs the article from TEST-P1-03');
+      const page = signedIn;
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto(publishedEditorUrl);
+      const substantial = 'Sebelumnya tertulis isi lama; kini diperbarui sesuai rilis resmi.';
+      const minor = 'Perbaikan salah ketik di ringkasan artikel.';
+
+      // Without a description the API refuses and nothing is published.
+      await page
+        .getByLabel('Isi', { exact: true })
+        .fill('## Konteks\n\nIsi TEST fixture, dikoreksi.');
+      await page.getByRole('button', { name: 'Terbitkan koreksi' }).click();
+      const refused = await page.locator('.editor-form ul.error').textContent({ timeout: 10_000 });
+      assert(refused?.includes('Tulis apa yang dikoreksi'), `no description error: ${refused}`);
+
+      await page.getByLabel('Apa yang dikoreksi').fill(substantial);
+      await page.getByRole('button', { name: 'Terbitkan koreksi' }).click();
+      await page.getByText('Catatan koreksi tampil ke pembaca').waitFor({ timeout: 10_000 });
+      await page.getByTestId('corrections').waitFor({ timeout: 10_000 });
+
+      await page
+        .getByLabel('Ringkasan (dek)')
+        .fill('TEST fixture, bukan artikel nyata (dikoreksi).');
+      await page.getByLabel('Apa yang dikoreksi').fill(minor);
+      await page.getByLabel(/^Koreksi substansial/).uncheck();
+      await page.getByRole('button', { name: 'Terbitkan koreksi' }).click();
+      await page.getByText('Koreksi kecil: hanya tercatat').waitFor({ timeout: 10_000 });
+      await page.getByTestId('corrections').getByText(minor).waitFor({ timeout: 10_000 });
+      const history =
+        (await page.locator('section', { hasText: 'Riwayat status' }).textContent()) ?? '';
+      assert(history.includes('Koreksi diterbitkan'), 'status history misses the correction');
+      await shot(page, '11-correction-os');
+
+      // Readers: the article shows the substantial correction, never the minor one.
+      const reader = await newPage();
+      await reader.goto(`${WEB}/artikel/alur-terbit`);
+      const box = (await reader.getByTestId('corrections').textContent()) ?? '';
+      assert(box.includes(substantial), 'article misses the substantial correction');
+      assert(!box.includes(minor), 'article shows a minor correction');
+      assert(
+        ((await reader.locator('article.reading').textContent()) ?? '').includes('dikoreksi.'),
+        'article does not show the corrected body',
+      );
+      await shot(reader, '12-correction-public');
+      const list = await reader.goto(`${WEB}/koreksi`);
+      assert(list?.status() === 200, `/koreksi answered ${list?.status()}`);
+      const listed = (await reader.locator('main').textContent()) ?? '';
+      assert(listed.includes(substantial), '/koreksi misses the substantial correction');
+      assert(!listed.includes(minor), '/koreksi shows a minor correction');
+      await reader.setViewportSize({ width: 320, height: 640 });
+      for (const path of ['/koreksi', '/artikel/alur-terbit']) {
+        await reader.goto(`${WEB}${path}`);
+        const overflow = await reader.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        );
+        assert(overflow <= 0, `${path} overflows by ${overflow}px`);
+      }
+    },
+  );
 
   await check(
     'TEST-WEB-04',
@@ -631,4 +702,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 14 ? 0 : 1);
+process.exit(failed === 0 && results.length === 15 ? 0 : 1);

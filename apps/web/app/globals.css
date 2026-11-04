@@ -520,6 +520,44 @@ main:focus {
   background: #fff;
 }
 
+/* Corrections (P1-07): on the article, on /koreksi, and the founder's correction fields. */
+.corrections {
+  margin: 1rem 0;
+  padding: 0.6rem 0.9rem;
+  border-left: 4px solid var(--color-brass);
+  background: #fff;
+}
+.corrections h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+}
+.corrections ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+.corrections p {
+  margin: 0.4rem 0 0;
+}
+.correction-list {
+  padding-left: 1.2rem;
+}
+.correction-list li {
+  margin-bottom: 1rem;
+  overflow-wrap: anywhere;
+}
+.correction-list p {
+  margin: 0.25rem 0 0;
+}
+.editor-form fieldset.correction {
+  padding: 0.75rem;
+  border: 1px solid var(--color-brass);
+  border-radius: 4px;
+}
+.editor-form fieldset.correction legend {
+  font-weight: 700;
+  padding: 0 0.3rem;
+}
+
 /* Article body blocks (shared by preview and, later, public pages). */
 .article-body blockquote {
   margin: 1.5rem 0;

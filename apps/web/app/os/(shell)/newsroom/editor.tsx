@@ -10,6 +10,7 @@ import type { Block } from '../../../../components/article-body';
 import {
   TYPE_LABELS,
   WARNING_MESSAGES,
+  GATE_MESSAGES,
   RULE_MESSAGES,
   VERIFICATION_LABELS,
   describeField,
@@ -86,6 +87,8 @@ export function Editor(props: {
   readonly editable?: boolean;
   readonly verification?: VerificationLevel;
   readonly status?: string;
+  /** 'correct': the article is published; saving publishes a correction (P1-07). */
+  readonly mode?: 'edit' | 'correct';
 }) {
   const router = useRouter();
   const ids = useId();
@@ -107,8 +110,11 @@ export function Editor(props: {
     setNoticeStatus(props.status);
     if (props.status !== 'draft') setNotice('');
   }
-  const editable = props.editable ?? true;
+  const correcting = props.mode === 'correct';
+  const editable = (props.editable ?? true) || correcting;
   const isNew = props.articleId === undefined;
+  const [description, setDescription] = useState('');
+  const [substantial, setSubstantial] = useState(true);
 
   const set =
     <K extends keyof EditorValues>(key: K) =>
@@ -183,19 +189,24 @@ export function Editor(props: {
       citations: values.citations,
     };
     try {
+      const articlePath = `/api/v1/os/articles/${encodeURIComponent(props.articleId ?? '')}`;
+      const revision = {
+        ...payload,
+        expectedVersion: version,
+        changeNote: changeNote.trim() === '' ? (correcting ? 'Koreksi' : 'Revisi') : changeNote,
+      };
       const response = isNew
         ? await send('POST', '/api/v1/os/articles', payload)
-        : await send('PATCH', `/api/v1/os/articles/${encodeURIComponent(props.articleId ?? '')}`, {
-            ...payload,
-            expectedVersion: version,
-            changeNote: changeNote.trim() === '' ? 'Revisi' : changeNote,
-          });
+        : correcting
+          ? await send('POST', `${articlePath}/correct`, { ...revision, description, substantial })
+          : await send('PATCH', articlePath, revision);
       const body = (await response.json()) as {
         articleId?: string;
         version?: number;
         warnings?: Warning[];
         verification?: VerificationLevel;
         returnedToDraft?: boolean;
+        substantial?: boolean;
         error?: { code: string; fields?: { path: string; rule: string }[] };
       };
       if (response.ok) {
@@ -207,16 +218,29 @@ export function Editor(props: {
         }
         setVersion(body.version ?? version);
         setChangeNote('');
+        if (correcting) {
+          // Next correction starts from the safe default: shown to readers.
+          setDescription('');
+          setSubstantial(true);
+        }
         setNotice(
-          body.returnedToDraft === true
-            ? `Tersimpan sebagai versi ${String(body.version ?? version)}. Artikel kembali ke draft; review atau persetujuan sebelumnya batal.`
-            : `Tersimpan sebagai versi ${String(body.version ?? version)}.`,
+          correcting
+            ? `Koreksi terbit sebagai versi ${String(body.version ?? version)}.${body.substantial === true ? ' Catatan koreksi tampil ke pembaca.' : ' Koreksi kecil: hanya tercatat di riwayat internal.'}`
+            : body.returnedToDraft === true
+              ? `Tersimpan sebagai versi ${String(body.version ?? version)}. Artikel kembali ke draft; review atau persetujuan sebelumnya batal.`
+              : `Tersimpan sebagai versi ${String(body.version ?? version)}.`,
         );
         router.refresh();
       } else if (body.error?.code === 'VERSION_CONFLICT') {
         setErrors([
           'Artikel ini sudah diubah di tab atau perangkat lain. Salin perubahanmu, muat ulang halaman, lalu simpan lagi.',
         ]);
+      } else if (body.error?.code === 'GATE_BLOCKED') {
+        setErrors(
+          (body.error.fields ?? []).map((field) => GATE_MESSAGES[field.rule] ?? field.rule),
+        );
+      } else if (body.error?.code === 'INVALID_TRANSITION') {
+        setErrors(['Artikel ini sudah tidak terbit. Muat ulang halaman.']);
       } else if (body.error?.code === 'VALIDATION_FAILED') {
         setErrors((body.error.fields ?? []).map((field) => describeField(field.path, field.rule)));
       } else if (response.status === 401) {
@@ -441,22 +465,55 @@ export function Editor(props: {
             </>
           )}
 
+          {correcting && (
+            <fieldset className="correction">
+              <legend>Koreksi</legend>
+              <label htmlFor={field('correction')}>Apa yang dikoreksi</label>
+              <textarea
+                id={field('correction')}
+                value={description}
+                onChange={(event) => {
+                  setDescription(event.target.value);
+                }}
+                minLength={10}
+                maxLength={500}
+                rows={2}
+                placeholder="mis. Sebelumnya tertulis inflasi 3,1 persen; angka resmi BPS 2,8 persen."
+              />
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={substantial}
+                  onChange={(event) => {
+                    setSubstantial(event.target.checked);
+                  }}
+                />
+                Koreksi substansial (fakta, angka, kutipan): tampilkan catatan ke pembaca
+              </label>
+            </fieldset>
+          )}
+
           <div className="editor-actions">
             <button type="button" className="secondary" onClick={() => void showPreview()}>
               Pratinjau
             </button>
             <button type="submit">
-              {isNew ? 'Simpan draft' : `Simpan versi ${String(version + 1)}`}
+              {isNew
+                ? 'Simpan draft'
+                : correcting
+                  ? 'Terbitkan koreksi'
+                  : `Simpan versi ${String(version + 1)}`}
             </button>
           </div>
         </fieldset>
-        {!editable && (
-          <p className="muted">
-            Artikel yang sudah terbit atau diarsipkan tidak diedit langsung. Perubahan isi artikel
-            terbit lewat koreksi (menyusul di P1-07).
+        {!editable && <p className="muted">Artikel yang diarsipkan tidak bisa diubah lagi.</p>}
+        {correcting && (
+          <p className="notice-warn">
+            Artikel ini sudah terbit. Perubahan langsung tayang sebagai koreksi (tetap melewati
+            gerbang sumber); versi lama tetap tersimpan.
           </p>
         )}
-        {editable && props.status !== undefined && props.status !== 'draft' && (
+        {editable && !correcting && props.status !== undefined && props.status !== 'draft' && (
           <p className="notice-warn">
             Menyimpan perubahan akan mengembalikan artikel ke draft dan membatalkan review atau
             persetujuan yang ada.

@@ -19,6 +19,7 @@ export const AUDIT_ACTIONS = {
   'article.approve': ['version', 'verification', 'source_exception'],
   'article.publish': ['version', 'verification'],
   'article.archive': ['version'],
+  'article.correct': ['version', 'verification', 'substantial'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;

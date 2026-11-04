@@ -13,6 +13,7 @@ import {
   publicArticle,
   publicArticles,
   publicCategories,
+  publicCorrections,
 } from '../modules/public/articles.ts';
 
 export interface PublicRoutesOptions {
@@ -56,6 +57,11 @@ export const publicRoutes: FastifyPluginAsync<PublicRoutesOptions> = (app, { db,
     const article = await publicArticle(db, params.slug);
     if (article === null) throw new AppError('NOT_FOUND');
     return { article };
+  });
+
+  app.get('/corrections', async () => {
+    requireLaunch();
+    return { corrections: await publicCorrections(db) };
   });
 
   return Promise.resolve();

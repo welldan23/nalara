@@ -81,6 +81,12 @@ export interface ArticleDetail {
     readonly note: string | null;
     readonly createdAt: string;
   }[];
+  readonly corrections: readonly {
+    readonly description: string;
+    readonly substantial: boolean;
+    readonly visibleAt: string | null;
+    readonly createdAt: string;
+  }[];
   readonly revisions: readonly {
     readonly id: string;
     readonly version: number;
