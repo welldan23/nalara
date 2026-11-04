@@ -754,3 +754,30 @@ main:focus {
     gap: 0;
   }
 }
+
+/* NALARA Data (P4-02): tables scroll inside their box, never the page. */
+.table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.table-scroll table {
+  border-collapse: collapse;
+  min-width: 16rem;
+}
+.table-scroll th,
+.table-scroll td {
+  border-bottom: 1px solid var(--color-ink-muted);
+  padding: 0.25rem 0.75rem 0.25rem 0;
+  text-align: left;
+}
+.table-scroll td:last-child,
+.table-scroll th:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* Hashes and file details (P4-02): monospace, wrapped anywhere, never a grid. */
+.hash {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}

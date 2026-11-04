@@ -26,6 +26,9 @@ export const PERMISSIONS = [
   // AI settings: kill switch, quotas, agent preferences (P3-02).
   'ai.read',
   'ai.write',
+  // NALARA Data catalogue (P4-02).
+  'data.read',
+  'data.write',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 

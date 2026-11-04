@@ -41,6 +41,12 @@ export const AUDIT_ACTIONS = {
   // Founder Telegram bot (P3-04): what happened to an update, never its content.
   'telegram.update': ['outcome'],
   'telegram.notify': ['sent', 'failed'],
+  // NALARA Data (P4-02): versions and field names only.
+  'dataset.create': ['version', 'license_status'],
+  'dataset.update': ['version', 'changed'],
+  'dataset.version': ['dataset_version', 'observations'],
+  'dataset.publish': ['dataset_version'],
+  'dataset.retract': ['dataset_version'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;

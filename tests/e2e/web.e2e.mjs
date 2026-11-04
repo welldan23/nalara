@@ -1136,6 +1136,79 @@ try {
   });
 
   await check(
+    'TEST-P4-02',
+    'data catalogue: dataset from a source, CSV version with preview, verify, publish',
+    async () => {
+      assert(signedIn !== null, 'needs the signed-in page from TEST-WEB-03b');
+      const page = signedIn;
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto(`${WEB}/os`);
+      await page.getByRole('link', { name: 'Data', exact: true }).click();
+      await page.waitForURL(`${WEB}/os/data`);
+      await page.getByRole('link', { name: 'Dataset baru' }).click();
+      await page.getByLabel('Slug (untuk alamat /data/…)').fill('kurs-test');
+      // TEST-P2-06 left a verified Bank Indonesia source in the registry.
+      const source = page.getByLabel('Sumber (dari Source Registry)');
+      const option = await source
+        .locator('option', { hasText: 'Bank Indonesia' })
+        .first()
+        .getAttribute('value');
+      await source.selectOption(option ?? '');
+      await page.getByLabel('Judul', { exact: true }).fill('Kurs rupiah bulanan (TEST)');
+      await page
+        .getByLabel('URL halaman data di situs penerbit')
+        .fill('https://www.bi.go.id/id/statistik/kurs.aspx');
+      await page.getByLabel('Satuan', { exact: true }).fill('rupiah per USD');
+      await page.getByLabel('Lisensi data').selectOption('open');
+      await page.getByRole('button', { name: 'Buat dataset' }).click();
+      await page.waitForURL(/\/os\/data\/[0-9a-f-]{36}$/, { timeout: 10_000 });
+
+      await page.getByLabel('File CSV dari penerbit (maks. 5 MB)').setInputFiles({
+        name: 'kurs.csv',
+        mimeType: 'text/csv',
+        buffer: Buffer.from(
+          'Catatan: data TEST\nBulan;Kurs\nSeptember 2026;16.250,5\nOktober 2026;16.310\n',
+        ),
+      });
+      await page.getByLabel('Pemisah kolom').selectOption(';');
+      await page.getByLabel('Tanda desimal').selectOption(',');
+      await page.getByLabel('Pemisah ribuan').selectOption('.');
+      await page.getByLabel('Nama kolom periode').fill('Bulan');
+      await page.getByLabel('Nama kolom nilai').fill('Kurs');
+      // A wrong setting is explained with its line.
+      await page.getByRole('button', { name: 'Pratinjau' }).click();
+      await page.getByText('Kolom periode tidak ditemukan').waitFor({ timeout: 10_000 });
+      await page.getByLabel('Baris dilewati sebelum judul kolom').fill('1');
+      await page.getByRole('button', { name: 'Pratinjau' }).click();
+      const preview = page.getByTestId('preview');
+      await preview.getByText('2 titik data').waitFor({ timeout: 10_000 });
+      assert(await preview.getByRole('cell', { name: '16250.5' }).isVisible(), 'value not parsed');
+      await page.getByLabel('URL file asli').fill('https://www.bi.go.id/id/statistik/kurs.csv');
+      await page.getByLabel('Catatan revisi').fill('Versi pertama (TEST).');
+      await page.getByRole('button', { name: 'Simpan versi' }).click();
+      const versions = page.getByTestId('versions');
+      await versions.getByText('Versi pertama (TEST).').waitFor({ timeout: 10_000 });
+      await versions.getByRole('button', { name: 'Ulangi transformasi' }).click();
+      await versions
+        .getByText('Cocok: file dan hasil olahan sama persis.')
+        .waitFor({ timeout: 10_000 });
+      await page.getByRole('button', { name: 'Terbitkan versi ini' }).click();
+      await page
+        .getByTestId('dataset-state')
+        .getByText('versi terbit v1')
+        .waitFor({ timeout: 10_000 });
+      await shot(page, '18-data');
+
+      await page.setViewportSize({ width: 320, height: 640 });
+      await page.reload();
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      assert(overflow <= 0, `dataset page overflows by ${overflow}px`);
+    },
+  );
+
+  await check(
     'TEST-WEB-04',
     'invalid or expired session cookie redirects (server-side check)',
     async () => {
@@ -1277,4 +1350,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 23 ? 0 : 1);
+process.exit(failed === 0 && results.length === 24 ? 0 : 1);
