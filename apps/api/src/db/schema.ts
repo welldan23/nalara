@@ -330,6 +330,47 @@ export const sourceChecks = pgTable('source_checks', {
   checkedAt: timestamp('checked_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const INBOX_STATUSES = ['new', 'seen', 'dismissed', 'used'] as const;
+
+/** Every feed fetch by the worker (P2-04). Immutable. */
+export const ingestionRuns = pgTable('ingestion_runs', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  sourceId: uuid('source_id')
+    .notNull()
+    .references(() => sources.id),
+  httpStatus: integer('http_status'),
+  notModified: boolean('not_modified').notNull().default(false),
+  itemsSeen: integer('items_seen').notNull().default(0),
+  itemsNew: integer('items_new').notNull().default(0),
+  error: text('error'),
+  durationMs: integer('duration_ms'),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Items found in feeds (P2-04): inbox material, never public. */
+export const discoveredItems = pgTable('discovered_items', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  sourceId: uuid('source_id')
+    .notNull()
+    .references(() => sources.id),
+  runId: uuid('run_id')
+    .notNull()
+    .references(() => ingestionRuns.id),
+  canonicalUrl: text('canonical_url').notNull(),
+  guid: text('guid').notNull(),
+  title: text('title').notNull(),
+  summary: text('summary').notNull().default(''),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  fingerprint: bytea('fingerprint').notNull(),
+  status: text('status', { enum: INBOX_STATUSES }).notNull().default('new'),
+  statusChangedAt: timestamp('status_changed_at', { withTimezone: true }),
+  firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
   users,
   sessions,
@@ -345,4 +386,6 @@ export const schema = {
   mediaAssets,
   jobRuns,
   sourceChecks,
+  ingestionRuns,
+  discoveredItems,
 };
