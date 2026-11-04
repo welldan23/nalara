@@ -102,4 +102,44 @@ Satu entri per tiket, format sama dengan Phase 1. Rencana: [PLAN.md](PLAN.md).
 - Security review: PASS. Belum ada pemanggil; dipakai worker di P2-03b/P2-04.
 - Keputusan founder: PENDING
 
-**Next:** P2-03b — Feed di Source Registry + cek feed oleh worker.
+### P2-03b — Feed di Source Registry + cek feed oleh worker
+- Commit: lihat PR `feat/P2-03b-source-feeds`
+- File berubah:
+  - baru: `db/migrations/0011_source_feeds.sql`, `apps/api/src/worker/handlers/feed-check.ts`, `apps/web/app/os/(shell)/sources/[id]/feed-panel.tsx`, `apps/api/tests/integration/feeds.test.ts`;
+  - `apps/api/src/{db/schema,modules/sources/sources,routes/sources,worker,modules/audit/audit}.ts`, form dan halaman sumber, `apps/web/lib/{api,source-messages}.ts`;
+  - tes db dan e2e.
+- Perilaku:
+  - **Feed per sumber.**
+    - Setiap sumber boleh punya satu URL feed (`http`/`https`, tanpa kredensial, unik tanpa memandang huruf besar/kecil).
+    - Status feed: `none` / `unchecked` / `ok` / `failing` / `quarantined`.
+    - Mengganti atau menghapus URL feed mengosongkan status, error, ETag, dan hitungan gagal.
+  - **"Cek feed sekarang"** (`POST /api/v1/os/sources/:id/check-feed`, izin `sources.write` + CSRF) memasukkan job `feed_check` ke antrean (tidak dobel bila sudah ada) dan tercatat di audit.
+    - Ditolak bila sumber tidak `verified` atau belum punya URL feed.
+  - **Handler worker `feed_check`:**
+    - mengecek ulang status sumber **saat job berjalan**: sumber yang dijeda setelah diantrekan tidak pernah di-fetch;
+    - fetch lewat fetch aman (P2-01) dengan allowlist content-type feed dan batas 2 MB, lalu parse (P2-03a);
+    - hasilnya dicatat di `source_checks` (tidak bisa diubah atau dihapus) dan di status feed sumber;
+    - error disimpan sebagai kode tetap: `fetch:address`, `feed:xml_doctype`, `http:server_error`, dst.;
+    - cek manual tidak diulang otomatis;
+    - cek yang sukses membuat feed langsung jatuh tempo untuk ingestion (P2-04).
+  - **Hak role worker per kolom:**
+    - di `sources` hanya boleh **membaca** `id`, `status`, `feed_url`, dan state feed, serta **menulis** state feed saja;
+    - tidak bisa membaca nama atau catatan, dan tidak bisa mengubah status sumber atau URL feed.
+  - **Web:**
+    - field "URL feed RSS/Atom" di form sumber;
+    - panel Feed di halaman sumber: status, judul feed, error dalam bahasa Indonesia, tombol cek, dan riwayat 10 cek terakhir;
+    - status feed juga tampil di daftar sumber.
+- Test:
+  - `pnpm run check` → PASS **441/441**. Termasuk 5 tes integrasi feed dengan server feed lokal:
+    - aturan URL feed (skema, kredensial, duplikat beda huruf, dikosongkan → `none`);
+    - cek feed sehat → `ok`, judul tersimpan, riwayat dan audit, antrean tidak dobel;
+    - kegagalan sebagai kode: feed XXE, halaman HTML, server 500;
+    - kebijakan produksi menolak alamat loopback **tanpa request sama sekali**;
+    - hanya sumber verified, baik saat diantrekan maupun saat berjalan (dijeda di tengah → tanpa request);
+    - batas kolom role worker dan riwayat immutable.
+  - `pnpm run test:backup` → PASS **11/11**; `node tests/smoke/compose.smoke.mjs` → PASS **20/20**.
+  - `pnpm run test:e2e` → PASS **20/20**. TEST-P1-05 kini juga mengisi URL feed, melihat panel "Belum dicek", lalu tombol cek pada sumber yang dijeda menampilkan pesan "hanya untuk Terverifikasi".
+- Security review: PASS. Fetch keluar pertama oleh worker; seluruhnya lewat fetch aman, hanya untuk sumber verified, dengan hak database per kolom.
+- Keputusan founder: PENDING
+
+**Next:** P2-04 — Ingestion (fetch berjadwal + dedup → `discovered_items`).
