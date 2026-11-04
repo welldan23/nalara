@@ -33,6 +33,7 @@ import {
   agentCredentials,
   systemSettings,
   agentUsage,
+  approvalTokens,
 } from '../../src/db/schema.ts';
 import {
   connect,
@@ -114,6 +115,7 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         'agent_preferences',
         'agent_usage',
         'ai_action_proposals',
+        'approval_tokens',
         'approvals',
         'article_revisions',
         'articles',
@@ -238,6 +240,7 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         agentCredentials,
         systemSettings,
         agentUsage,
+        approvalTokens,
       ]) {
         const { name, columns } = getTableConfig(table);
         const actual = await migrator.query<{ column_name: string; is_nullable: string }>(

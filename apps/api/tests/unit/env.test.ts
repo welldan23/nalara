@@ -258,6 +258,8 @@ describe('TEST-ENV-08 secret absent in startup log', () => {
       'MFA_ENCRYPTION_KEY',
       'AGENT_TOKEN',
       'AI_API_KEY',
+      'TELEGRAM_BOT_TOKEN',
+      'TELEGRAM_WEBHOOK_SECRET',
     ]);
   });
 });

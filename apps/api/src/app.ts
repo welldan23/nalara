@@ -5,7 +5,7 @@ import rateLimit from '@fastify/rate-limit';
 import Fastify, { LogController } from 'fastify';
 import type { FastifyError, FastifyInstance } from 'fastify';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { Config } from './config/env.ts';
+import type { Config, TelegramWebhookConfig } from './config/env.ts';
 import type { schema } from './db/schema.ts';
 import { AppError, ERROR_CODES, errorBody } from './lib/errors.ts';
 import type { ErrorCode } from './lib/errors.ts';
@@ -14,6 +14,7 @@ import { createAuthGuards, crossOriginGuard } from './plugins/auth.ts';
 import { authRoutes } from './routes/auth.ts';
 import { healthRoutes } from './routes/health.ts';
 import { agentRoutes } from './routes/agent.ts';
+import { telegramRoutes } from './routes/telegram.ts';
 import { osRoutes } from './routes/os.ts';
 import { publicRoutes } from './routes/public.ts';
 
@@ -33,6 +34,8 @@ export interface AppDependencies {
   readonly loginRateLimitMax?: number;
   /** Override the per-IP second-factor attempt limit (tests). */
   readonly mfaRateLimitMax?: number;
+  /** The founder's Telegram webhook (P3-04); absent means the route does not exist. */
+  readonly telegram?: TelegramWebhookConfig;
 }
 
 export type AppConfig = Pick<
@@ -50,6 +53,7 @@ export const LOG_REDACT_PATHS = [
   'req.headers.authorization',
   'req.headers.cookie',
   'req.headers["x-csrf-token"]',
+  'req.headers["x-telegram-bot-api-secret-token"]',
   'res.headers["set-cookie"]',
   '*.password',
   '*.token',
@@ -140,6 +144,13 @@ export async function buildApp(config: AppConfig, deps: AppDependencies): Promis
     });
     await app.register(osRoutes, { prefix: '/api/v1/os', guards, db: deps.database });
     await app.register(agentRoutes, { prefix: '/api/v1/agent', db: deps.database });
+    if (deps.telegram !== undefined) {
+      await app.register(telegramRoutes, {
+        prefix: '/api/v1/telegram',
+        db: deps.database,
+        telegram: deps.telegram,
+      });
+    }
     await app.register(publicRoutes, {
       prefix: '/api/v1/public',
       db: deps.database,

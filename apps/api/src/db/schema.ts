@@ -493,6 +493,21 @@ export const agentUsage = pgTable('agent_usage', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Single-use Telegram approval tokens (P3-04): only the SHA-256 is stored. */
+export const approvalTokens = pgTable('approval_tokens', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  proposalId: uuid('proposal_id')
+    .notNull()
+    .references(() => aiActionProposals.id),
+  decision: text('decision', { enum: ['approve', 'reject'] }).notNull(),
+  tokenHash: bytea('token_hash').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+});
+
 export const schema = {
   users,
   sessions,
@@ -517,4 +532,5 @@ export const schema = {
   agentCredentials,
   systemSettings,
   agentUsage,
+  approvalTokens,
 };

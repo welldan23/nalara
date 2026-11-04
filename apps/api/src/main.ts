@@ -1,7 +1,12 @@
 // API process entry point: validate config (fail fast), connect the pool lazily, serve HTTP,
 // shut down gracefully on SIGTERM/SIGINT. Migrations are never run from here (ADR-003).
 import { buildApp } from './app.ts';
-import { ConfigError, describeConfig, loadConfig } from './config/env.ts';
+import {
+  ConfigError,
+  describeConfig,
+  loadConfig,
+  loadTelegramWebhookConfig,
+} from './config/env.ts';
 import { createDatabase } from './db/client.ts';
 import { MIGRATIONS_DIR } from './db/migrations-dir.ts';
 import { databaseReadiness } from './db/readiness.ts';
@@ -12,8 +17,10 @@ function fatal(msg: string, extra: Record<string, unknown> = {}): void {
 
 async function main(): Promise<void> {
   let config;
+  let telegram;
   try {
     config = loadConfig(process.env);
+    telegram = loadTelegramWebhookConfig(process.env);
   } catch (error) {
     if (error instanceof ConfigError) {
       fatal('invalid configuration, refusing to start', { issues: error.issues });
@@ -27,8 +34,12 @@ async function main(): Promise<void> {
   const app = await buildApp(config, {
     readiness: databaseReadiness(database.pool, MIGRATIONS_DIR),
     database: database.db,
+    ...(telegram === null ? {} : { telegram }),
   });
-  app.log.info({ config: describeConfig(config) }, 'configuration loaded');
+  app.log.info(
+    { config: describeConfig(config), telegramWebhook: telegram === null ? 'off' : 'on' },
+    'configuration loaded',
+  );
 
   let closing = false;
   const shutdown = (signal: string) => {

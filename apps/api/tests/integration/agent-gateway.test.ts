@@ -295,8 +295,13 @@ describe.skipIf(!databaseAvailable)('agent gateway', { timeout: 60_000 }, () => 
     expect(createdAudit.rows).toEqual([
       { actor_type: 'agent', actor_id: null, metadata: { version: 1, agent_role: 'penulis' } },
     ]);
-    // Once per item.
+    // Once per item. (A full-length draft body is within the gateway's limit: refused for the
+    // used item, not as too large.)
     expect((await tool('articles.create_draft', 'penulis', draft)).statusCode).toBe(403);
+    expect(
+      (await tool('articles.create_draft', 'penulis', { ...draft, bodySource: 'a'.repeat(39_000) }))
+        .statusCode,
+    ).toBe(403);
     expect(parse<{ items: unknown[] }>(await tool('inbox.list_flagged', 'penulis')).items).toEqual(
       [],
     );

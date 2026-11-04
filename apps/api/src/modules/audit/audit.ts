@@ -38,6 +38,9 @@ export const AUDIT_ACTIONS = {
   'agent.credential': ['label', 'change'],
   'ai.settings': ['version', 'ai_enabled', 'changed'],
   'ai.preferences': ['version'],
+  // Founder Telegram bot (P3-04): what happened to an update, never its content.
+  'telegram.update': ['outcome'],
+  'telegram.notify': ['sent', 'failed'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;

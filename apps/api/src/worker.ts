@@ -4,7 +4,8 @@
 // finish.
 import { writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
-import { ConfigError, loadWorkerConfig } from './config/env.ts';
+import { ConfigError, loadTelegramBotConfig, loadWorkerConfig } from './config/env.ts';
+import { notifyPendingProposals } from './modules/telegram/bot.ts';
 import { createDatabase } from './db/client.ts';
 import { evidenceSnapshotHandler } from './worker/handlers/evidence-snapshot.ts';
 import { feedCheckHandler } from './worker/handlers/feed-check.ts';
@@ -32,8 +33,10 @@ const log: WorkerLog = {
 
 function main(): void {
   let config;
+  let telegram;
   try {
     config = loadWorkerConfig(process.env);
+    telegram = loadTelegramBotConfig(process.env);
   } catch (error) {
     if (error instanceof ConfigError) {
       line('fatal', { issues: error.issues }, 'invalid configuration, refusing to start');
@@ -74,12 +77,35 @@ function main(): void {
       });
   }, 60_000);
 
+  // Founder Telegram bot (P3-04): a message with Setujui/Tolak buttons per new agent proposal.
+  // Off until TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set (D-26).
+  let notifying = false;
+  const notifier =
+    telegram === null
+      ? undefined
+      : setInterval(() => {
+          if (notifying) return;
+          notifying = true;
+          notifyPendingProposals(database.db, telegram)
+            .then(({ sent, failed }) => {
+              if (sent > 0 || failed !== null) line('info', { sent, failed }, 'telegram notify');
+            })
+            .catch(() => {
+              line('warn', {}, 'telegram notify failed; database unavailable?');
+            })
+            .finally(() => {
+              notifying = false;
+            });
+        }, 60_000);
+  line('info', { telegram: telegram === null ? 'off' : 'on' }, 'telegram notifications');
+
   let closing = false;
   const shutdown = (signal: string) => {
     if (closing) return;
     closing = true;
     line('info', { signal }, 'shutting down');
     clearInterval(scheduler);
+    if (notifier !== undefined) clearInterval(notifier);
     void worker
       .stop()
       .then(() => database.close())
