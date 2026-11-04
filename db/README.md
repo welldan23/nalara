@@ -7,7 +7,8 @@ PostgreSQL 18 (pinned image in [`compose.yaml`](../compose.yaml)). Decisions: [A
 | Role | Used by | Can do |
 |---|---|---|
 | `nalara_migrator` | `db:migrate` only | Owns the database and runs DDL |
-| `nalara_app` | the API | Read/write `users` and `sessions`. Only `SELECT`/`INSERT` on `audit_events`. No DDL |
+| `nalara_app` | the API | The application tables, each with only the privileges its migration grants (e.g. `SELECT`/`INSERT` on immutable tables such as `audit_events`). No DDL |
+| `nalara_worker` | the Phase 2 worker | Only the queue and ingestion tables its migrations grant (`job_runs` from 0010). No access to users, sessions, articles or audit. No DDL |
 
 Local roles are created by [`init/01-roles.sh`](init/01-roles.sh) the first time the `db` container starts with an empty volume. On a VPS, create them once with the same SQL as a superuser, using passwords generated on the host.
 
@@ -20,12 +21,12 @@ pnpm --filter @nalara/api run db:status    # exit 1 while migrations are pending
 pnpm --filter @nalara/api run db:migrate   # apply pending migrations
 ```
 
-`DATABASE_MIGRATOR_URL` and `DATABASE_URL` in `.env` must use the same passwords as `DB_MIGRATOR_PASSWORD` and `DB_APP_PASSWORD`.
+`DATABASE_MIGRATOR_URL`, `DATABASE_URL` and `WORKER_DATABASE_URL` in `.env` must use the same passwords as `DB_MIGRATOR_PASSWORD`, `DB_APP_PASSWORD` and `DB_WORKER_PASSWORD`. A database volume created before P2-02 has no worker role: create it once (`CREATE ROLE nalara_worker LOGIN PASSWORD '…'; GRANT CONNECT ON DATABASE nalara TO nalara_worker; GRANT USAGE ON SCHEMA public TO nalara_worker;`) before running migration 0010.
 
 ## Writing a migration
 
 1. Add `db/migrations/NNNN_short_name.sql` with the next number. Never edit a file that has been applied anywhere.
-2. Grant table privileges to `nalara_app` explicitly in the same file (least privilege).
+2. Grant table privileges to `nalara_app` (and `nalara_worker` where the worker needs them) explicitly in the same file (least privilege).
 3. Update `apps/api/src/db/schema.ts` to match. The drift test fails otherwise.
 4. Run the integration tests against a throwaway server:
    `TEST_DATABASE_ADMIN_URL=postgres://postgres:<pw>@127.0.0.1:5432/postgres pnpm run test`

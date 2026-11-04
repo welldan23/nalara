@@ -45,6 +45,7 @@ export interface Config {
 export const SECRET_ENV_KEYS = [
   'DATABASE_URL',
   'DATABASE_MIGRATOR_URL',
+  'WORKER_DATABASE_URL',
   'SESSION_SECRET',
   'MFA_ENCRYPTION_KEY',
 ] as const;
@@ -56,6 +57,7 @@ export const KNOWN_ENV_KEYS = [
   'API_BASE_URL',
   'DATABASE_URL',
   'DATABASE_MIGRATOR_URL',
+  'WORKER_DATABASE_URL',
   'SESSION_COOKIE_NAME',
   'SESSION_SECRET',
   'MFA_ENCRYPTION_KEY',
@@ -76,6 +78,7 @@ export const COMPOSE_ENV_KEYS = [
   'POSTGRES_PASSWORD',
   'DB_MIGRATOR_PASSWORD',
   'DB_APP_PASSWORD',
+  'DB_WORKER_PASSWORD',
   'SITE_ADDRESS',
   'CADDY_TLS',
 ] as const;
@@ -262,6 +265,39 @@ export function loadMigratorConfig(env: RawEnv = process.env): MigratorConfig {
   checkDatabaseUrl('DATABASE_MIGRATOR_URL', parsed.data.DATABASE_MIGRATOR_URL, issues);
   if (issues.length > 0) throw new ConfigError(issues);
   return { nodeEnv: parsed.data.NODE_ENV, migratorDatabaseUrl: parsed.data.DATABASE_MIGRATOR_URL };
+}
+
+export interface WorkerConfig {
+  readonly nodeEnv: NodeEnv;
+  /** Connection for the nalara_worker role (P2-02): queue and ingestion tables only. */
+  readonly databaseUrl: string;
+  readonly logLevel: LogLevel;
+}
+
+const workerSchema = z.object({
+  NODE_ENV: schema.shape.NODE_ENV,
+  WORKER_DATABASE_URL: required('WORKER_DATABASE_URL'),
+  LOG_LEVEL: schema.shape.LOG_LEVEL,
+});
+
+/** Config for the worker process only: no session, MFA or app-role secrets (P2-02). */
+export function loadWorkerConfig(env: RawEnv = process.env): WorkerConfig {
+  const issues = typoIssues(env);
+  const parsed = workerSchema.safeParse(nonEmpty(env));
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) issues.push(issue.message);
+    throw new ConfigError(issues);
+  }
+  checkDatabaseUrl('WORKER_DATABASE_URL', parsed.data.WORKER_DATABASE_URL, issues);
+  if (parsed.data.NODE_ENV === 'production' && ['debug', 'trace'].includes(parsed.data.LOG_LEVEL)) {
+    issues.push('LOG_LEVEL debug/trace is not allowed in production');
+  }
+  if (issues.length > 0) throw new ConfigError(issues);
+  return {
+    nodeEnv: parsed.data.NODE_ENV,
+    databaseUrl: parsed.data.WORKER_DATABASE_URL,
+    logLevel: parsed.data.LOG_LEVEL,
+  };
 }
 
 export interface BootstrapConfig {

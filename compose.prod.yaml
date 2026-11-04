@@ -5,7 +5,8 @@
 #   docker compose -f compose.prod.yaml --env-file /srv/nalara/.env up -d
 #
 # Secrets come only from the host's env file at runtime (never baked into images).
-# DB_APP_PASSWORD and DB_MIGRATOR_PASSWORD must be URL-safe (e.g. `openssl rand -hex 24`).
+# DB_APP_PASSWORD, DB_MIGRATOR_PASSWORD and DB_WORKER_PASSWORD must be URL-safe
+# (e.g. `openssl rand -hex 24`).
 name: nalara
 
 x-hardened: &hardened
@@ -31,6 +32,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       DB_MIGRATOR_PASSWORD: ${DB_MIGRATOR_PASSWORD:?set DB_MIGRATOR_PASSWORD}
       DB_APP_PASSWORD: ${DB_APP_PASSWORD:?set DB_APP_PASSWORD}
+      DB_WORKER_PASSWORD: ${DB_WORKER_PASSWORD:?set DB_WORKER_PASSWORD}
     volumes:
       - db-data:/var/lib/postgresql
       - ./db/init:/docker-entrypoint-initdb.d:ro
@@ -88,6 +90,31 @@ services:
     stop_grace_period: 15s
     mem_limit: 384m
 
+  # Phase 2 worker (P2-02): same image as the API, its own database role, no published port.
+  # It reaches the database (backend) and the internet (egress) only: not the web, Caddy or the
+  # API's public side. Every outbound request goes through the safe fetch (P2-01).
+  worker:
+    <<: *hardened
+    image: nalara-api:local
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    command: ['node', 'dist/worker.js']
+    environment:
+      NODE_ENV: production
+      WORKER_DATABASE_URL: postgres://nalara_worker:${DB_WORKER_PASSWORD:?set DB_WORKER_PASSWORD}@db:5432/nalara
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    networks: [backend, egress]
+    healthcheck:
+      # The loop rewrites this file on every turn (at most every 5 s while idle).
+      test: ['CMD-SHELL', 'test -n "$(find /tmp/nalara-worker.alive -mmin -1 2>/dev/null)"']
+      interval: 15s
+      timeout: 3s
+      retries: 4
+      start_period: 20s
+    depends_on:
+      db: { condition: service_healthy }
+    stop_grace_period: 40s
+    mem_limit: 256m
+
   web:
     <<: *hardened
     image: nalara-web:local
@@ -141,6 +168,8 @@ networks:
   # Database traffic never leaves this network and it has no route outside the host.
   backend:
     internal: true
+  # Outbound internet for the worker only (P2-02). No other service joins it.
+  egress:
   frontend:
     ipam:
       config:

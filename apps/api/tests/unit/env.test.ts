@@ -252,6 +252,7 @@ describe('TEST-ENV-08 secret absent in startup log', () => {
     expect(SECRET_ENV_KEYS).toEqual([
       'DATABASE_URL',
       'DATABASE_MIGRATOR_URL',
+      'WORKER_DATABASE_URL',
       'SESSION_SECRET',
       'MFA_ENCRYPTION_KEY',
     ]);

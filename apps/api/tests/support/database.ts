@@ -10,11 +10,14 @@ export const databaseAvailable = adminUrl !== undefined && adminUrl !== '';
 // Test-only role passwords; the server behind TEST_DATABASE_ADMIN_URL is disposable.
 const MIGRATOR_PASSWORD = 'nalara-test-migrator';
 const APP_PASSWORD = 'nalara-test-app';
+const WORKER_PASSWORD = 'nalara-test-worker';
 
 export interface TestDatabase {
   readonly name: string;
   readonly migratorUrl: string;
   readonly appUrl: string;
+  /** Phase 2 worker role (P2-02): only the tables the worker needs. */
+  readonly workerUrl: string;
   drop(): Promise<void>;
 }
 
@@ -43,8 +46,9 @@ async function withAdmin<T>(database: string, run: (client: pg.Client) => Promis
 }
 
 /**
- * Same role layout as db/init/01-roles.sh (ADR-003): a migrator that owns the database and an
- * application role with CONNECT + schema USAGE only. Table privileges come from migrations.
+ * Same role layout as db/init/01-roles.sh (ADR-003, P2-02): a migrator that owns the database, and
+ * the application and worker roles with CONNECT + schema USAGE only. Table privileges come from
+ * migrations.
  */
 export async function createTestDatabase(): Promise<TestDatabase> {
   if (adminUrl === undefined) throw new Error('TEST_DATABASE_ADMIN_URL is not set');
@@ -59,19 +63,25 @@ export async function createTestDatabase(): Promise<TestDatabase> {
         CREATE ROLE nalara_migrator LOGIN; END IF;
       IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'nalara_app') THEN
         CREATE ROLE nalara_app LOGIN; END IF;
+      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'nalara_worker') THEN
+        CREATE ROLE nalara_worker LOGIN; END IF;
     END $$`);
     await client.query(`ALTER ROLE nalara_migrator PASSWORD '${MIGRATOR_PASSWORD}'`);
     await client.query(`ALTER ROLE nalara_app PASSWORD '${APP_PASSWORD}'`);
+    await client.query(`ALTER ROLE nalara_worker PASSWORD '${WORKER_PASSWORD}'`);
     await client.query('COMMIT');
     await client.query(`CREATE DATABASE ${name} OWNER nalara_migrator`);
     await client.query(`REVOKE ALL ON DATABASE ${name} FROM PUBLIC`);
-    await client.query(`GRANT CONNECT ON DATABASE ${name} TO nalara_app`);
+    await client.query(`GRANT CONNECT ON DATABASE ${name} TO nalara_app, nalara_worker`);
   });
-  await withAdmin(name, (client) => client.query('GRANT USAGE ON SCHEMA public TO nalara_app'));
+  await withAdmin(name, (client) =>
+    client.query('GRANT USAGE ON SCHEMA public TO nalara_app, nalara_worker'),
+  );
   return {
     name,
     migratorUrl: urlFor(adminUrl, 'nalara_migrator', MIGRATOR_PASSWORD, name),
     appUrl: urlFor(adminUrl, 'nalara_app', APP_PASSWORD, name),
+    workerUrl: urlFor(adminUrl, 'nalara_worker', WORKER_PASSWORD, name),
     drop: () =>
       withAdmin('postgres', (client) => client.query(`DROP DATABASE ${name} WITH (FORCE)`)).then(
         () => undefined,

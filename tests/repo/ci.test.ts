@@ -98,8 +98,13 @@ describe('CI workflow hardening', () => {
     expect(prod).toMatch(/no-new-privileges:true/);
     expect(prod).toMatch(/restart: unless-stopped/);
     // TEST-OPS-06 (static): every service inherits bounded json-file logs.
-    // db, migrate, api, web, caddy
-    expect(prod.match(/^ {4}<<: \*hardened$/gm)?.length).toBe(5);
+    // db, migrate, api, worker, web, caddy
+    expect(prod.match(/^ {4}<<: \*hardened$/gm)?.length).toBe(6);
+    // Only the worker joins the egress network (P2-02).
+    expect(prod.match(/networks: \[backend, egress\]/g)?.length).toBe(1);
+    expect(services.find((block) => block.startsWith('worker:'))).toMatch(
+      /networks: \[backend, egress\]/,
+    );
     expect(prod).toMatch(/driver: json-file\s*\n\s*options: \{ max-size: 10m, max-file: '3' \}/);
     expect(prod).not.toMatch(/docker\.sock|privileged:\s*true|network_mode:\s*host/);
     for (const dockerfile of ['apps/api/Dockerfile', 'apps/web/Dockerfile']) {
