@@ -99,3 +99,55 @@ export async function publicCorrections(): Promise<PublicCorrectionEntry[] | nul
   const body = await publicGet<{ corrections: PublicCorrectionEntry[] }>('/corrections');
   return body?.corrections ?? null;
 }
+
+// --- NALARA Data (P4-04) ---
+
+export interface PublicDatasetSummary {
+  readonly slug: string;
+  readonly title: string;
+  readonly description: string;
+  readonly unit: string;
+  readonly frequency: string;
+  readonly publishedVersion: number;
+  readonly publishedAt: string;
+  readonly organization: string;
+  readonly sourceName: string;
+}
+
+export interface PublicDatasetVersion {
+  readonly version: number;
+  readonly retrievedOn: string;
+  readonly fileUrl: string;
+  readonly spec: Readonly<Record<string, unknown>>;
+  readonly revisionNote: string;
+  readonly observationCount: number;
+  readonly series: readonly string[];
+  readonly periodStart: string;
+  readonly periodEnd: string;
+  readonly rawSha256: string;
+  readonly observationsSha256: string;
+  readonly createdAt: string;
+}
+
+export interface PublicDataset {
+  readonly dataset: PublicDatasetSummary & {
+    readonly sourcePageUrl: string;
+    readonly methodology: string;
+    readonly licenseStatus: string;
+    readonly licenseNote: string | null;
+    readonly attribution: string | null;
+    readonly downloadable: boolean;
+  };
+  readonly versions: readonly PublicDatasetVersion[];
+  readonly observations: readonly { series: string | null; period: string; value: number }[];
+}
+
+/** null while the site is not launched (ADR-015). */
+export async function publicDatasets(): Promise<PublicDatasetSummary[] | null> {
+  return (await publicGet<{ datasets: PublicDatasetSummary[] }>('/datasets'))?.datasets ?? null;
+}
+
+export async function publicDataset(slug: string): Promise<PublicDataset | null> {
+  // The slug comes from the URL: encode it so it can only ever be one path segment.
+  return publicGet<PublicDataset>(`/datasets/${encodeURIComponent(slug)}`);
+}

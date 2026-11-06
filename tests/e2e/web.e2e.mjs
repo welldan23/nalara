@@ -1143,7 +1143,11 @@ try {
       const page = signedIn;
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto(`${WEB}/os`);
-      await page.getByRole('link', { name: 'Data', exact: true }).click();
+      // The public masthead has a "Data" link too (P4-04): use the OS navigation.
+      await page
+        .getByRole('navigation', { name: 'NALARA OS' })
+        .getByRole('link', { name: 'Data', exact: true })
+        .click();
       await page.waitForURL(`${WEB}/os/data`);
       await page.getByRole('link', { name: 'Dataset baru' }).click();
       await page.getByLabel('Slug (untuk alamat /data/…)').fill('kurs-test');
@@ -1279,6 +1283,53 @@ try {
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       );
       assert(overflow <= 0, `chart preview overflows by ${overflow}px`);
+    },
+  );
+
+  await check(
+    'TEST-P4-04',
+    'public data pages: chart, source, rules, hashes, versions, CSV; drafts are 404',
+    async () => {
+      const page = await newPage();
+      await page.goto(`${WEB}/data`);
+      // TEST-P4-02 published kurs-test v1.
+      await page.getByRole('link', { name: 'Kurs rupiah bulanan (TEST)' }).click();
+      await page.waitForURL(`${WEB}/data/kurs-test`);
+      await page.getByRole('heading', { name: 'Kurs rupiah bulanan (TEST)', level: 1 }).waitFor();
+      const svg = page.locator('svg[role="img"]').first();
+      assert((await svg.locator('title').textContent())?.includes('rupiah per USD'), 'chart title');
+      await page.getByRole('heading', { name: /Cara data diolah \(versi 1\)/ }).waitFor();
+      assert(
+        (await page.getByText('Ambil periode (bulanan) dari kolom "Bulan"').count()) === 1,
+        'transform rules not described',
+      );
+      assert((await page.getByText(/SHA-256 file asli: [0-9a-f]{64}/).count()) === 1, 'raw hash');
+      assert(
+        (await page.getByTestId('dataset-versions').getByText('Versi pertama (TEST).').count()) ===
+          1,
+        'version history',
+      );
+      const href = await page
+        .getByRole('link', { name: 'Unduh data hasil olahan (CSV)' })
+        .getAttribute('href');
+      const csv = await page.request.get(`${WEB}${href}`);
+      assert(csv.status() === 200, `csv ${csv.status()}`);
+      assert(
+        (await csv.text()) === 'series,period,value\r\n,2026-09,16250.5\r\n,2026-10,16310\r\n',
+        'csv content',
+      );
+      await shot(page, '20-data-publik');
+      const sitemap = await (await fetch(`${WEB}/sitemap.xml`)).text();
+      assert(sitemap.includes(`${WEB}/data/kurs-test`), 'dataset missing from the sitemap');
+      const missing = await page.goto(`${WEB}/data/tidak-ada`);
+      assert(missing?.status() === 404, `unknown dataset answered ${missing?.status()}`);
+
+      await page.setViewportSize({ width: 320, height: 640 });
+      await page.goto(`${WEB}/data/kurs-test`);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      assert(overflow <= 0, `public dataset page overflows by ${overflow}px`);
     },
   );
 
@@ -1424,4 +1475,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 25 ? 0 : 1);
+process.exit(failed === 0 && results.length === 26 ? 0 : 1);
