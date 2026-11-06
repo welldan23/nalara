@@ -22,7 +22,7 @@ x-hardened: &hardened
 services:
   db:
     <<: *hardened
-    image: postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+    image: postgres:18.6-trixie@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
     # The official entrypoint drops to the postgres user; it needs these to do so.
     cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
     tmpfs: [/tmp, /var/run/postgresql]
@@ -85,7 +85,13 @@ services:
     # `agent`: the agent runner reaches the tool gateway here, and nothing else (P3-05).
     networks: [backend, frontend, agent]
     healthcheck:
-      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:4000/health/ready']
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4000/health/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
       interval: 10s
       timeout: 3s
       retries: 6
@@ -175,7 +181,13 @@ services:
       frontend:
         ipv4_address: 172.31.250.11
     healthcheck:
-      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/']
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
       interval: 10s
       timeout: 3s
       retries: 6

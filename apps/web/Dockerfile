@@ -2,7 +2,7 @@
 # NALARA web image (P0-012), Next.js standalone output. Build from the repository root:
 #   docker build -f apps/web/Dockerfile -t nalara-web:local .
 # No secret is ever passed as ARG/ENV (see apps/api/Dockerfile for the optional npm_ca secret).
-ARG NODE_IMAGE=node:24.22.2-alpine3.24@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85
+ARG NODE_IMAGE=node:24.22.2-trixie-slim@sha256:0820eaa85e07d0490446dd01d14707e17e6108a36988cf374899cd057eb3812d
 
 FROM ${NODE_IMAGE} AS build
 WORKDIR /repo
