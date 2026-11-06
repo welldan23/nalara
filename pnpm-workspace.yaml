@@ -8,3 +8,9 @@ minimumReleaseAge: 10080
 
 # Refuse to install on a Node.js version outside package.json "engines" (TEST-REPO-04).
 engineStrict: true
+
+# Security overrides for transitive dependencies (each with its reason).
+overrides:
+  # GHSA-px8p-9vwx-vf98: fflate <0.7.5 can loop forever on malformed ZIP64 input. It comes in
+  # through satori (Kartu NALARA). 0.7.5 is the patched release on the same minor line.
+  fflate@<0.7.5: 0.7.5

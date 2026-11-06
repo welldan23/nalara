@@ -12,14 +12,20 @@ import { registerMediaRoutes } from './media.ts';
 import { registerProposalRoutes } from './proposals.ts';
 import { registerAiRoutes } from './ai.ts';
 import { registerDatasetRoutes } from './datasets.ts';
+import { registerCardRoutes } from './cards.ts';
 import { registerSourceRoutes } from './sources.ts';
 
 export interface OsRoutesOptions {
   readonly guards: AuthGuards;
   readonly db: NodePgDatabase<typeof schema>;
+  /** Public origin for links printed on Instagram cards; null in tests without one. */
+  readonly origin?: string | null;
 }
 
-export const osRoutes: FastifyPluginAsync<OsRoutesOptions> = (app, { guards, db }) => {
+export const osRoutes: FastifyPluginAsync<OsRoutesOptions> = (
+  app,
+  { guards, db, origin = null },
+) => {
   app.addHook('preHandler', guards.requireFounder);
   enforcePolicy(app);
 
@@ -31,5 +37,6 @@ export const osRoutes: FastifyPluginAsync<OsRoutesOptions> = (app, { guards, db 
   registerProposalRoutes(app, { db, guards });
   registerAiRoutes(app, { db, guards });
   registerDatasetRoutes(app, { db, guards });
+  registerCardRoutes(app, { db, origin });
   return Promise.resolve();
 };

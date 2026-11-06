@@ -55,6 +55,35 @@ Rana adalah burung hantu berjubah dengan lambang tiga lapis NALARA, karya founde
   - garis emas pendek `#B08D52` di bawah judul utama. Garis ini hiasan saja, tidak pernah jadi warna teks.
 - **Aturan pakai:** gambar Rana membawa warna kertasnya sendiri, jadi **hanya ditaruh di atas `--paper`**, tidak di atas lembar putih, map, atau footer gelap. Di tempat yang sudah ada tulisannya, Rana dianggap hiasan (alt kosong). Di halaman Tentang, gambarnya punya alt text.
 - **File di `apps/web/public/maskot/*.webp` masih versi sementara.** Potongannya diambil dari screenshot lembar maskot, jadi resolusinya rendah. Ganti dengan file asli resolusi tinggi dari founder, PNG atau WebP per pose.
+## Kartu NALARA (kartu Instagram, 2026-11-06)
+
+Carousel IG 1080×1350 yang dibuat otomatis dari **artikel yang sudah terbit**. Cara pakainya: buka OS → Newsroom → buka artikel → "Bikin kartu IG", unduh tiap slide, lalu salin caption-nya.
+
+- **Slide:**
+  1. Sampul: judul, ringkasan, cap verifikasi, dan foto cover kalau artikelnya punya gambar berlisensi.
+  2. Angka: dari blok `:::angka`, lengkap dengan periode dan "Bukti: penerbit".
+  3. Poin: tiap subjudul plus paragraf pertamanya.
+  4. Kutipan.
+  5. Barang bukti: sumber-sumbernya, "Baca lengkap", dan Rana yang sedang menjelaskan.
+- **Batas jumlah:** maksimal 7 slide. Sampul dan barang bukti selalu ada.
+- **Caption:** judul, ringkasan, poin dan angka, semua link sumber, kredit foto, link artikel, dan hashtag.
+- **Font:**
+  - judul pakai Libre Caslon Text Bold (pilihan founder: B), karena garisnya cukup tebal untuk feed;
+  - angka besar pakai Caslon Display;
+  - isi pakai Literata;
+  - label pakai Courier Prime.
+
+  Semuanya OFL-1.1 dan dibundel di API, jadi tidak ada request ke luar.
+- **Warna:** palet sepia Rana, sama dengan web.
+- **Batasan:**
+  - Isi kartu tidak pernah ditulis AI.
+  - Kartu tidak pernah memuat catatan editor.
+  - Foto cover hanya dari media yang boleh tampil ke pembaca.
+  - Kartu hanya untuk artikel terbit; kalau bukan, hasilnya 404.
+- **Belum ada:**
+  - Kirim ke Telegram dengan tombol "Sudah diupload": menunggu bot (D-26).
+  - Slide grafik dari dataset.
+  - Varian "Kerja sama" untuk sponsor.
 
 ## Yang masih perlu dibuat
 

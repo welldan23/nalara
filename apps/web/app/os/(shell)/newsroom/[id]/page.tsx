@@ -1,6 +1,7 @@
 // Edit a draft (P1-02) or correct a published article (P1-07): editor with the latest revision,
 // corrections, status events and the full revision history.
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { ApiUnauthorized, getArticle, listCategories } from '../../../../../lib/api';
@@ -41,6 +42,11 @@ export default async function EditDraftPage({
       <p className="muted">
         {STATUS_LABELS[article.status] ?? article.status} · slug <code>{article.slug}</code>
       </p>
+      {article.status === 'published' && (
+        <p>
+          <Link href={`/os/kartu/${article.slug}`}>Bikin kartu IG</Link>
+        </p>
+      )}
       <Editor
         articleId={article.id}
         version={article.currentVersion}

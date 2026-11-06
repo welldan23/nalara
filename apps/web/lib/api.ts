@@ -408,3 +408,18 @@ export async function getDataset(
 ): Promise<{ dataset: Dataset; versions: DatasetVersion[] } | null> {
   return osGet(`/datasets/${encodeURIComponent(id)}`, cookieHeader);
 }
+
+/** Instagram cards of a published article (Kartu NALARA). */
+export interface CardDeck {
+  readonly slug: string;
+  readonly title: string;
+  readonly slides: readonly { readonly number: number; readonly kind: string }[];
+  readonly caption: string;
+}
+
+export async function getCardDeck(
+  cookieHeader: string | null,
+  slug: string,
+): Promise<CardDeck | null> {
+  return osGet(`/cards/${encodeURIComponent(slug)}`, cookieHeader);
+}

@@ -605,6 +605,36 @@ try {
   );
 
   await check(
+    'TEST-CARDS-01',
+    'Instagram cards: founder gets PNG slides and a caption for a published article',
+    async () => {
+      assert(signedIn !== null && publishedEditorUrl !== null, 'needs the article from TEST-P1-03');
+      const page = signedIn;
+      await page.goto(publishedEditorUrl);
+      await page.getByRole('link', { name: 'Bikin kartu IG' }).click();
+      await page.waitForURL(`${WEB}/os/kartu/alur-terbit`);
+      const slides = page.getByTestId('card-slides').locator('img');
+      assert((await slides.count()) >= 3, 'fewer than three slides');
+      await page.waitForFunction(
+        () =>
+          [...document.querySelectorAll('[data-testid="card-slides"] img')].every(
+            (img) => img instanceof HTMLImageElement && img.complete && img.naturalWidth === 1080,
+          ),
+        null,
+        { timeout: 30_000 },
+      );
+      const caption = await page.getByLabel('Caption Instagram').inputValue();
+      for (const text of ['Alur terbit (revisi)', 'Barang bukti:', 'Badan Pusat Statistik']) {
+        assert(caption.includes(text), `caption misses "${text}"`);
+      }
+      await shot(page, '21-kartu-ig');
+      // A reader without a session gets nothing.
+      const anonymous = await fetch(`${WEB}/api/v1/os/cards/alur-terbit/1.png`);
+      assert(anonymous.status === 401, `cards without a session answered ${anonymous.status}`);
+    },
+  );
+
+  await check(
     'TEST-P1-08',
     'SEO after launch: robots, sitemap, RSS, canonical, Open Graph',
     async () => {
@@ -1477,4 +1507,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 26 ? 0 : 1);
+process.exit(failed === 0 && results.length === 27 ? 0 : 1);
