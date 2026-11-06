@@ -59,8 +59,10 @@ export default async function DatasetPage({
 
   return (
     <article className="reading">
-      <p className="kicker">
-        <Link href="/data">Data</Link> · {dataset.organization}
+      <p className="topic">
+        <Link href="/data">Data</Link>
+        <span className="topic-sep" aria-hidden="true" />
+        <span>{dataset.organization}</span>
       </p>
       <h1>{dataset.title}</h1>
       {dataset.description !== '' && <p className="dek">{dataset.description}</p>}
@@ -133,7 +135,7 @@ export default async function DatasetPage({
             <dt>Lisensi</dt>
             <dd>
               {LICENSE_LABELS[dataset.licenseStatus] ?? dataset.licenseStatus}
-              {dataset.attribution !== null && ` · ${dataset.attribution}`}
+              {dataset.attribution !== null && `. ${dataset.attribution}`}
             </dd>
           </div>
         </dl>
@@ -193,13 +195,15 @@ export default async function DatasetPage({
             <li key={version.version}>
               <p className="kicker">
                 Versi {version.version}
-                {version.version === dataset.publishedVersion ? ' · yang tampil sekarang' : ''} ·
-                diambil {formatDate(`${version.retrievedOn}T00:00:00Z`)}
+                {version.version === dataset.publishedVersion && (
+                  <span className="badge">Yang tampil sekarang</span>
+                )}
+              </p>
+              <p className="muted">
+                Diambil {formatDate(`${version.retrievedOn}T00:00:00Z`)}. {version.observationCount}{' '}
+                angka, {version.periodStart} sampai {version.periodEnd}.
               </p>
               <p>{version.revisionNote}</p>
-              <p className="muted">
-                {version.observationCount} angka · {version.periodStart} sampai {version.periodEnd}
-              </p>
               {dataset.downloadable && version.version !== dataset.publishedVersion && (
                 <p>
                   <a

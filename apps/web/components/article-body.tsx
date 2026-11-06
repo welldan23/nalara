@@ -260,19 +260,22 @@ export function CitationList({
       <ol>
         {citations.map((citation, index) => (
           <li key={citation.id} id={`sumber-${String(index + 1)}`}>
-            {isSafeHref(citation.url) ? (
-              <a href={citation.url} rel="noopener noreferrer nofollow">
-                {citation.title === '' ? citation.url : citation.title}
-              </a>
-            ) : (
-              <span>{citation.title}</span>
-            )}{' '}
-            — {citation.publisher}
-            {citation.primary && <span className="badge">sumber primer</span>}
-            <span className="muted">
-              {' '}
-              · diakses {accessFormat.format(new Date(`${citation.accessedAt}T00:00:00Z`))}
-            </span>
+            <p className="cite-publisher">
+              {citation.publisher}
+              {citation.primary && <span className="badge">Sumber primer</span>}
+            </p>
+            <p className="cite-title">
+              {isSafeHref(citation.url) ? (
+                <a href={citation.url} rel="noopener noreferrer nofollow">
+                  {citation.title === '' ? citation.url : citation.title}
+                </a>
+              ) : (
+                <span>{citation.title}</span>
+              )}
+            </p>
+            <p className="cite-meta">
+              Diakses {accessFormat.format(new Date(`${citation.accessedAt}T00:00:00Z`))}
+            </p>
           </li>
         ))}
       </ol>

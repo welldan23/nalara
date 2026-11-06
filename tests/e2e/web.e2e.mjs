@@ -494,6 +494,7 @@ try {
     const page = await newPage();
     const home = await page.goto(`${WEB}/`);
     assert(home?.status() === 200, `home status ${home?.status()}`);
+    await shot(page, '10a-public-home');
     await page.getByRole('link', { name: 'Alur terbit (revisi)' }).click();
     await page.waitForURL(`${WEB}/artikel/alur-terbit`);
     assert((await page.locator('h1').textContent()) === 'Alur terbit (revisi)', 'article title');
@@ -535,6 +536,7 @@ try {
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       );
       assert(overflow <= 0, `${path} overflows by ${overflow}px`);
+      await shot(page, `10b-320${path === '/' ? '-home' : path.replaceAll('/', '-')}`);
     }
   });
 

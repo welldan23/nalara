@@ -69,7 +69,7 @@ export default async function TopicPage({
       {page.articles.length === 0 ? (
         <p className="muted">Belum ada artikel di topik ini.</p>
       ) : (
-        <div className="cards">
+        <div className="entries">
           {page.articles.map((article) => (
             <ArticleCard key={article.slug} article={article} />
           ))}
