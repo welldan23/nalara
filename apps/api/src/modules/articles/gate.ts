@@ -15,12 +15,19 @@ export type GateBlocker =
   /** Publish only: the current revision is not exactly the approved one (set by the workflow). */
   | 'revision_changed_after_approval'
   /** An image without a known licence and credit line, or missing from the library (P1-09). */
-  | 'image_license_missing';
+  | 'image_license_missing'
+  /** A chart of a dataset version that does not exist or is not published (P4-03). */
+  | 'chart_dataset_unpublished';
 
 /** What the gate needs to know about each image an article uses. */
 export interface GateMedia {
   readonly license: string | null;
   readonly attribution: string | null;
+}
+
+/** What the gate needs to know about each chart an article uses (P4-03). */
+export interface GateChart {
+  readonly published: boolean;
 }
 
 export interface GateResult {
@@ -34,6 +41,8 @@ export function publishGate(
     readonly sourceException?: string | null;
     /** Every image the body references, by id. A missing entry blocks publishing. */
     readonly media?: ReadonlyMap<string, GateMedia>;
+    /** Every chart the body references, by `dataset@version`. A missing entry blocks. */
+    readonly charts?: ReadonlyMap<string, GateChart>;
   } = {},
 ): GateResult {
   const verification = verificationLevel(content.citations);
@@ -59,5 +68,12 @@ export function publishGate(
     return asset?.license == null || asset.attribution == null;
   });
   if (unlicensed) blockers.push('image_license_missing');
+  const charts = options.charts ?? new Map<string, GateChart>();
+  const unpublishedChart = content.body.some(
+    (block) =>
+      block.type === 'chart' &&
+      charts.get(`${block.dataset}@${String(block.version)}`)?.published !== true,
+  );
+  if (unpublishedChart) blockers.push('chart_dataset_unpublished');
   return { verification, blockers };
 }

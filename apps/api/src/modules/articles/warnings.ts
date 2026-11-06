@@ -46,6 +46,8 @@ function blockText(block: Block): string {
       return `${block.label} ${block.value} ${block.unit}`;
     case 'image':
       return '';
+    case 'chart':
+      return block.title;
   }
 }
 

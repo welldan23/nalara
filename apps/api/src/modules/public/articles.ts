@@ -10,10 +10,14 @@ import type { schema } from '../../db/schema.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { Block, Citation } from '../articles/content.ts';
 import { verificationLevel } from '../articles/verification.ts';
+import { chartsForBody } from '../data/charts.ts';
+import type { ChartData } from '../data/charts.ts';
 import { mediaForBody } from '../media/media.ts';
 import type { VerificationLevel } from '../articles/verification.ts';
 
 type Db = NodePgDatabase<typeof schema>;
+
+export type PublicChart = Omit<ChartData, 'published'>;
 
 export const PUBLIC_PAGE_MAX = 30;
 
@@ -56,6 +60,8 @@ export interface PublicArticle extends PublicArticleSummary {
   readonly corrections: PublicCorrection[];
   /** Images the body uses, by id (P1-09). Served from /api/v1/public/media/:id. */
   readonly media: Record<string, PublicMedia>;
+  /** Charted dataset versions, by `dataset@version` (P4-03). */
+  readonly charts: Record<string, PublicChart>;
 }
 
 export interface PublicMedia {
@@ -214,10 +220,20 @@ export async function publicArticle(db: Db, slug: string): Promise<PublicArticle
       aiGenerated: asset.aiGenerated,
     };
   }
+  // Charts of published dataset versions only; the publish gate required them, and a dataset
+  // retracted since simply stops being drawn (P4-03).
+  const charts: Record<string, PublicChart> = {};
+  for (const [key, chart] of await chartsForBody(db, body)) {
+    if (!chart.published) continue;
+    charts[key] = Object.fromEntries(
+      Object.entries(chart).filter(([field]) => field !== 'published'),
+    ) as PublicChart;
+  }
   return {
     ...toSummary(row),
     body,
     media,
+    charts,
     citations: citations.map((citation) => ({
       id: citation.id,
       url: citation.url,

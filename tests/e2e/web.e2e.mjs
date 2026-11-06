@@ -1209,6 +1209,80 @@ try {
   );
 
   await check(
+    'TEST-P4-03',
+    'chart block: accessible SVG with data table and source, no script, 320 px',
+    async () => {
+      assert(signedIn !== null, 'needs the signed-in page from TEST-WEB-03b');
+      const page = signedIn;
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto(`${WEB}/os/newsroom/baru`);
+      await page.getByLabel('Judul').fill('Kurs rupiah Oktober (TEST)');
+      await page.getByLabel('Ringkasan (dek)').fill('TEST fixture, bukan artikel nyata.');
+      // TEST-P4-02 published kurs-test v1.
+      await page
+        .getByLabel('Isi', { exact: true })
+        .fill(
+          [
+            'Kurs rupiah melemah tipis.',
+            '',
+            ':::grafik',
+            'data: kurs-test@1',
+            'jenis: garis',
+            'judul: Kurs rupiah <img src=x onerror="window.__pwned=1"> per dolar AS',
+            ':::',
+            '',
+            ':::grafik',
+            'data: kurs-test@1',
+            'jenis: batang',
+            'judul: Kurs rupiah per dolar AS, batang',
+            ':::',
+            '',
+            ':::grafik',
+            'data: tidak-ada@9',
+            'jenis: garis',
+            'judul: Dataset yang tidak ada',
+            ':::',
+          ].join('\n'),
+        );
+      await page.getByRole('button', { name: 'Pratinjau' }).click();
+      const preview = page.locator('.editor-preview');
+      // The title line with markup is refused as HTML, so only the bar chart and the missing one remain.
+      await preview.getByText('HTML tidak didukung').waitFor({ timeout: 10_000 });
+      const chart = preview.getByTestId('chart').first();
+      await chart.waitFor({ timeout: 10_000 });
+      const svg = chart.locator('svg[role="img"]').first();
+      assert(
+        (await svg.locator('title').textContent()) === 'Kurs rupiah per dolar AS, batang',
+        'svg title',
+      );
+      const description = (await svg.locator('desc').textContent()) ?? '';
+      assert(
+        /rupiah per USD/.test(description) && /2026-10/.test(description),
+        `desc: ${description}`,
+      );
+      assert((await chart.locator('rect.chart-bar').count()) === 2, 'two bars expected');
+      assert((await chart.locator('script').count()) === 0, 'script inside chart');
+      await chart.getByText('Lihat data (2 angka)').click();
+      assert(await chart.getByRole('cell', { name: '16.310' }).isVisible(), 'data table value');
+      const source = (await chart.locator('.chart-source').textContent()) ?? '';
+      assert(/Bank Indonesia/.test(source) && /versi data 1/.test(source), `source: ${source}`);
+      assert(
+        (await preview.getByText('Grafik: dataset tidak-ada versi 9 tidak ditemukan.').count()) ===
+          1,
+        'missing dataset not explained',
+      );
+      assert((await page.evaluate(() => window.__pwned)) === undefined, 'markup ran');
+      await shot(page, '19-grafik');
+
+      await page.setViewportSize({ width: 320, height: 640 });
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      assert(overflow <= 0, `chart preview overflows by ${overflow}px`);
+    },
+  );
+
+  await check(
     'TEST-WEB-04',
     'invalid or expired session cookie redirects (server-side check)',
     async () => {
@@ -1350,4 +1424,4 @@ for (const result of results) {
 const failed = results.filter((result) => result.status !== 'PASS').length;
 console.info(`\n${results.length - failed}/${results.length} passed`);
 // Every check must have run: a crash that skips some is a failure, never a partial pass.
-process.exit(failed === 0 && results.length === 24 ? 0 : 1);
+process.exit(failed === 0 && results.length === 25 ? 0 : 1);
