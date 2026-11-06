@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Rana } from '../../components/brand';
 import { formatDate } from '../../components/public';
 import { FREQUENCY_LABELS } from '../../lib/data-messages';
 import { publicDatasets } from '../../lib/public-api';
@@ -27,7 +28,10 @@ export default async function DataPage() {
       <h1>Data</h1>
       <p className="dek">{DESCRIPTION}</p>
       {datasets.length === 0 ? (
-        <p className="muted">Belum ada dataset yang terbit.</p>
+        <div className="empty-state">
+          <Rana pose="memeriksa" className="empty-state-art" />
+          <p className="muted">Belum ada dataset yang terbit. Rana masih memeriksa angkanya.</p>
+        </div>
       ) : (
         <ul className="inbox-list" data-testid="public-datasets">
           {datasets.map((dataset) => (

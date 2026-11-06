@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { PublicArticleSummary } from '../lib/public-api';
-import { CaraMenelusuri, Stamp, joinNames } from './brand';
+import { CaraMenelusuri, Rana, Stamp, joinNames } from './brand';
 
 export const TYPE_BADGES: Readonly<Record<string, string | null>> = {
   explainer: null,
@@ -95,11 +95,14 @@ export function ComingSoon(): ReactNode {
   return (
     <>
       <section className="hero">
-        <h1 className="hero-title">Biar semua paham.</h1>
-        <p className="hero-text">
-          NALARA menelusuri berita, kebijakan, dan angka di Indonesia sampai ke sumbernya, lalu
-          menjelaskannya dengan bahasa sehari-hari. Berkas pertama sedang ditelusuri.
-        </p>
+        <div className="hero-copy">
+          <h1 className="hero-title">Biar semua paham.</h1>
+          <p className="hero-text">
+            NALARA menelusuri berita, kebijakan, dan angka di Indonesia sampai ke sumbernya, lalu
+            menjelaskannya dengan bahasa sehari-hari. Berkas pertama sedang ditelusuri.
+          </p>
+        </div>
+        <Rana pose="rana" className="hero-art" priority />
       </section>
       <CaraMenelusuri />
     </>

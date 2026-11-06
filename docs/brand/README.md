@@ -33,6 +33,29 @@ Permintaan founder: nuansa detektif. Supaya tetap terpercaya dan tidak jadi kost
 - **Yang sengaja tidak dipakai:** siluet topi, pipa, atau kaca pembesar; tekstur kertas lusuh; benang merah. Hiasan yang dipakai hanya map dan cap.
 - **Simbol kecil:** `BrandMark` (`apps/web/components/brand.tsx`) menggambar tiga lapis logo dalam satu warna, seperti logo aslinya.
 
+## Maskot: Rana (2026-11-06)
+
+Rana adalah burung hantu berjubah dengan lambang tiga lapis NALARA, karya founder. Gaya gambarnya ukiran sepia. Ia simbol rasa ingin tahu, ketelitian, dan kebijaksanaan.
+
+- **Pose dan tempatnya:**
+
+  | Pose | Tempat di web |
+  |---|---|
+  | Utama, di atas buku | Hero sebelum launch, halaman Tentang ("Kenalan dengan Rana") |
+  | Membaca | Beranda |
+  | Menelusuri, Memeriksa, Menjelaskan | "Cara kami menelusuri" |
+  | Bertanya | Halaman 404 |
+  | Beristirahat | Topik kosong |
+  | Memeriksa | Data kosong |
+
+- **Warna mengikuti lembar Rana:**
+  - kertas krem `#E7E0D9`, sama persis dengan latar gambar Rana, jadi gambar menyatu tanpa kotak;
+  - tinta sepia `#241E19`;
+  - aksen merah tua `#7E2B1F`;
+  - garis emas pendek `#B08D52` di bawah judul utama. Garis ini hiasan saja, tidak pernah jadi warna teks.
+- **Aturan pakai:** gambar Rana membawa warna kertasnya sendiri, jadi **hanya ditaruh di atas `--paper`**, tidak di atas lembar putih, map, atau footer gelap. Di tempat yang sudah ada tulisannya, Rana dianggap hiasan (alt kosong). Di halaman Tentang, gambarnya punya alt text.
+- **File di `apps/web/public/maskot/*.webp` masih versi sementara.** Potongannya diambil dari screenshot lembar maskot, jadi resolusinya rendah. Ganti dengan file asli resolusi tinggi dari founder, PNG atau WebP per pose.
+
 ## Yang masih perlu dibuat
 
 1. **Versi vektor logo lengkap yang disederhanakan** (tiga jajaran genjang plus siluet pohon) untuk favicon dan ikon aplikasi, ditinjau founder. Simbol tiga lapis di masthead sudah ada, tetapi bukan pengganti logo.

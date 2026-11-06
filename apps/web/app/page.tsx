@@ -1,6 +1,6 @@
 // Public homepage (P1-06): latest published articles. Before launch (ADR-015) the API answers
 // 404 for everything public, and this page shows the placeholder instead.
-import { CaraMenelusuri } from '../components/brand';
+import { CaraMenelusuri, Rana } from '../components/brand';
 import { ArticleCard, ComingSoon, LeadArticle } from '../components/public';
 import type { Metadata } from 'next';
 import { publicArticles } from '../lib/public-api';
@@ -29,11 +29,16 @@ export default async function HomePage() {
   const [lead, ...rest] = latest.articles;
   return (
     <div className="front">
-      <h1 className="front-title">Biar semua paham.</h1>
-      <p className="front-text">
-        Kami menelusuri klaim sampai ke sumbernya, lalu menjelaskannya. Buktinya selalu kami
-        lampirkan.
-      </p>
+      <div className="front-head">
+        <div>
+          <h1 className="front-title">Biar semua paham.</h1>
+          <p className="front-text">
+            Kami menelusuri klaim sampai ke sumbernya, lalu menjelaskannya. Buktinya selalu kami
+            lampirkan.
+          </p>
+        </div>
+        <Rana pose="membaca" className="front-art" priority />
+      </div>
       <div className="front-grid">
         {lead !== undefined && <LeadArticle article={lead} />}
         {rest.length > 0 && (
