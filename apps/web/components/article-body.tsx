@@ -2,6 +2,10 @@
 // anywhere on this path: React escapes all text, and links are re-checked to be https before
 // they become an href (defence in depth; the API already refuses anything else).
 import type { ReactNode } from 'react';
+import { ChartFigure } from './chart';
+import type { ChartBlock, ChartRender } from './chart';
+
+export type { ChartRender } from './chart';
 
 export type Inline =
   | {
@@ -29,7 +33,8 @@ export type Block =
       readonly label: string;
       readonly citationId: string;
     }
-  | { readonly type: 'image'; readonly mediaId: string };
+  | { readonly type: 'image'; readonly mediaId: string }
+  | ChartBlock;
 
 /** What the body needs to draw one library image (P1-09). */
 export interface MediaRender {
@@ -43,6 +48,8 @@ export interface MediaRender {
 
 interface ImageOptions {
   readonly media: Readonly<Record<string, MediaRender>>;
+  /** Charted dataset versions by `dataset@version` (P4-03). */
+  readonly charts: Readonly<Record<string, ChartRender>>;
   /** URL of an image's bytes: the public route for readers, the founder route for previews. */
   readonly imageSrc: (mediaId: string) => string;
   /** Previews say so when an image is missing; readers just do not see it. */
@@ -123,10 +130,12 @@ function ImageView({
 
 function BlockView({
   block,
+  index,
   citations,
   images,
 }: {
   readonly block: Block;
+  readonly index: number;
   readonly citations: readonly CitationView[];
   readonly images: ImageOptions;
 }): ReactNode {
@@ -177,6 +186,15 @@ function BlockView({
       );
     case 'image':
       return <ImageView mediaId={block.mediaId} images={images} />;
+    case 'chart':
+      return (
+        <ChartFigure
+          block={block}
+          chart={images.charts[`${block.dataset}@${String(block.version)}`]}
+          id={`grafik-${String(index + 1)}`}
+          preview={images.preview}
+        />
+      );
   }
 }
 
@@ -206,20 +224,22 @@ export function ArticleBody({
   blocks,
   citations = [],
   media = {},
+  charts = {},
   imageSrc = publicImageSrc,
   preview = false,
 }: {
   readonly blocks: readonly Block[];
   readonly citations?: readonly CitationView[];
   readonly media?: Readonly<Record<string, MediaRender>>;
+  readonly charts?: Readonly<Record<string, ChartRender>>;
   readonly imageSrc?: (mediaId: string) => string;
   readonly preview?: boolean;
 }): ReactNode {
-  const images: ImageOptions = { media, imageSrc, preview };
+  const images: ImageOptions = { media, charts, imageSrc, preview };
   return (
     <div className="article-body">
       {blocks.map((block, index) => (
-        <BlockView key={index} block={block} citations={citations} images={images} />
+        <BlockView key={index} block={block} index={index} citations={citations} images={images} />
       ))}
     </div>
   );

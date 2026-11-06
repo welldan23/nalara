@@ -781,3 +781,99 @@ main:focus {
   font-size: 0.85rem;
   overflow-wrap: anywhere;
 }
+
+/* Charts (P4-03). Series differ by colour AND line style/marker, so colour is never the only cue. */
+.chart-figure {
+  margin: 1.5rem 0;
+}
+.chart-title {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
+.chart text {
+  font-size: 13px;
+  fill: var(--color-ink-muted);
+}
+.chart-grid line {
+  stroke: var(--color-ink-muted);
+  stroke-opacity: 0.25;
+}
+.chart-zero {
+  stroke: var(--color-ink);
+}
+.chart-series path {
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.chart-s0 {
+  --series: var(--color-forest);
+}
+.chart-s1 {
+  --series: #b5651d;
+}
+.chart-s2 {
+  --series: #3b5ba5;
+}
+.chart-s3 {
+  --series: #8a3b6f;
+}
+.chart-s4 {
+  --series: #5c6b2e;
+}
+.chart-s5 {
+  --series: #444444;
+}
+.chart-series path,
+.chart-legend line {
+  stroke: var(--series);
+}
+.chart-series circle,
+.chart-bar {
+  fill: var(--series);
+}
+.chart-s1 path,
+.chart-legend .chart-s1 line {
+  stroke-dasharray: 8 4;
+}
+.chart-s2 path,
+.chart-legend .chart-s2 line {
+  stroke-dasharray: 2 3;
+}
+.chart-s3 path,
+.chart-legend .chart-s3 line {
+  stroke-dasharray: 10 3 2 3;
+}
+.chart-s4 path,
+.chart-legend .chart-s4 line {
+  stroke-dasharray: 4 2;
+}
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0;
+}
+.chart-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.chart-legend line {
+  stroke-width: 3;
+}
+.chart-source {
+  font-size: 0.9rem;
+  color: var(--color-ink-muted);
+  overflow-wrap: anywhere;
+}
+.chart-data summary {
+  cursor: pointer;
+}

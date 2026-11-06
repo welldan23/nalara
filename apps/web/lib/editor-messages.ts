@@ -20,6 +20,11 @@ export const RULE_MESSAGES: Readonly<Record<string, string>> = {
   unknown: 'Topik tidak ditemukan.',
   invalid_format: 'Format slug tidak valid (huruf kecil, angka, tanda hubung).',
   stat_unclosed: 'Blok :::angka belum ditutup dengan baris :::',
+  chart_unclosed: 'Blok :::grafik belum ditutup dengan baris :::',
+  chart_field_unknown: 'Di blok :::grafik hanya ada data:, jenis:, dan judul:',
+  chart_field_missing: 'Blok :::grafik butuh data:, jenis:, dan judul: (minimal 3 huruf)',
+  chart_data_invalid: 'Tulis data: sebagai slug-dataset@versi, mis. inflasi-bulanan@2',
+  chart_kind_invalid: 'jenis: harus garis atau batang',
   stat_field_missing: 'Blok angka wajib berisi nilai, satuan, periode, label, dan sumber.',
   stat_field_unknown:
     'Isian tidak dikenal di blok angka (pakai nilai, satuan, periode, label, sumber).',
@@ -114,6 +119,8 @@ export const GATE_MESSAGES: Readonly<Record<string, string>> = {
   revision_changed_after_approval: 'Isi berubah setelah disetujui. Ajukan review lagi.',
   image_license_missing:
     'Ada gambar yang lisensi atau atribusinya belum diisi. Lengkapi di halaman Media.',
+  chart_dataset_unpublished:
+    'Ada grafik dari dataset (atau versi) yang belum terbit. Terbitkan dulu di halaman Data.',
 };
 
 export const EVENT_LABELS: Readonly<Record<string, string>> = {

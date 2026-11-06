@@ -6,7 +6,7 @@ import { useId, useState } from 'react';
 import type { SyntheticEvent } from 'react';
 import { ArticleBody, CitationList, previewImageSrc } from '../../../../components/article-body';
 import type { Citation, VerificationLevel } from '../../../../lib/api';
-import type { Block, MediaRender } from '../../../../components/article-body';
+import type { Block, ChartRender, MediaRender } from '../../../../components/article-body';
 import {
   TYPE_LABELS,
   WARNING_MESSAGES,
@@ -40,6 +40,7 @@ interface Preview {
   readonly blocks: Block[];
   readonly issues: { line: number; rule: string }[];
   readonly media: Readonly<Record<string, MediaRender>>;
+  readonly charts: Readonly<Record<string, ChartRender>>;
 }
 
 function today(): string {
@@ -165,7 +166,12 @@ export function Editor(props: {
         warnings: Warning[];
         verification: VerificationLevel;
       };
-      setPreview({ blocks: body.blocks, issues: body.issues, media: body.media });
+      setPreview({
+        blocks: body.blocks,
+        issues: body.issues,
+        media: body.media,
+        charts: body.charts,
+      });
       setWarnings(body.warnings);
       setVerification(body.verification);
     } catch {
@@ -569,6 +575,7 @@ export function Editor(props: {
                 blocks={preview.blocks}
                 citations={values.citations}
                 media={preview.media}
+                charts={preview.charts}
                 imageSrc={previewImageSrc}
                 preview
               />

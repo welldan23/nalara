@@ -29,6 +29,7 @@ import {
 } from '../modules/articles/workflow.ts';
 import type { TransitionAction } from '../modules/articles/workflow.ts';
 import { styleWarnings } from '../modules/articles/warnings.ts';
+import { chartsForBody } from '../modules/data/charts.ts';
 import { assertMediaExist, mediaForBody } from '../modules/media/media.ts';
 import { getEvidenceFile, latestEvidence, requestEvidence } from '../modules/evidence/evidence.ts';
 import type { AuthGuards } from '../plugins/auth.ts';
@@ -150,6 +151,7 @@ export function registerArticleRoutes(
     const revisions = await listRevisions(db, id);
     // Stored bodies were validated against the block schema when they were written.
     const media = await mediaForBody(db, article.current.body as Block[]);
+    const charts = await chartsForBody(db, article.current.body as Block[]);
     return {
       article,
       revisions: revisions.map((revision) => ({
@@ -172,9 +174,10 @@ export function registerArticleRoutes(
           body: article.current.body as Block[],
           citations: article.current.citations as Citation[],
         },
-        { sourceException: article.sourceException, media },
+        { sourceException: article.sourceException, media, charts },
       ).blockers,
       media: Object.fromEntries(media),
+      charts: Object.fromEntries(charts),
       // Stored citations were validated when the revision was written.
       evidence: await latestEvidence(
         db,
@@ -366,6 +369,8 @@ export function registerArticleRoutes(
         warnings: styleWarnings({ title: input.title, dek: input.dek, body: blocks }),
         // Images the preview can draw; an id missing here is not in the library.
         media: Object.fromEntries(await mediaForBody(db, blocks)),
+        // Charts the preview can draw, published or not (each says which, P4-03).
+        charts: Object.fromEntries(await chartsForBody(db, blocks)),
       };
     },
   );

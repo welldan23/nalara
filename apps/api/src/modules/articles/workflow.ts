@@ -18,6 +18,7 @@ import { insertRevision } from './articles.ts';
 import type { Actor } from './articles.ts';
 import { changeNoteSchema, contentSha256, revisionContentSchema } from './content.ts';
 import type { RevisionContent } from './content.ts';
+import { chartsForBody } from '../data/charts.ts';
 import { mediaForBody } from '../media/media.ts';
 import { publishGate } from './gate.ts';
 import type { GateBlocker } from './gate.ts';
@@ -139,10 +140,12 @@ export async function transition(
     let verification = publishGate(content).verification;
     // Licence and credit of every image, read in this transaction (P1-09).
     const media = await mediaForBody(tx, content.body);
+    // Every charted dataset version and whether it is published (P4-03), same transaction.
+    const charts = await chartsForBody(tx, content.body);
     const changes: Partial<typeof articles.$inferInsert> = { status: rule.to, updatedAt: now };
 
     if (action === 'approve') {
-      const gate = publishGate(content, { sourceException: exception, media });
+      const gate = publishGate(content, { sourceException: exception, media, charts });
       if (gate.blockers.length > 0) throw new GateBlockedError(gate.blockers);
       verification = gate.verification;
       Object.assign(changes, {
@@ -163,7 +166,11 @@ export async function transition(
       ) {
         throw new GateBlockedError(['revision_changed_after_approval']);
       }
-      const gate = publishGate(content, { sourceException: article.sourceException, media });
+      const gate = publishGate(content, {
+        sourceException: article.sourceException,
+        media,
+        charts,
+      });
       if (gate.blockers.length > 0) throw new GateBlockedError(gate.blockers);
       verification = gate.verification;
       Object.assign(changes, {
@@ -299,6 +306,7 @@ export async function correctPublished(
     const gate = publishGate(content, {
       sourceException: article.sourceException,
       media: await mediaForBody(tx, content.body),
+      charts: await chartsForBody(tx, content.body),
     });
     if (gate.blockers.length > 0) throw new GateBlockedError(gate.blockers);
 

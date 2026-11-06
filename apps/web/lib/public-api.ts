@@ -4,7 +4,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { forwardedFor } from './forwarded';
-import type { Block, CitationView, MediaRender } from '../components/article-body';
+import type { Block, ChartRender, CitationView, MediaRender } from '../components/article-body';
 import type { VerificationLevel } from './api';
 
 export interface PublicCategory {
@@ -33,6 +33,8 @@ export interface PublicArticle extends PublicArticleSummary {
   readonly corrections: readonly PublicCorrection[];
   /** Licensed images the body uses, by id (P1-09). */
   readonly media: Readonly<Record<string, MediaRender>>;
+  /** Charted dataset versions, by `dataset@version` (P4-03). */
+  readonly charts: Readonly<Record<string, ChartRender>>;
 }
 
 export interface PublicCorrection {

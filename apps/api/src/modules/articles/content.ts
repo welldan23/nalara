@@ -100,6 +100,19 @@ export const blockSchema = z.discriminatedUnion('type', [
   }),
   // An image from the media library (P1-09). Alt text, caption and credit live on the asset.
   z.strictObject({ type: z.literal('image'), mediaId: z.uuid() }),
+  // A chart of one NALARA Data version (P4-03, ADR-021): pinned to `dataset@version`, so a
+  // published article never changes when the dataset gets a new version.
+  z.strictObject({
+    type: z.literal('chart'),
+    dataset: z
+      .string()
+      .min(3)
+      .max(80)
+      .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/),
+    version: z.int().min(1).max(999_999),
+    kind: z.enum(['line', 'bar']),
+    title: plainText(200).min(3),
+  }),
 ]);
 
 export type Block = z.infer<typeof blockSchema>;

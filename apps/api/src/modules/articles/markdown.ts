@@ -19,6 +19,11 @@
 //   :::gambar             (an image from the media library, P1-09; alt text, caption and
 //   media: <id>            credit come from the library, so they are written in one place)
 //   :::
+//   :::grafik             (a chart of one NALARA Data version, P4-03; unit, period and source
+//   data: inflasi-bulanan@2  come from the dataset)
+//   jenis: garis          (garis = line, batang = bar)
+//   judul: Inflasi tahunan, 2025–2026
+//   :::
 import type { Block } from './content.ts';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -40,7 +45,12 @@ export type ParseRule =
   | 'stat_source_unknown'
   | 'image_unclosed'
   | 'image_field_unknown'
-  | 'image_media_invalid';
+  | 'image_media_invalid'
+  | 'chart_unclosed'
+  | 'chart_field_unknown'
+  | 'chart_field_missing'
+  | 'chart_data_invalid'
+  | 'chart_kind_invalid';
 
 export interface ParseIssue {
   readonly line: number;
@@ -281,6 +291,66 @@ export function parseMarkdown(source: string, options: ParseOptions = {}): Parse
         continue;
       }
       blocks.push({ type: 'image', mediaId });
+      continue;
+    }
+
+    if (raw.trim() === ':::grafik') {
+      const start = lineNo;
+      const fields: Partial<Record<'data' | 'jenis' | 'judul', string>> = {};
+      let closed = false;
+      let broken = false;
+      index += 1;
+      while (index < lines.length) {
+        const current = (lines[index] ?? '').trim();
+        index += 1;
+        if (current === ':::') {
+          closed = true;
+          break;
+        }
+        if (current === '') continue;
+        const match = /^([a-z]+)\s*:\s*(.*)$/.exec(current);
+        const key = match?.[1];
+        if (match === null || (key !== 'data' && key !== 'jenis' && key !== 'judul')) {
+          issues.push({ line: index, rule: 'chart_field_unknown' });
+          broken = true;
+          continue;
+        }
+        const bad = lineIssue(current);
+        if (bad !== null) {
+          issues.push({ line: index, rule: bad });
+          broken = true;
+          continue;
+        }
+        fields[key] = (match[2] ?? '').trim();
+      }
+      if (!closed) {
+        issues.push({ line: start, rule: 'chart_unclosed' });
+        continue;
+      }
+      if (broken) continue;
+      const { data, jenis, judul } = fields;
+      if (!data || !jenis || !judul || judul.length < 3) {
+        issues.push({ line: start, rule: 'chart_field_missing' });
+        continue;
+      }
+      const ref = /^([a-z0-9]+(?:-[a-z0-9]+)*)@([1-9]\d{0,5})$/.exec(data.toLowerCase());
+      if (ref === null || (ref[1] ?? '').length < 3 || (ref[1] ?? '').length > 80) {
+        issues.push({ line: start, rule: 'chart_data_invalid' });
+        continue;
+      }
+      const kind =
+        jenis.toLowerCase() === 'garis' ? 'line' : jenis.toLowerCase() === 'batang' ? 'bar' : null;
+      if (kind === null) {
+        issues.push({ line: start, rule: 'chart_kind_invalid' });
+        continue;
+      }
+      blocks.push({
+        type: 'chart',
+        dataset: ref[1] ?? '',
+        version: Number(ref[2]),
+        kind,
+        title: judul.slice(0, 200),
+      });
       continue;
     }
 
