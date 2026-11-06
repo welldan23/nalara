@@ -179,3 +179,9 @@ Satu entri per tiket. Rencana: [PLAN.md](PLAN.md).
     - 404;
     - 320 px.
 - Keputusan founder: tidak ada
+
+### P4-05 — Penerimaan Phase 4
+- Commit: lihat PR `docs/P4-05-acceptance`
+- File baru: `docs/phase-4/ACCEPTANCE.md`. Isinya: ringkasan, tiket, matriks tes, exit PRD v4 §11 (kemampuan PASS, dataset asli TERBUKA), gate G-1..G-2, risiko R-P4-01..05, dan kotak keputusan.
+- Test: `pnpm exec vitest run tests/repo` (cek tautan docs) → PASS
+- Keputusan founder: **PENDING**
