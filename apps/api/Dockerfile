@@ -41,6 +41,7 @@ COPY --from=prod-deps /repo/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /repo/apps/api/dist ./apps/api/dist
 COPY apps/api/package.json ./apps/api/package.json
 COPY db/migrations ./db/migrations
+COPY apps/api/assets ./apps/api/assets
 WORKDIR /app/apps/api
 USER node
 EXPOSE 4000

@@ -8,15 +8,18 @@ import satori from 'satori';
 import { CARD_HEIGHT, CARD_WIDTH } from './deck.ts';
 import type { CardContext, Slide } from './deck.ts';
 
-/** "Berkas perkara" at night: the same palette as the site, for a dark feed. */
+/** "Berkas perkara" with Rana: the same sepia palette as the site (lib/tokens.ts in the web app). */
 const C = {
-  night: '#17191F',
-  ink: '#EDE6D3',
-  muted: '#BDB6A4',
-  manila: '#DCC995',
-  manilaInk: '#1A1C22',
-  stamp: '#E2675C',
-  rule: '#3A3D46',
+  paper: '#E7E0D9',
+  ink: '#241E19',
+  muted: '#54493F',
+  manila: '#D9C7A0',
+  manilaInk: '#241E19',
+  stamp: '#7E2B1F',
+  accent: '#7E2B1F',
+  gold: '#B08D52',
+  rule: '#CBBFB2',
+  sheet: '#F4EFE9',
 } as const;
 
 const require = createRequire(import.meta.url);
@@ -33,6 +36,12 @@ const FONT_FILES: readonly FontSpec[] = [
     name: 'Caslon',
     file: '@fontsource/libre-caslon-display/files/libre-caslon-display-latin-400-normal.woff',
     weight: 400,
+    style: 'normal',
+  },
+  {
+    name: 'CaslonText',
+    file: '@fontsource/libre-caslon-text/files/libre-caslon-text-latin-700-normal.woff',
+    weight: 700,
     style: 'normal',
   },
   {
@@ -67,6 +76,14 @@ const FONT_FILES: readonly FontSpec[] = [
   },
 ];
 
+const RANA = new URL('../../../assets/maskot/menjelaskan.png', import.meta.url);
+let ranaPromise: Promise<string> | null = null;
+/** Rana explaining, as a data URI (founder's mascot art, see docs/brand). */
+function rana(): Promise<string> {
+  ranaPromise ??= readFile(RANA).then((data) => `data:image/png;base64,${data.toString('base64')}`);
+  return ranaPromise;
+}
+
 type SatoriFont = { name: string; data: Buffer; weight: 400 | 700; style: 'normal' | 'italic' };
 let fontsPromise: Promise<SatoriFont[]> | null = null;
 
@@ -86,7 +103,13 @@ function fonts(): Promise<SatoriFont[]> {
 type Style = Record<string, string | number>;
 interface Node {
   readonly type: string;
-  readonly props: { style?: Style; children?: Child; src?: string; width?: number; height?: number };
+  readonly props: {
+    style?: Style;
+    children?: Child;
+    src?: string;
+    width?: number;
+    height?: number;
+  };
 }
 type Child = Node | string | readonly (Node | string | null)[] | null;
 
@@ -138,7 +161,9 @@ function header(context: CardContext, credit: string | null): Node {
 }
 
 function footer(context: CardContext, right: string | null): Node {
-  const left = [context.dateLabel, context.evidenceLine].filter((part) => part !== null).join(' / ');
+  const left = [context.dateLabel, context.evidenceLine]
+    .filter((part) => part !== null)
+    .join(' / ');
   return el(
     'div',
     {
@@ -147,13 +172,13 @@ function footer(context: CardContext, right: string | null): Node {
       paddingTop: 26,
       borderTop: `1px solid ${C.rule}`,
       fontFamily: 'Courier',
-      fontSize: 24,
+      fontSize: 27,
       color: C.muted,
       gap: 24,
     },
     [
       text({ flexShrink: 1 }, left),
-      right === null ? null : text({ color: C.manila, fontWeight: 700, flexShrink: 0 }, right),
+      right === null ? null : text({ color: C.accent, fontWeight: 700, flexShrink: 0 }, right),
     ],
   );
 }
@@ -161,7 +186,7 @@ function footer(context: CardContext, right: string | null): Node {
 function counter(index: number, total: number): Node {
   const pad = (n: number) => String(n).padStart(2, '0');
   return text(
-    { fontFamily: 'Courier', fontWeight: 700, fontSize: 30, color: C.manila, marginBottom: 22 },
+    { fontFamily: 'Courier', fontWeight: 700, fontSize: 30, color: C.accent, marginBottom: 22 },
     `${pad(index + 1)}/${pad(total)}`,
   );
 }
@@ -196,7 +221,7 @@ function stamp(label: string): Node {
   );
 }
 
-const titleSize = (title: string) => (title.length > 80 ? 70 : title.length > 50 ? 82 : 96);
+const titleSize = (title: string) => (title.length > 80 ? 64 : title.length > 50 ? 76 : 88);
 
 function body(
   slide: Slide,
@@ -211,13 +236,16 @@ function body(
         content: el('div', { flexDirection: 'column', justifyContent: 'flex-end', flexGrow: 1 }, [
           text(
             {
-              fontFamily: 'Caslon',
+              fontFamily: 'CaslonText',
+              fontWeight: 700,
               fontSize: titleSize(slide.title),
-              lineHeight: 1.04,
+              lineHeight: 1.08,
+              letterSpacing: -1,
               color: C.ink,
             },
             slide.title,
           ),
+          el('div', { width: 90, height: 4, backgroundColor: C.gold, marginTop: 30 }),
           slide.dek === ''
             ? null
             : text(
@@ -240,15 +268,29 @@ function body(
         content: el('div', { flexDirection: 'column', justifyContent: 'center', flexGrow: 1 }, [
           counter(index, total),
           text(
-            { fontFamily: 'Literata', fontWeight: 700, fontSize: 44, color: C.ink, lineHeight: 1.25 },
+            {
+              fontFamily: 'Literata',
+              fontWeight: 700,
+              fontSize: 44,
+              color: C.ink,
+              lineHeight: 1.25,
+            },
             slide.label,
           ),
           el('div', { alignItems: 'baseline', flexWrap: 'wrap', gap: 24, marginTop: 18 }, [
             text(
-              { fontFamily: 'Caslon', fontSize: slide.value.length > 6 ? 170 : 230, color: C.manila, lineHeight: 1 },
+              {
+                fontFamily: 'Caslon',
+                fontSize: slide.value.length > 6 ? 170 : 230,
+                color: C.ink,
+                lineHeight: 1,
+              },
               slide.value,
             ),
-            text({ fontFamily: 'Caslon', fontSize: 76, color: C.manila, lineHeight: 1 }, slide.unit),
+            text(
+              { fontFamily: 'Caslon', fontSize: 76, color: C.accent, lineHeight: 1 },
+              slide.unit,
+            ),
           ]),
           text(
             { fontFamily: 'Courier', fontSize: 30, color: C.muted, marginTop: 30 },
@@ -257,7 +299,13 @@ function body(
           slide.source === ''
             ? null
             : text(
-                { fontFamily: 'Courier', fontWeight: 700, fontSize: 30, color: C.ink, marginTop: 10 },
+                {
+                  fontFamily: 'Courier',
+                  fontWeight: 700,
+                  fontSize: 30,
+                  color: C.ink,
+                  marginTop: 10,
+                },
                 slide.source,
               ),
         ]),
@@ -268,13 +316,17 @@ function body(
         content: el('div', { flexDirection: 'column', justifyContent: 'center', flexGrow: 1 }, [
           counter(index, total),
           text(
-            { fontFamily: 'Caslon', fontSize: 80, lineHeight: 1.05, color: C.ink, marginBottom: 34 },
+            {
+              fontFamily: 'CaslonText',
+              fontWeight: 700,
+              fontSize: 72,
+              lineHeight: 1.08,
+              color: C.ink,
+              marginBottom: 34,
+            },
             slide.heading,
           ),
-          text(
-            { fontFamily: 'Literata', fontSize: 40, lineHeight: 1.5, color: C.ink },
-            slide.text,
-          ),
+          text({ fontFamily: 'Literata', fontSize: 40, lineHeight: 1.5, color: C.ink }, slide.text),
         ]),
       };
     case 'quote':
@@ -283,7 +335,7 @@ function body(
         content: el('div', { flexDirection: 'column', justifyContent: 'center', flexGrow: 1 }, [
           counter(index, total),
           text(
-            { fontFamily: 'Caslon', fontSize: 220, lineHeight: 0.8, color: C.manila, height: 130 },
+            { fontFamily: 'Caslon', fontSize: 220, lineHeight: 0.8, color: C.accent, height: 130 },
             '“',
           ),
           text(
@@ -297,7 +349,13 @@ function body(
             slide.text,
           ),
           text(
-            { fontFamily: 'Courier', fontWeight: 700, fontSize: 30, color: C.manila, marginTop: 34 },
+            {
+              fontFamily: 'Courier',
+              fontWeight: 700,
+              fontSize: 30,
+              color: C.accent,
+              marginTop: 34,
+            },
             slide.attribution,
           ),
         ]),
@@ -308,7 +366,14 @@ function body(
         content: el('div', { flexDirection: 'column', justifyContent: 'center', flexGrow: 1 }, [
           counter(index, total),
           text(
-            { fontFamily: 'Caslon', fontSize: 84, color: C.ink, lineHeight: 1, marginBottom: 18 },
+            {
+              fontFamily: 'CaslonText',
+              fontWeight: 700,
+              fontSize: 76,
+              color: C.ink,
+              lineHeight: 1,
+              marginBottom: 18,
+            },
             'Barang bukti',
           ),
           text(
@@ -343,10 +408,10 @@ function body(
                     width: 20,
                     height: 20,
                     borderRadius: 10,
-                    backgroundColor: C.night,
+                    backgroundColor: C.paper,
                   }),
                   text(
-                    { fontFamily: 'Courier', fontWeight: 700, fontSize: 24, color: '#7B1E22' },
+                    { fontFamily: 'Courier', fontWeight: 700, fontSize: 24, color: C.accent },
                     `Bukti ${String(itemIndex + 1)}`,
                   ),
                   text(
@@ -356,7 +421,7 @@ function body(
                   item.title === ''
                     ? null
                     : text(
-                        { fontFamily: 'Literata', fontSize: 26, color: '#474A52', lineHeight: 1.35 },
+                        { fontFamily: 'Literata', fontSize: 26, color: C.muted, lineHeight: 1.35 },
                         item.title,
                       ),
                 ],
@@ -370,7 +435,14 @@ function body(
               )
             : null,
           text(
-            { fontFamily: 'Courier', fontWeight: 700, fontSize: 30, color: C.manila, marginTop: 40 },
+            {
+              fontFamily: 'Courier',
+              fontWeight: 700,
+              fontSize: 30,
+              color: C.accent,
+              marginTop: 40,
+              marginRight: 230,
+            },
             `Baca lengkap: ${slide.link}`,
           ),
         ]),
@@ -385,6 +457,7 @@ export function cardTree(
   total: number,
   context: CardContext,
   image: string | null,
+  mascot: string | null = null,
 ): Node {
   const credit = slide.kind === 'cover' ? slide.credit : null;
   const { content, right } = body(slide, index, total, image);
@@ -406,7 +479,7 @@ export function cardTree(
         left: 0,
         width: CARD_WIDTH,
         height: 830,
-        backgroundImage: `linear-gradient(180deg, rgba(23,25,31,0.55) 0%, rgba(23,25,31,0.15) 35%, ${C.night} 100%)`,
+        backgroundImage: `linear-gradient(180deg, rgba(231,224,217,0.6) 0%, rgba(231,224,217,0.1) 35%, ${C.paper} 100%)`,
       }),
     );
   }
@@ -425,9 +498,21 @@ export function cardTree(
       [header(context, credit), content, footer(context, right)],
     ),
   );
+  if (mascot !== null && slide.kind === 'evidence') {
+    // Rana explaining, standing on the footer rule, beside the "read more" line.
+    layers.push({
+      type: 'img',
+      props: {
+        src: mascot,
+        width: 190,
+        height: 211,
+        style: { position: 'absolute', right: PAD, bottom: PAD + 78 },
+      },
+    });
+  }
   return el(
     'div',
-    { width: CARD_WIDTH, height: CARD_HEIGHT, backgroundColor: C.night, position: 'relative' },
+    { width: CARD_WIDTH, height: CARD_HEIGHT, backgroundColor: C.paper, position: 'relative' },
     layers,
   );
 }
@@ -441,7 +526,8 @@ export async function renderCard(
   image: string | null,
 ): Promise<Buffer> {
   // satori's element type is React's; this tree has the same shape without React.
-  const tree = cardTree(slide, index, total, context, image) as unknown as Parameters<
+  const mascot = slide.kind === 'evidence' ? await rana() : null;
+  const tree = cardTree(slide, index, total, context, image, mascot) as unknown as Parameters<
     typeof satori
   >[0];
   const svg = await satori(tree, { width: CARD_WIDTH, height: CARD_HEIGHT, fonts: await fonts() });
