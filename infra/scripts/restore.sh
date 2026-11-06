@@ -13,7 +13,7 @@ umask 077
 backup="${1:?usage: restore.sh <backup.dump.age> <age-identity-file> [container-name]}"
 identity="${2:?usage: restore.sh <backup.dump.age> <age-identity-file> [container-name]}"
 name="${3:-nalara-restore-$(date -u +%Y%m%d%H%M%S)}"
-image="${RESTORE_IMAGE:-postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5}"
+image="${RESTORE_IMAGE:-postgres:18.6-trixie@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42}"
 DB_NAME="${DB_NAME:-nalara}"
 
 [[ -r "$backup" ]] || { echo "restore: cannot read backup" >&2; exit 1; }

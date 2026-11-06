@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const scripts = join(root, 'infra', 'scripts');
 const IMAGE =
-  'postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5';
+  'postgres:18.6-trixie@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42';
 const tag = randomBytes(3).toString('hex');
 const source = `nalara-backup-src-${tag}`;
 const restored = `nalara-backup-restore-${tag}`;
