@@ -1,6 +1,6 @@
 # Phase 3 — Penerimaan (ACCEPTANCE)
 
-Status: **siap ditinjau founder**. Dibangun dan diuji lokal + CI (D-23), dengan **model AI palsu dan server Telegram palsu**. AI sungguhan dan bot sungguhan menunggu deploy (D-08/D-09) serta keputusan D-25 dan D-26 (§4).
+Status: **DITERIMA** (PHASE 3 ACCEPTED, D-28, 2026-11-06). Dibangun dan diuji lokal + CI (D-23), dengan **model AI palsu dan server Telegram palsu**. AI sungguhan dan bot sungguhan menunggu deploy (D-08/D-09) serta keputusan D-25 dan D-26 (§4).
 
 Rencana: [PLAN.md](PLAN.md). Riset provider: [R-02-SPIKE.md](R-02-SPIKE.md). Rincian per tiket: [PROGRESS.md](PROGRESS.md). Desain: [ADR-020](../adr/ADR-020-agent-gateway.md).
 
@@ -85,7 +85,7 @@ Bug yang **ditemukan oleh tes** lalu diperbaiki:
 
 ## 6. Keputusan founder
 
-- [ ] **PHASE 3 ACCEPTED** (fondasi lokal + CI), dengan G-1..G-3 ditutup setelah deploy, **atau**
+- [x] **PHASE 3 ACCEPTED** (fondasi lokal + CI), dengan G-1..G-3 ditutup setelah deploy. Ditulis founder 2026-11-06 (D-28), **atau**
 - [ ] perubahan yang diminta: …
 
 Fase berikutnya menurut PRD v4: **Fase 4, NALARA Data v1** (katalog dataset, provenance + lisensi, versi, chart di artikel). Syarat PRD: "ada kebutuhan nyata dari artikel". Exit-nya butuh minimal satu dataset publik asli. Fondasinya bisa dibangun sekarang. Dataset pertama dan lisensinya dipilih founder.

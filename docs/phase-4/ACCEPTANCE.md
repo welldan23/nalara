@@ -70,4 +70,4 @@ Bug yang **ditemukan oleh tes** lalu diperbaiki:
 - [ ] **PHASE 4 ACCEPTED** (fondasi lokal + CI), dengan G-1..G-2 ditutup setelah deploy, **atau**
 - [ ] perubahan yang diminta: …
 
-Masih menunggu dari fase sebelumnya: **PHASE 3 ACCEPTED**; Phase 1 (deploy D-08/D-09, **PHASE 1 ACCEPTED**). Fase berikutnya menurut PRD v4 adalah **Fase 5+ (kondisional)**: tools, Labs/API publik, newsletter, monetisasi. Menurut PRD, fase ini baru dimulai bila ada permintaan pembaca nyata, operasi sudah stabil, dan review legal selesai. Karena itu langkah yang disarankan sekarang adalah **deploy** dan validasi pembaca, bukan menambah fitur.
+Phase 3 sudah diterima (D-28). Masih menunggu dari Phase 1: deploy (D-08/D-09) dan **PHASE 1 ACCEPTED**. Fase berikutnya menurut PRD v4 adalah **Fase 5+ (kondisional)**: tools, Labs/API publik, newsletter, monetisasi. Menurut PRD, fase ini baru dimulai bila ada permintaan pembaca nyata, operasi sudah stabil, dan review legal selesai. Karena itu langkah yang disarankan sekarang adalah **deploy** dan validasi pembaca, bukan menambah fitur.
