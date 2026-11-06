@@ -1,27 +1,29 @@
-// Brand tokens ("Berkas perkara" design; DesainPakeAI color-system + typography guides). Single
+// Brand tokens ("Berkas perkara" with Rana, the NALARA owl; DesainPakeAI color-system + typography guides). Single
 // source for CSS variables and the contrast tests. Every article is a case file NALARA has looked
 // into: fog-grey desk, case sheets, manila folders, an oxblood stamp, and sources as evidence.
 // `rule` is decoration only and never text.
 
 export const colors = {
-  /** Page background: cool London fog, deliberately not cream. */
-  paper: '#E9EBE7',
+  /** Page background: the cream of Rana's engraving sheet, so the mascot art sits seamlessly. */
+  paper: '#E7E0D9',
   /** The case sheet: reading surfaces, inputs, panels; also text on dark fills. */
-  surface: '#FBFBF9',
-  /** Iron-gall ink. */
-  ink: '#1A1C22',
-  inkMuted: '#474A52',
+  surface: '#F4EFE9',
+  /** Sepia ink, as in the engraving. */
+  ink: '#241E19',
+  inkMuted: '#54493F',
   /** The one accent: links, the verification stamp, primary actions. */
-  accent: '#7B1E22',
-  /** Night: the workspace navigation and the footer. */
-  night: '#17191F',
-  nightInk: '#EDE6D3',
-  nightMuted: '#BDB6A4',
+  accent: '#7E2B1F',
+  /** Night: the workspace navigation and the footer, a deep sepia. */
+  night: '#241E19',
+  nightInk: '#EFE8DE',
+  nightMuted: '#C2B6A6',
   /** Manila folder tabs and evidence tags (ink text on top). */
-  manila: '#DCC995',
+  manila: '#D9C7A0',
+  /** The short gold rule under headings (decoration only, never text). */
+  gold: '#B08D52',
   /** Hairlines and borders only (fails as text by design). */
-  rule: '#C6CAC4',
-  danger: '#A12A1C',
+  rule: '#CBBFB2',
+  danger: '#9B2A1A',
 } as const;
 
 export type ColorName = keyof typeof colors;

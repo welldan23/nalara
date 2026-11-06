@@ -15,6 +15,7 @@ describe('TEST-WEB-08 colour contrast', () => {
   it('matches known reference ratios', () => {
     expect(contrastRatio('#000000', '#FFFFFF')).toBeCloseTo(21, 5);
     expect(contrastRatio(colors.rule, colors.paper)).toBeLessThan(4.5); // documented: rule is never text
+    expect(contrastRatio(colors.gold, colors.paper)).toBeLessThan(4.5); // documented: gold is never text
   });
 
   it('emits every token as a CSS variable', () => {
