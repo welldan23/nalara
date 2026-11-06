@@ -143,7 +143,14 @@ function ChartSvg(props: {
           className="chart-axis"
           x={xCenter(index)}
           y={HEIGHT - MARGIN.bottom + 20}
-          textAnchor="middle"
+          // Line charts put the first and last point on the plot's edges: keep their labels inside.
+          textAnchor={
+            block.kind === 'line' && periods.length > 1 && index === 0
+              ? 'start'
+              : block.kind === 'line' && periods.length > 1 && index === periods.length - 1
+                ? 'end'
+                : 'middle'
+          }
         >
           {periods[index]}
         </text>

@@ -132,3 +132,50 @@ Satu entri per tiket. Rencana: [PLAN.md](PLAN.md).
     - dataset yang tidak ada dijelaskan;
     - 320 px.
 - Keputusan founder: tidak ada
+
+### P4-04 — Halaman data publik
+- Commit: lihat PR `feat/P4-04-public-data`
+- File baru:
+  - `apps/api/src/modules/data/public.ts`
+  - `apps/web/app/data/page.tsx`, `apps/web/app/data/[slug]/page.tsx`
+  - `apps/api/tests/integration/public-data.test.ts`
+- File berubah:
+  - route publik
+  - `lib/public-api.ts`, `lib/data-messages.ts` (`describeSpec`)
+  - menu publik "Data"
+  - sitemap
+  - CSS grid keterangan
+  - label sumbu grafik
+- Perilaku:
+  - API publik `/api/v1/public/datasets`, `/datasets/:slug`, dan `/datasets/:slug/data.csv?versi=N`:
+    - hanya dataset yang sudah terbit, dan hanya versi sampai versi terbit;
+    - dataset draft, ditarik, atau tidak ada → 404 yang sama;
+    - mengikuti saklar peluncuran (ADR-015).
+  - Tidak pernah mengirim file mentah, id internal, atau pembuat.
+  - CSV data hasil olahan:
+    - hanya untuk lisensi terbuka/atribusi. Lisensi "perlu izin" tidak boleh diunduh ulang dari NALARA;
+    - sel yang diawali `= + - @` dinetralkan supaya tidak jalan sebagai formula spreadsheet.
+  - `/data`: daftar dataset. `/data/slug` berisi:
+    - grafik versi terbit;
+    - keterangan penerbit, halaman sumber, satuan, frekuensi, periode, lisensi/atribusi, dan metodologi;
+    - **"Cara data diolah"**, yaitu aturan transformasi dalam kalimat biasa + SHA-256 file asli dan hasil olahan;
+    - unduhan CSV;
+    - riwayat versi dengan catatan revisi.
+  - Dataset masuk sitemap. Menu publik mendapat "Data".
+- **Ditemukan saat tes:**
+  - e2e: tautan "Data" sekarang ada di menu publik dan menu OS. Tes OS dipersempit ke navigasi OS.
+  - e2e 320 px: URL panjang di daftar keterangan melebarkan halaman 30 px, karena grid `1fr` tidak boleh menyusut. Diperbaiki dengan `minmax(0, 1fr)` + `overflow-wrap`. Halaman Usulan ikut terbantu.
+  - Screenshot: label sumbu terakhir grafik garis terpotong. Sekarang rata kiri/kanan di ujung.
+- Test:
+  - `pnpm run check` → PASS **514/514**, termasuk 3 tes integrasi data publik:
+    - hanya yang terbit;
+    - versi ≤ terbit, tanpa file mentah/id;
+    - CSV + netralisasi formula + lisensi izin/draft/versi belum terbit → 404.
+  - `pnpm run test:e2e` → PASS **26/26**. TEST-P4-04:
+    - daftar → detail;
+    - grafik, aturan, hash, riwayat;
+    - isi CSV persis;
+    - sitemap;
+    - 404;
+    - 320 px.
+- Keputusan founder: tidak ada

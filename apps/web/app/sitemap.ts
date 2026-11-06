@@ -2,7 +2,7 @@
 // only. Empty before launch.
 import type { MetadataRoute } from 'next';
 import { connection } from 'next/server';
-import { publicArticles, publicCategories } from '../lib/public-api';
+import { publicArticles, publicCategories, publicDatasets } from '../lib/public-api';
 import type { PublicArticleSummary } from '../lib/public-api';
 import { absoluteUrl, siteOrigin } from '../lib/site';
 
@@ -28,8 +28,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (origin === null) return [];
   let categories;
   let articles;
+  let datasets;
   try {
-    [categories, articles] = await Promise.all([publicCategories(), allArticles()]);
+    [categories, articles, datasets] = await Promise.all([
+      publicCategories(),
+      allArticles(),
+      publicDatasets(),
+    ]);
   } catch {
     return [];
   }
@@ -45,6 +50,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...articles.map((article) => ({
       url: url(`/artikel/${article.slug}`),
       lastModified: article.publishedAt,
+    })),
+    // NALARA Data (P4-04).
+    { url: url('/data'), changeFrequency: 'weekly' },
+    ...(datasets ?? []).map((dataset) => ({
+      url: url(`/data/${dataset.slug}`),
+      lastModified: dataset.publishedAt,
     })),
     { url: url('/koreksi'), changeFrequency: 'weekly' },
     { url: url('/tentang'), changeFrequency: 'monthly' },

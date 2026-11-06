@@ -738,7 +738,8 @@ main:focus {
 }
 .proposal-payload div {
   display: grid;
-  grid-template-columns: minmax(7rem, 12rem) 1fr;
+  /* minmax(0, …): a long unbroken value (a URL) wraps instead of widening the page. */
+  grid-template-columns: minmax(7rem, 12rem) minmax(0, 1fr);
   gap: 0.5rem;
 }
 .proposal-payload dt {
@@ -747,10 +748,11 @@ main:focus {
 .proposal-payload dd {
   margin: 0;
   white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 @media (max-width: 30rem) {
   .proposal-payload div {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0;
   }
 }
