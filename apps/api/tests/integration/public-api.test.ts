@@ -143,13 +143,18 @@ describe.skipIf(!databaseAvailable)('public reading API', { timeout: 60_000 }, (
   it('lists only published articles, newest first, with no editor-only fields (T-01)', async () => {
     const response = await get('/api/v1/public/articles');
     expect(response.statusCode).toBe(200);
-    const body = parse<{ articles: { slug: string }[]; nextCursor: string | null }>(response);
+    const body = parse<{
+      articles: { slug: string; roots: string[] }[];
+      nextCursor: string | null;
+    }>(response);
     expect(body.articles.map((article) => article.slug)).toEqual([
       slugs['third'],
       slugs['second'],
       slugs['first'],
     ]);
     expect(body.nextCursor).toBeNull();
+    // The "roots" line under each title: publishers of checked sources only, never a URL or note.
+    expect(body.articles[0]?.roots).toEqual(['Badan Pusat Statistik']);
     const raw = response.body;
     for (const leak of [
       SECRET_NOTE,

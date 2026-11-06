@@ -38,8 +38,8 @@ export default async function DataPage() {
               </h2>
               {dataset.description !== '' && <p>{dataset.description}</p>}
               <p className="muted">
-                {dataset.unit} · {FREQUENCY_LABELS[dataset.frequency] ?? dataset.frequency} · versi{' '}
-                {dataset.publishedVersion} · terbit {formatDate(dataset.publishedAt)}
+                {FREQUENCY_LABELS[dataset.frequency] ?? dataset.frequency}, dalam {dataset.unit}.
+                Versi {dataset.publishedVersion}, terbit {formatDate(dataset.publishedAt)}.
               </p>
             </li>
           ))}

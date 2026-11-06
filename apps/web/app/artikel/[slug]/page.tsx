@@ -1,4 +1,4 @@
-// Article reading page (P1-06, PRD v4 §4.1): title, summary, body, numbered sources, dates and
+// Article reading page (P1-06, PRD v4 §4.1; "Tiga lapis" layout: head, body, and the sources as roots): title, summary, body, numbered sources, dates and
 // the verification label, and any substantial corrections (P1-07). Only published articles exist here; everything else is a 404.
 import type { Metadata } from 'next';
 import { cache } from 'react';
@@ -56,29 +56,32 @@ export default async function ArticlePage({
 
   return (
     <article className="reading">
-      <p className="kicker">
-        <Link href={`/topik/${article.category.slug}`}>{article.category.name}</Link>
-        {badge !== null && badge !== undefined && <span className="badge">{badge}</span>}
-      </p>
-      <h1>{article.title}</h1>
-      {article.dek !== '' && <p className="dek">{article.dek}</p>}
-      <p className="muted article-meta">
-        Terbit{' '}
-        <time dateTime={article.firstPublishedAt}>{formatDate(article.firstPublishedAt)}</time>
-        {updated && (
-          <>
-            {' '}
-            · diperbarui{' '}
-            <time dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
-          </>
-        )}
-      </p>
-      {verification !== undefined && (
-        <p className={`verification verification-${article.verification}`}>
-          <strong>{verification.label}.</strong> {verification.detail}{' '}
-          <Link href="/tentang#verifikasi">Cara kami memverifikasi</Link>
+      <header className="article-head">
+        <p className="topic">
+          <Link href={`/topik/${article.category.slug}`}>{article.category.name}</Link>
+          {badge !== null && badge !== undefined && <span className="badge">{badge}</span>}
         </p>
-      )}
+        <h1>{article.title}</h1>
+        {article.dek !== '' && <p className="dek">{article.dek}</p>}
+        <p className="meta article-meta">
+          Terbit{' '}
+          <time dateTime={article.firstPublishedAt}>{formatDate(article.firstPublishedAt)}</time>
+          {updated && (
+            <>
+              , diperbarui{' '}
+              <time dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
+            </>
+          )}
+        </p>
+        {verification !== undefined && (
+          <p className={`verification verification-${article.verification}`}>
+            <strong className="verification-label">{verification.label}.</strong>{' '}
+            <span>
+              {verification.detail} <Link href="/tentang#verifikasi">Cara kami memverifikasi</Link>
+            </span>
+          </p>
+        )}
+      </header>
       {article.corrections.length > 0 && (
         <aside className="corrections" aria-labelledby="koreksi" data-testid="corrections">
           <h2 id="koreksi">Koreksi</h2>
@@ -106,13 +109,21 @@ export default async function ArticlePage({
         media={article.media}
         charts={article.charts}
       />
-      {article.methodNote !== null && (
-        <section aria-labelledby="metode" className="method">
-          <h2 id="metode">Catatan metode</h2>
-          <p>{article.methodNote}</p>
-        </section>
+      {(article.citations.length > 0 || article.methodNote !== null) && (
+        <div className="akar">
+          <p className="akar-lead">
+            Akar tulisan ini. Klaim penting di atas berasal dari sumber berikut, dan kamu bisa
+            membukanya sendiri.
+          </p>
+          <CitationList citations={article.citations} />
+          {article.methodNote !== null && (
+            <section aria-labelledby="metode" className="method">
+              <h2 id="metode">Catatan metode</h2>
+              <p>{article.methodNote}</p>
+            </section>
+          )}
+        </div>
       )}
-      <CitationList citations={article.citations} />
     </article>
   );
 }

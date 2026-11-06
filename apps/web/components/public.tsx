@@ -1,7 +1,8 @@
-// Shared pieces of the public reading pages (P1-06).
+// Shared pieces of the public reading pages (P1-06, "Tiga lapis" redesign).
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { PublicArticleSummary } from '../lib/public-api';
+import { TigaLapis, joinNames } from './brand';
 
 export const TYPE_BADGES: Readonly<Record<string, string | null>> = {
   explainer: null,
@@ -33,21 +34,51 @@ export function formatDate(iso: string): string {
   return dateFormat.format(new Date(iso));
 }
 
-export function ArticleCard({ article }: { readonly article: PublicArticleSummary }): ReactNode {
+/** Where the article is rooted, in one plain sentence; nothing when no source was checked. */
+function Roots({ roots }: { readonly roots: readonly string[] }): ReactNode {
+  if (roots.length === 0) return null;
+  return <p className="roots">Berakar pada {joinNames(roots)}</p>;
+}
+
+function Topic({ article }: { readonly article: PublicArticleSummary }): ReactNode {
   const badge = TYPE_BADGES[article.articleType];
   return (
-    <article className="card">
-      <p className="kicker">
-        <Link href={`/topik/${article.category.slug}`}>{article.category.name}</Link>
-        {badge !== null && badge !== undefined && <span className="badge">{badge}</span>}
-      </p>
-      <h2 className="card-title">
+    <p className="topic">
+      <Link href={`/topik/${article.category.slug}`}>{article.category.name}</Link>
+      {badge !== null && badge !== undefined && <span className="badge">{badge}</span>}
+    </p>
+  );
+}
+
+/** The newest article, given the room of a front page. */
+export function LeadArticle({ article }: { readonly article: PublicArticleSummary }): ReactNode {
+  return (
+    <article className="lead">
+      <Topic article={article} />
+      <h2 className="lead-title">
         <Link href={`/artikel/${article.slug}`}>{article.title}</Link>
       </h2>
-      {article.dek !== '' && <p className="card-dek">{article.dek}</p>}
-      <p className="muted card-meta">
+      {article.dek !== '' && <p className="lead-dek">{article.dek}</p>}
+      <p className="meta">
         <time dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
       </p>
+      <Roots roots={article.roots} />
+    </article>
+  );
+}
+
+export function ArticleCard({ article }: { readonly article: PublicArticleSummary }): ReactNode {
+  return (
+    <article className="entry">
+      <Topic article={article} />
+      <h3 className="entry-title">
+        <Link href={`/artikel/${article.slug}`}>{article.title}</Link>
+      </h3>
+      {article.dek !== '' && <p className="entry-dek">{article.dek}</p>}
+      <p className="meta">
+        <time dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
+      </p>
+      <Roots roots={article.roots} />
     </article>
   );
 }
@@ -55,12 +86,14 @@ export function ArticleCard({ article }: { readonly article: PublicArticleSummar
 export function ComingSoon(): ReactNode {
   return (
     <>
-      <h1>Biar semua paham.</h1>
-      <p>
-        NALARA sedang dibangun: media dan data publik Indonesia yang menjelaskan berita, kebijakan,
-        dan angka dengan sumber yang bisa ditelusuri.
-      </p>
-      <p className="muted">Belum ada artikel yang diterbitkan.</p>
+      <section className="hero">
+        <h1 className="hero-title">Biar semua paham.</h1>
+        <p className="hero-text">
+          NALARA menjelaskan berita, kebijakan, dan angka di Indonesia dengan sumber yang bisa kamu
+          telusuri sendiri. Artikel pertama sedang ditulis.
+        </p>
+      </section>
+      <TigaLapis />
     </>
   );
 }

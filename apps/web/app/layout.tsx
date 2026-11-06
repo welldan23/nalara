@@ -7,6 +7,11 @@ import type { PublicCategory } from '../lib/public-api';
 import { SITE_DESCRIPTION, SITE_IMAGE, SITE_NAME, SITE_TAGLINE, siteOrigin } from '../lib/site';
 import { siteLaunched } from '../lib/launch';
 import { tokenCss } from '../lib/tokens';
+import { BrandMark } from '../components/brand';
+// Self-hosted variable fonts (OFL-1.1): served from this origin, so the CSP stays font-src 'self'.
+import '@fontsource-variable/plus-jakarta-sans';
+import '@fontsource-variable/literata/opsz.css';
+import '@fontsource-variable/literata/opsz-italic.css';
 import './globals.css';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -61,31 +66,57 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           Langsung ke isi
         </a>
         <header className="masthead">
-          <Link href="/" className="masthead-name">
-            NALARA
-          </Link>
-          {categories.length > 0 && (
-            <nav aria-label="Topik" className="site-nav">
-              <ul>
-                {categories.map((category) => (
-                  <li key={category.slug}>
-                    <Link href={`/topik/${category.slug}`}>{category.name}</Link>
+          <div className="masthead-inner">
+            <Link href="/" className="masthead-name" aria-label="NALARA, ke beranda">
+              <BrandMark size={34} />
+              <span>NALARA</span>
+            </Link>
+            {categories.length > 0 && (
+              <nav aria-label="Topik" className="site-nav">
+                <ul>
+                  {categories.map((category) => (
+                    <li key={category.slug}>
+                      <Link href={`/topik/${category.slug}`}>{category.name}</Link>
+                    </li>
+                  ))}
+                  <li>
+                    <Link href="/data">Data</Link>
                   </li>
-                ))}
-                <li>
-                  <Link href="/data">Data</Link>
-                </li>
-                <li>
-                  <Link href="/tentang">Tentang</Link>
-                </li>
-              </ul>
-            </nav>
-          )}
+                  <li>
+                    <Link href="/tentang">Tentang</Link>
+                  </li>
+                </ul>
+              </nav>
+            )}
+          </div>
         </header>
         {/* Focusable target for the skip link, so keyboard users land in the content. */}
         <main id="main" tabIndex={-1}>
           {children}
         </main>
+        <footer className="site-footer">
+          <div className="site-footer-inner">
+            <p className="site-footer-name">
+              <BrandMark size={28} />
+              <span>NALARA</span>
+            </p>
+            <p className="site-footer-text">
+              Media penjelas Indonesia. Setiap tulisan ditinjau redaksi dan berakar pada sumber yang
+              bisa kamu buka sendiri.
+            </p>
+            <ul className="site-footer-links">
+              <li>
+                <Link href="/tentang#verifikasi">Cara kami memverifikasi</Link>
+              </li>
+              {/* Topics exist only after launch; before it, the corrections page is a 404 too. */}
+              {categories.length > 0 && (
+                <li>
+                  <Link href="/koreksi">Koreksi</Link>
+                </li>
+              )}
+            </ul>
+          </div>
+        </footer>
       </body>
     </html>
   );

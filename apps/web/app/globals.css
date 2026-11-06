@@ -1,4 +1,7 @@
-/* Phase 0 shell styles (PRD B §10): tokens come from lib/tokens.ts via layout.tsx. */
+/* NALARA styles. Tokens come from lib/tokens.ts via layout.tsx.
+   "Tiga lapis" design: the beringin logo's three slanted layers (crown, trunk, roots) stand for how a
+   piece is built (what happened, why it matters, where it comes from). The slant is the one
+   signature; everything around it stays quiet. */
 *,
 *::before,
 *::after {
@@ -10,9 +13,12 @@ html {
 }
 
 body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   margin: 0;
   min-width: 320px;
-  background: var(--color-ivory);
+  background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: 1.0625rem;
@@ -20,13 +26,17 @@ body {
 }
 
 a {
-  color: var(--color-forest);
+  color: var(--color-leaf);
+  text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
+}
+a:hover {
+  text-decoration-thickness: 2px;
 }
 
 /* Visible keyboard focus everywhere (TEST-WEB-07). */
 :focus-visible {
-  outline: 3px solid var(--color-forest);
+  outline: 3px solid var(--color-leaf);
   outline-offset: 3px;
 }
 
@@ -34,39 +44,107 @@ a {
   position: absolute;
   left: 1rem;
   top: -3rem;
+  z-index: 10;
   padding: 0.5rem 0.75rem;
-  background: var(--color-forest);
-  color: var(--color-ivory);
+  background: var(--color-leaf);
+  color: var(--color-surface);
 }
 .skip-link:focus {
   top: 1rem;
 }
 
+/* Page frame: one centred container; content stays left-aligned inside it. */
+.masthead-inner,
+main,
+.site-footer-inner {
+  width: 100%;
+  max-width: 68rem;
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 5vw, 3rem);
+}
+
 .masthead {
-  border-bottom: 2px solid var(--color-forest);
-  padding: 1.25rem clamp(1rem, 5vw, 3rem);
+  border-bottom: 1px solid var(--color-rule);
+  background: var(--color-surface);
+}
+.masthead-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 2rem;
+  padding-block: 1rem;
+}
+.masthead-name,
+.site-footer-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  font-weight: 800;
+  font-size: 1.5rem;
+  letter-spacing: 0.02em;
+  line-height: 1;
 }
 .masthead-name {
-  display: inline-block;
-  margin: 0;
+  color: var(--color-leaf-deep);
   text-decoration: none;
-  font-family: var(--font-serif);
-  font-size: clamp(1.75rem, 6vw, 2.5rem);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--color-forest);
+}
+.brand-mark {
+  flex: none;
+}
+.brand-mark-crown {
+  fill: var(--color-leaf);
+}
+.brand-mark-trunk {
+  fill: var(--color-ink);
+}
+.brand-mark-roots {
+  fill: var(--color-soil);
+}
+.site-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-weight: 600;
+  font-size: 0.975rem;
+}
+.site-nav a {
+  color: var(--color-ink);
+  text-decoration: none;
+}
+.site-nav a:hover {
+  color: var(--color-leaf);
+  text-decoration: underline;
 }
 
 main {
-  max-width: 40rem;
-  padding: 2rem clamp(1rem, 5vw, 3rem) 4rem;
+  flex: 1 0 auto;
+  padding-block: 2.5rem 4.5rem;
+}
+/* Ordinary pages read as one column; the front page and the OS opt out. */
+main > :not(.front, .os-shell) {
+  max-width: 42rem;
 }
 
 h1,
+h2,
+h3 {
+  font-family: var(--font-sans);
+  line-height: 1.15;
+  color: var(--color-ink);
+  text-wrap: balance;
+}
+h1 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
 h2 {
-  font-family: var(--font-serif);
-  line-height: 1.2;
-  color: var(--color-forest);
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .muted {
@@ -88,28 +166,28 @@ input {
   padding: 0.6rem 0.7rem;
   border: 1px solid var(--color-ink-muted);
   border-radius: 4px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-ink);
 }
 button {
   font: inherit;
   font-weight: 600;
   padding: 0.65rem 1rem;
-  border: 2px solid var(--color-forest);
+  border: 2px solid var(--color-leaf);
   border-radius: 4px;
-  background: var(--color-forest);
-  color: var(--color-ivory);
+  background: var(--color-leaf);
+  color: var(--color-surface);
   cursor: pointer;
 }
 /* The AI kill switch (P3-02). */
 button.danger {
   background: var(--color-danger);
   border-color: var(--color-danger);
-  color: var(--color-ivory);
+  color: var(--color-surface);
 }
 button.secondary {
   background: transparent;
-  color: var(--color-forest);
+  color: var(--color-leaf);
 }
 button:disabled {
   opacity: 0.6;
@@ -134,80 +212,397 @@ code,
   list-style: none;
 }
 
-/* --- Public reading pages (P1-06) --- */
-.site-nav ul {
+/* --- Public reading pages (P1-06, "Tiga lapis") --- */
+.section-title {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  color: var(--color-ink-muted);
+}
+.topic {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-  margin: 0.75rem 0 0;
-  padding: 0;
-  list-style: none;
-  font-weight: 600;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.4rem;
+  font-size: 0.925rem;
+  font-weight: 700;
 }
-.tagline {
-  font-size: clamp(1.75rem, 6vw, 2.5rem);
-}
-.section-title {
-  margin-top: 2rem;
-  padding-bottom: 0.25rem;
-  border-bottom: 1px solid var(--color-forest);
-  font-size: 1.1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.cards {
-  display: grid;
-  gap: 1.5rem;
-}
-.card {
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--color-sage);
-}
-.card-title {
-  margin: 0.25rem 0;
-  font-size: 1.4rem;
-}
-.card-title a {
-  color: var(--color-ink);
+.topic a {
   text-decoration: none;
 }
-.card-title a:hover {
+.topic-sep {
+  width: 0.7rem;
+  height: 0.35rem;
+  background: var(--color-rule);
+  transform: skewX(-30deg);
+}
+.topic a:hover {
   text-decoration: underline;
 }
-.card-dek {
-  margin: 0.25rem 0;
-}
-.card-meta,
-.article-meta {
-  margin: 0.25rem 0;
+.meta {
+  margin: 0.5rem 0 0;
   font-size: 0.9rem;
+  color: var(--color-ink-muted);
+}
+.dek {
+  font-family: var(--font-reading);
+  font-size: 1.2rem;
+  line-height: 1.5;
+  color: var(--color-ink-muted);
 }
 .kicker {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  color: var(--color-leaf);
 }
 .kicker a {
   text-decoration: none;
 }
-.reading h1 {
-  font-size: clamp(1.9rem, 6vw, 2.6rem);
-  margin: 0.25rem 0 0.5rem;
-  overflow-wrap: anywhere;
+
+/* The slanted tag: a parallelogram like the logo's layers, text kept upright. */
+.badge,
+.verification-label {
+  position: relative;
+  isolation: isolate;
+  display: inline-block;
+  padding: 0.05rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--color-leaf);
 }
-.dek {
-  font-size: 1.2rem;
+.badge {
+  margin-left: 0.4rem;
+}
+.topic .badge,
+.cite-publisher .badge {
+  margin-left: 0;
+}
+.badge::before,
+.verification-label::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1px solid currentColor;
+  transform: skewX(-14deg);
+}
+
+/* "Berakar pada BPS dan BI": the roots of a piece, under its title. */
+.roots {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
   color: var(--color-ink-muted);
 }
-.reading .article-body h2 {
-  margin-top: 2rem;
+.roots::before {
+  content: '';
+  flex: none;
+  width: 1.1rem;
+  height: 0.45rem;
+  background: var(--color-soil);
+  transform: skewX(-30deg);
 }
+
+/* Front page: the tagline, one lead piece, then the rest. */
+.front-title {
+  max-width: 14ch;
+  margin: 0 0 2.5rem;
+  font-size: clamp(2.5rem, 9vw, 4.75rem);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  color: var(--color-leaf-deep);
+}
+.front-grid {
+  display: grid;
+  gap: 3rem;
+}
+@media (min-width: 60rem) {
+  .front-grid {
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 4rem;
+  }
+}
+.lead {
+  padding-top: 1.25rem;
+  border-top: 4px solid var(--color-leaf);
+}
+.lead-title {
+  margin: 0.25rem 0 0.75rem;
+  font-size: clamp(1.9rem, 5vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+.lead-title a,
+.entry-title a {
+  color: var(--color-ink);
+  text-decoration: none;
+}
+.lead-title a:hover,
+.entry-title a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+.lead-dek {
+  max-width: 36rem;
+  margin: 0;
+  font-family: var(--font-reading);
+  font-size: 1.25rem;
+  line-height: 1.55;
+  color: var(--color-ink-muted);
+}
+.front-list {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-rule);
+}
+.entries {
+  display: grid;
+}
+.entry {
+  padding-block: 1.25rem;
+  border-bottom: 1px solid var(--color-rule);
+}
+.entry:first-child {
+  padding-top: 0;
+}
+.entry-title {
+  margin: 0.15rem 0 0.4rem;
+  font-size: 1.3rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.entry-dek {
+  margin: 0;
+  font-family: var(--font-reading);
+  font-size: 1.025rem;
+  line-height: 1.55;
+  color: var(--color-ink-muted);
+}
+
+/* Before launch: the tagline alone. */
+.hero {
+  max-width: 42rem;
+  padding-bottom: 1rem;
+}
+.hero-title {
+  margin: 0 0 1.25rem;
+  font-size: clamp(2.75rem, 11vw, 5.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  color: var(--color-leaf-deep);
+}
+.hero-text {
+  max-width: 34rem;
+  margin: 0;
+  font-family: var(--font-reading);
+  font-size: 1.25rem;
+  line-height: 1.55;
+}
+
+/* The three layers, drawn the way the logo stacks them: each offset, each slanted. */
+.tiga-lapis {
+  max-width: 42rem;
+  margin-top: 4rem;
+}
+.tiga-lapis-title {
+  margin: 0 0 1.5rem;
+  font-size: 1.5rem;
+}
+.tiga-lapis-layers {
+  display: grid;
+  gap: 1.25rem;
+  margin: 0;
+}
+.lapis {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  column-gap: 1.25rem;
+  align-items: start;
+}
+.lapis::before {
+  content: '';
+  grid-row: span 2;
+  height: 1.4rem;
+  margin-top: 0.15rem;
+  transform: skewX(-30deg);
+}
+.lapis-tajuk::before {
+  margin-left: 0.75rem;
+  background: var(--color-leaf);
+}
+.lapis-batang::before {
+  margin-left: 1.5rem;
+  margin-right: -0.75rem;
+  background: var(--color-ink);
+}
+.lapis-akar::before {
+  margin-left: 1.1rem;
+  margin-right: -0.35rem;
+  background: var(--color-soil);
+}
+.lapis dt {
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+.lapis dd {
+  margin: 0.15rem 0 0;
+  color: var(--color-ink-muted);
+}
+
+/* Article. */
+.reading h1 {
+  font-size: clamp(2rem, 6vw, 3rem);
+  line-height: 1.08;
+  margin: 0.25rem 0 0.75rem;
+  overflow-wrap: anywhere;
+}
+.article-head {
+  margin-bottom: 2rem;
+}
+.article-head .dek {
+  margin: 0;
+}
+.verification {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  margin: 1.25rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-rule);
+  font-size: 0.925rem;
+  color: var(--color-ink-muted);
+}
+.verification span {
+  flex: 1 1 18rem;
+}
+.verification-label {
+  flex: none;
+  margin-left: 0.2rem;
+  font-size: 0.875rem;
+}
+.verification-TERVERIFIKASI .verification-label {
+  color: var(--color-surface);
+}
+.verification-TERVERIFIKASI .verification-label::before {
+  border-color: var(--color-leaf);
+  background: var(--color-leaf);
+}
+.verification-SEBAGIAN .verification-label {
+  color: var(--color-ink);
+}
+.verification-BELUM_TERVERIFIKASI .verification-label {
+  color: var(--color-danger);
+}
+.article-body {
+  font-family: var(--font-reading);
+  font-size: 1.1875rem;
+  line-height: 1.7;
+}
+.article-body h2,
+.article-body h3 {
+  margin: 2.25rem 0 0.5rem;
+}
+.article-body h2 {
+  font-size: 1.5rem;
+}
+.article-body h3 {
+  font-size: 1.2rem;
+}
+.reading > p:not([class]),
+.reading > ul:not([class]),
+.reading > ol:not([class]) {
+  font-family: var(--font-reading);
+  font-size: 1.125rem;
+  line-height: 1.7;
+}
+.reading > h2 {
+  margin-top: 2.25rem;
+}
+
+/* Roots: the sources sit in dark soil under the piece, its top edge slanted like the logo. */
+.akar {
+  margin-top: 3.5rem;
+  padding: 3.25rem clamp(1.25rem, 4vw, 2.25rem) 2rem;
+  background: var(--color-soil);
+  color: var(--color-soil-ink);
+  clip-path: polygon(0 1.75rem, 100% 0, 100% 100%, 0 100%);
+}
+.akar a {
+  color: var(--color-soil-ink);
+}
+.akar :focus-visible {
+  outline-color: var(--color-soil-ink);
+}
+.akar h2 {
+  margin: 1.5rem 0 0.75rem;
+  font-size: 1.2rem;
+  color: var(--color-soil-ink);
+}
+.akar-lead {
+  margin: 0;
+  font-family: var(--font-reading);
+  font-size: 1.05rem;
+  color: var(--color-soil-muted);
+}
+.akar .badge {
+  color: var(--color-soil-ink);
+}
+.akar .method {
+  margin-top: 1.5rem;
+  padding: 0;
+  border: 0;
+}
+.akar .method p {
+  margin: 0;
+  color: var(--color-soil-muted);
+}
+.citations ol {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding-left: 1.5rem;
+}
+.citations li {
+  padding-left: 0.25rem;
+  /* Long source URLs used as link text must wrap at 320 px. */
+  overflow-wrap: anywhere;
+}
+.citations li::marker {
+  font-weight: 700;
+}
+.citations li p {
+  margin: 0;
+}
+.cite-publisher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+}
+.cite-title {
+  font-family: var(--font-reading);
+}
+.cite-meta {
+  font-size: 0.875rem;
+  opacity: 0.85;
+}
+.akar .cite-meta {
+  opacity: 1;
+  color: var(--color-soil-muted);
+}
+
 .method {
   margin-top: 2rem;
   padding: 0.75rem 1rem;
-  border-left: 4px solid var(--color-sage);
+  border-left: 4px solid var(--color-rule);
 }
 .labels dt {
   font-weight: 700;
@@ -222,6 +617,49 @@ code,
   gap: 1.5rem;
   margin-top: 2rem;
   font-weight: 600;
+}
+
+/* Footer: the roots of the whole site, full width, slanted top edge. */
+.site-footer {
+  margin-top: 2rem;
+  padding-block: 4rem 2.5rem;
+  background: var(--color-soil);
+  color: var(--color-soil-ink);
+  clip-path: polygon(0 2.5rem, 100% 0, 100% 100%, 0 100%);
+}
+.site-footer-inner {
+  display: grid;
+  gap: 1rem;
+}
+.site-footer .brand-mark-trunk {
+  fill: var(--color-soil-ink);
+}
+.site-footer .brand-mark-roots {
+  fill: var(--color-soil-muted);
+}
+.site-footer-text {
+  max-width: 34rem;
+  margin: 0;
+  color: var(--color-soil-muted);
+}
+.site-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-weight: 600;
+}
+.site-footer a {
+  color: var(--color-soil-ink);
+}
+.site-footer :focus-visible {
+  outline-color: var(--color-soil-ink);
+}
+/* The OS is a workspace, not a page to read: no public footer there. */
+body:has(.os-shell) .site-footer {
+  display: none;
 }
 
 /* --- Founder OS shell and newsroom editor (P1-02) --- */
@@ -239,11 +677,11 @@ main:has(.os-shell) {
   gap: 0.75rem 1.5rem;
   padding: 0.75rem 1rem;
   border-radius: 6px;
-  background: var(--color-forest);
-  color: var(--color-ivory);
+  background: var(--color-leaf-deep);
+  color: var(--color-surface);
 }
 .os-nav a {
-  color: var(--color-ivory);
+  color: var(--color-surface);
 }
 .os-nav ul {
   display: flex;
@@ -254,20 +692,20 @@ main:has(.os-shell) {
   list-style: none;
 }
 .os-nav .muted {
-  color: var(--color-sage);
+  color: var(--color-soil-muted);
 }
 .os-nav button.secondary {
-  border-color: var(--color-ivory);
-  color: var(--color-ivory);
+  border-color: var(--color-surface);
+  color: var(--color-surface);
 }
 .os-nav :focus-visible {
-  outline-color: var(--color-ivory);
+  outline-color: var(--color-surface);
 }
 .os-brand {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-weight: 700;
   text-decoration: none;
 }
@@ -296,8 +734,8 @@ a.button {
   display: inline-block;
   padding: 0.6rem 1rem;
   border-radius: 4px;
-  background: var(--color-forest);
-  color: var(--color-ivory);
+  background: var(--color-leaf);
+  color: var(--color-surface);
   font-weight: 600;
   text-decoration: none;
 }
@@ -310,7 +748,7 @@ a.button {
 }
 .article-list li {
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--color-sage);
+  border-bottom: 1px solid var(--color-rule);
 }
 .article-list p {
   margin: 0.25rem 0 0;
@@ -377,12 +815,12 @@ a.button {
   color: var(--color-ink-muted);
 }
 .notice {
-  color: var(--color-forest);
+  color: var(--color-leaf);
   font-weight: 600;
 }
 .warnings {
   padding: 0.75rem 1rem;
-  border-left: 4px solid var(--color-brass);
+  border-left: 4px solid var(--color-leaf);
   background: #fff;
 }
 .warnings p {
@@ -391,7 +829,7 @@ a.button {
 }
 .editor-preview {
   padding: 1rem 1.25rem;
-  border: 1px solid var(--color-sage);
+  border: 1px solid var(--color-rule);
   border-radius: 6px;
   background: #fff;
 }
@@ -409,7 +847,7 @@ a.button {
 .citations-editor {
   margin-top: 0.5rem !important;
   padding: 0.75rem 1rem 1rem !important;
-  border: 1px solid var(--color-sage) !important;
+  border: 1px solid var(--color-rule) !important;
   border-radius: 6px;
   background: #fff;
 }
@@ -427,7 +865,7 @@ a.button {
   display: grid;
   gap: 0.4rem;
   padding-bottom: 1rem;
-  border-bottom: 1px dashed var(--color-sage);
+  border-bottom: 1px dashed var(--color-rule);
 }
 .citation-flags {
   display: flex;
@@ -444,38 +882,7 @@ label.checkbox {
 .editor-form input[type='checkbox'] {
   width: 1.1rem;
   height: 1.1rem;
-  accent-color: var(--color-forest);
-}
-.verification {
-  margin: 0 0 1rem;
-  padding: 0.4rem 0.75rem;
-  border-radius: 4px;
-  background: var(--color-ivory);
-  border-left: 4px solid var(--color-ink-muted);
-}
-.verification-TERVERIFIKASI {
-  border-left-color: var(--color-forest);
-}
-.verification-BELUM_TERVERIFIKASI {
-  border-left-color: var(--color-danger);
-}
-.badge {
-  display: inline-block;
-  margin-left: 0.4rem;
-  padding: 0 0.4rem;
-  border: 1px solid var(--color-forest);
-  border-radius: 3px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-forest);
-}
-.citations ol {
-  padding-left: 1.25rem;
-}
-.citations li {
-  margin-bottom: 0.5rem;
-  /* Long source URLs used as link text must wrap at 320 px. */
-  overflow-wrap: anywhere;
+  accent-color: var(--color-leaf);
 }
 main:focus {
   outline: none;
@@ -491,7 +898,7 @@ main:focus {
   gap: 0.6rem;
   margin-top: 2rem;
   padding: 1rem 1.25rem;
-  border: 2px solid var(--color-forest);
+  border: 2px solid var(--color-leaf);
   border-radius: 6px;
   background: #fff;
 }
@@ -514,7 +921,7 @@ main:focus {
 .gate {
   padding: 0.6rem 0.9rem;
   border-left: 4px solid var(--color-danger);
-  background: var(--color-ivory);
+  background: var(--color-paper);
 }
 .gate p {
   margin: 0;
@@ -522,7 +929,7 @@ main:focus {
 }
 .notice-warn {
   padding: 0.5rem 0.75rem;
-  border-left: 4px solid var(--color-brass);
+  border-left: 4px solid var(--color-leaf);
   background: #fff;
 }
 
@@ -530,7 +937,7 @@ main:focus {
 .corrections {
   margin: 1rem 0;
   padding: 0.6rem 0.9rem;
-  border-left: 4px solid var(--color-brass);
+  border-left: 4px solid var(--color-leaf);
   background: #fff;
 }
 .corrections h2 {
@@ -556,7 +963,7 @@ main:focus {
 }
 .editor-form fieldset.correction {
   padding: 0.75rem;
-  border: 1px solid var(--color-brass);
+  border: 1px solid var(--color-leaf);
   border-radius: 4px;
 }
 .editor-form fieldset.correction legend {
@@ -568,7 +975,7 @@ main:focus {
 .article-body blockquote {
   margin: 1.5rem 0;
   padding-left: 1rem;
-  border-left: 4px solid var(--color-forest);
+  border-left: 4px solid var(--color-leaf);
 }
 .article-body blockquote footer {
   color: var(--color-ink-muted);
@@ -576,15 +983,15 @@ main:focus {
 .article-body .stat {
   margin: 1.5rem 0;
   padding: 1rem;
-  border: 1px solid var(--color-sage);
+  border: 1px solid var(--color-rule);
   border-radius: 6px;
 }
 .article-body .stat-value {
   margin: 0.25rem 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: 2rem;
   font-weight: 700;
-  color: var(--color-forest);
+  color: var(--color-leaf);
 }
 .article-body .stat-period {
   margin: 0;
@@ -644,7 +1051,7 @@ main:focus {
 }
 .image-missing {
   padding: 0.5rem 0.75rem;
-  border-left: 4px solid var(--color-brass);
+  border-left: 4px solid var(--color-leaf);
   background: #fff;
 }
 .media-grid {
@@ -814,7 +1221,7 @@ main:focus {
   stroke-linejoin: round;
 }
 .chart-s0 {
-  --series: var(--color-forest);
+  --series: var(--color-leaf);
 }
 .chart-s1 {
   --series: #b5651d;
