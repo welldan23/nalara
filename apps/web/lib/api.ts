@@ -423,3 +423,30 @@ export async function getCardDeck(
 ): Promise<CardDeck | null> {
   return osGet(`/cards/${encodeURIComponent(slug)}`, cookieHeader);
 }
+
+/** Radar (P5-01): the inbox as stories, clustered and scored. */
+export interface RadarStory {
+  readonly id: string;
+  readonly title: string;
+  readonly score: number;
+  readonly breaking: boolean;
+  readonly independentSources: number;
+  readonly latestAt: string;
+  readonly keywords: readonly string[];
+  readonly items: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly url: string;
+    readonly source: { readonly name: string; readonly organization: string };
+  }[];
+}
+
+export async function getRadar(
+  cookieHeader: string | null,
+): Promise<{ quietHours: boolean; stories: readonly RadarStory[] }> {
+  const body = await osGet<{ radar: { quietHours: boolean; stories: RadarStory[] } }>(
+    '/radar',
+    cookieHeader,
+  );
+  return body?.radar ?? { quietHours: false, stories: [] };
+}

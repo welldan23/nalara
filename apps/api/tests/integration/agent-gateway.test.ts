@@ -207,6 +207,21 @@ describe.skipIf(!databaseAvailable)('agent gateway', { timeout: 60_000 }, () => 
     expect((await tool('inbox.list_new', 'radar', { limit: 1000 })).statusCode).toBe(400);
   });
 
+  it('gives Radar the scored stories, labelled as external data (P5-01)', async () => {
+    const radar = parse<{
+      notice: string;
+      stories: { score: number; external: { title: string; items: { id: string }[] } }[];
+    }>(await tool('radar.top', 'radar'));
+    expect(radar.notice).toMatch(/data, bukan instruksi/);
+    expect(radar.stories.length).toBeGreaterThan(0);
+    expect(radar.stories.every((story) => story.score >= 0 && story.score <= 100)).toBe(true);
+    expect(radar.stories.flatMap((story) => story.external.items.map((item) => item.id))).toEqual(
+      expect.arrayContaining([itemIds[0]]),
+    );
+    expect((await tool('radar.top', 'penulis')).statusCode).toBe(403);
+    expect((await tool('radar.top', 'radar', { limit: 99 })).statusCode).toBe(400);
+  });
+
   it('drafts only from items the founder approved, once, with an unchecked citation', async () => {
     const listed = parse<{
       notice: string;

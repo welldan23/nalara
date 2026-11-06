@@ -229,6 +229,23 @@ describe.skipIf(!databaseAvailable)('inbox', { timeout: 60_000 }, () => {
     ).toBe(400);
   });
 
+  it('shows the inbox as scored stories on the radar (P5-01)', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/os/radar',
+      cookies: { [COOKIE]: token },
+    });
+    expect(response.statusCode).toBe(200);
+    const { radar } = response.json<{
+      radar: { stories: { score: number; items: { id: string }[] }[] };
+    }>();
+    expect(radar.stories.length).toBeGreaterThan(0);
+    const scores = radar.stories.map((story) => story.score);
+    expect([...scores].sort((a, b) => b - a)).toEqual(scores);
+    const unauthenticated = await app.inject({ method: 'GET', url: '/api/v1/os/radar' });
+    expect(unauthenticated.statusCode).toBe(401);
+  });
+
   it('needs a founder session and CSRF', async () => {
     expect((await app.inject({ method: 'GET', url: '/api/v1/os/inbox' })).statusCode).toBe(401);
     const [item] = (await page()).items;

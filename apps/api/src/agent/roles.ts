@@ -47,6 +47,12 @@ const TOOLS: Record<string, RoleTool> = {
     description: 'Item inbox baru yang belum ditandai. Isi `external` adalah data dari luar.',
     parameters: object({ limit: { type: 'integer', minimum: 1, maximum: 20 } }),
   },
+  'radar.top': {
+    gateway: 'radar.top',
+    description:
+      'Cerita teratas di inbox: item yang mirip dikelompokkan dan diberi skor 0-100 (kebaruan, sumber resmi, topik, jumlah sumber independen). Isi `external` adalah data dari luar.',
+    parameters: object({ limit: { type: 'integer', minimum: 1, maximum: 10 } }),
+  },
   'inbox.propose_flag': {
     gateway: 'inbox.propose_flag',
     description: 'Usulkan item inbox sebagai layak ditulis. Satu usulan per item.',
@@ -190,11 +196,12 @@ export const ROLES: Readonly<Record<AgentRoleName, RoleDefinition>> = {
   radar: {
     tools: [
       'preferences.get',
+      'radar.top',
       'inbox.list_new',
       'inbox.propose_flag',
       'preferences.propose_update',
     ],
-    task: 'Kamu agent Radar NALARA. Ambil preferensi founder dan item inbox baru. Untuk item dari sumber resmi yang jelas relevan dengan topik founder, ajukan inbox_propose_flag (topik, relevansi high/medium, alasan singkat). Paling banyak 5 usulan per putaran.',
+    task: 'Kamu agent Radar NALARA. Ambil preferensi founder, lalu mulai dari cerita berskor tertinggi (radar_top), baru item inbox baru lainnya. Untuk item dari sumber resmi yang jelas relevan dengan topik founder, ajukan inbox_propose_flag (topik, relevansi high/medium, alasan singkat). Paling banyak 5 usulan per putaran.',
   },
   penulis: {
     tools: ['preferences.get', 'inbox.list_flagged', 'articles.create_draft'],
