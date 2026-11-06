@@ -33,6 +33,25 @@ Pelajaran utama dari VORSA: "mode otomatis" VORSA **tidak memposting sendiri**. 
 | Pencarian topik | DuckDuckGo News lewat library `ddgs` (scraping tidak resmi), karena tautan Google News tidak bisa dibuka dari VPS | **Tidak diadopsi** (lihat §4) |
 | Foto berlisensi | API resmi Openverse dan Wikimedia Commons. Hanya CC0, domain publik, CC BY, CC BY-SA; NC/ND/tidak jelas dibuang | **Belum.** P5-05 (BY-SA ditandai, tidak otomatis) |
 
+### 3b. Pelajaran tambahan dari VORSA × SENTINEL (`vorsa-sentinel.zip`, dibaca 2026-11-06)
+
+Sentinel adalah versi VORSA yang dibangun ulang. Sebagian idenya sudah ada di NALARA sejak Phase 1–3 (lihat [REFERENCE-VORSA](../phase-1/REFERENCE-VORSA.md)). Yang **baru** dan layak diambil:
+
+| Ide Sentinel | Cara kerjanya | Rencana NALARA |
+|---|---|---|
+| **Sumber hulu: tren pencarian** | Google Trends Indonesia (RSS resmi). Pencarian ramai + liputan media sedikit = **peluang**: orang ingin paham, belum ada yang menjelaskan. Pola olahraga ("vs", "liga") dilewati | **P5-07.** Sangat cocok untuk media penjelas |
+| **Sumber hulu: daftar siaran pers** | Halaman daftar rilis resmi dibaca, tautan baru yang cocok `link_pattern` = rilis baru. Isi pertama dianggap arsip | **P5-07.** Hanya untuk sumber Terverifikasi; lewat safe fetch + `robots.txt` |
+| **Sumber hulu: data terbuka** | BMKG `autogempa.json` (gempa ≥ M5) | **P5-07.** Sebagai item Radar resmi |
+| **Pantauan perubahan sumber** | Sumber yang dikutip post dipantau 7–14 hari. Kalau teksnya berubah atau angkanya beda, ada alert dengan diff dan daftar post yang memakainya | **P5-08.** Memicu *tinjauan* koreksi, bukan koreksi otomatis. Memakai snapshot bukti P2 |
+| **Kata penalti seremonial** | "melantik", "menghadiri", "kunjungan kerja", "penghargaan": rilis resmi yang jarang jadi cerita | **Sudah masuk P5-01** |
+| **AI hanya boleh mengutip bahan bernomor** | Model diberi bahan bernomor; setiap sumber yang dikutip harus berhasil diarsipkan ke vault bukti, kalau tidak draft ditolak kode | **P5-02** (aturan wajib) |
+| **Budget harian dalam USD + log biaya per operasi** | Panggilan AI ditolak setelah budget habis | **P5-02.** Menambah batas biaya di samping kuota yang sudah ada (P3-02) |
+| **Tiga varian desain (A/B/C)** | Pemilik memilih desain sekaligus menyetujui | **Ditunda.** Kartu NALARA satu gaya dulu; varian bisa menyusul |
+| **Audit log berantai hash** | Mendeteksi baris audit yang diubah | **Ditunda.** NALARA menjaga audit lewat hak DB + trigger |
+| **Publisher Instagram Graph API** | Mati sampai checklist Meta lengkap | **Ditunda.** Upload manual dulu |
+
+Catatan dari uji Sentinel yang berguna untuk deploy NALARA: beberapa situs pemerintah (BPS, presidenri.go.id, Komdigi, DPR) menolak (403) dari IP server cloud, dan BI serta Kemenkeu memuat daftar rilis lewat JavaScript. Itu harus dites ulang dari VPS. Sentinel sendiri **tidak** menembus anti-bot, dan NALARA juga tidak.
+
 ## 4. Aturan scraping NALARA
 
 Urutan prioritas, dari yang paling aman:
@@ -62,6 +81,8 @@ Kalau nanti butuh halaman yang hanya tampil dengan JavaScript, itu menjadi kandi
 | P5-03 | Tombol Telegram | Kirim preview kartu + ringkasan ke bot founder dengan tombol ✅/✏️/❌. ✅ = setujui + terbitkan revisi persis itu (terikat hash), lalu kirim PNG + caption. Token sekali pakai, hanya user ID founder | Tap ganda; revisi setelah kartu terkirim membatalkan; user lain ditolak |
 | P5-04 | Edit cepat lewat chat | Perintah pasti tanpa AI (`judul N: ...`, `caption N: ...`, `lihat N`) dan perintah bebas yang diteruskan ke agent. Setiap edit = revisi baru, persetujuan lama gugur, kartu dikirim ulang | Edit membuat versi baru; persetujuan gugur; injeksi lewat teks diperlakukan sebagai data |
 | P5-05 | Cari foto berlisensi | Dari OS atau agent: cari di Wikimedia Commons/Openverse lewat safe fetch, ambil lisensi + pembuat otomatis, masuk Media Library hanya untuk CC0/PD/CC BY (BY-SA ditandai), kredit otomatis. Rana menjadi sampul cadangan Kartu IG tanpa foto; dukungan WebP | NC/ND/tidak jelas ditolak; kredit benar; SSRF |
+| P5-07 | Sumber hulu | Tiga jenis sumber baru di Source Registry: **tren** (Google Trends RSS, skor peluang = trafik tinggi + liputan rendah), **daftar rilis** (halaman HTML + `link_pattern`, baseline saat pertama dibaca), **data terbuka** (BMKG gempa). Semua lewat safe fetch, patuh `robots.txt`, dan masuk Radar dengan label asalnya | Parser ketat (tanpa DTD), baseline tidak membanjiri, pola olahraga dilewati, SSRF |
+| P5-08 | Pantauan perubahan sumber | Sumber yang dikutip artikel terbit diambil ulang berkala selama 14 hari (snapshot + hash). Kalau teks berubah berarti (terutama angka), founder mendapat peringatan berisi diff dan daftar artikel yang memakainya, untuk ditinjau lewat alur koreksi | Perubahan kosmetik diabaikan; angka berubah ditandai; tidak ada koreksi otomatis |
 | P5-06 | Penerimaan Phase 5 | `docs/phase-5/ACCEPTANCE.md` | — |
 
 ## 6. Exit Phase 5
