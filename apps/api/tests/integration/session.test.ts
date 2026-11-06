@@ -219,7 +219,11 @@ describe.skipIf(!databaseAvailable)('sessions and CSRF', { timeout: 60_000 }, ()
         headers: cookieFor(issued.token),
       });
       expect(response.statusCode).toBe(503);
-      expect(response.payload).not.toContain('ok');
+      // Only the error envelope: the route's own answer ({ ok: true }) never leaks. Compared as
+      // structure, not text: the random request id can itself contain "ok".
+      const body = JSON.parse(response.payload) as Record<string, unknown>;
+      expect(Object.keys(body)).toEqual(['error']);
+      expect((body['error'] as { code: string }).code).toBe('NOT_READY');
       await outageApp.close();
       await broken.close();
     });
