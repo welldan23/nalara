@@ -21,6 +21,8 @@ export interface PublicArticleSummary {
   readonly category: { readonly slug: string; readonly name: string };
   readonly publishedAt: string;
   readonly verification: VerificationLevel;
+  /** Publishers of the checked sources (primary first, at most three). */
+  readonly roots: readonly string[];
 }
 
 export interface PublicArticle extends PublicArticleSummary {

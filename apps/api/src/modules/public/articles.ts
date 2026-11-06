@@ -37,6 +37,8 @@ export interface PublicArticleSummary {
   readonly category: { readonly slug: string; readonly name: string };
   readonly publishedAt: Date;
   readonly verification: VerificationLevel;
+  /** Publishers of the checked sources (primary first, at most three). */
+  readonly roots: readonly string[];
 }
 
 /** What a reader may see of a citation: no editor notes. */
@@ -143,7 +145,16 @@ function toSummary(row: SummaryRow): PublicArticleSummary {
     publishedAt: row.publishedAt,
     // Stored citations were validated when the revision was written.
     verification: verificationLevel(row.citations as Citation[]),
+    roots: articleRoots(row.citations as Citation[]),
   };
+}
+
+/** Publishers of the checked sources, primary first, at most three: where the article is rooted. */
+function articleRoots(citations: readonly Citation[]): string[] {
+  const checked = citations
+    .filter((citation) => citation.verified)
+    .sort((a, b) => Number(b.primary) - Number(a.primary));
+  return [...new Set(checked.map((citation) => citation.publisher))].slice(0, 3);
 }
 
 export interface PublicListResult {
