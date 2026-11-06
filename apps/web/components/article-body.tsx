@@ -250,16 +250,23 @@ const accessFormat = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long', timeZ
 /** Numbered source list; ids `sumber-N` are the anchors that number blocks link to. */
 export function CitationList({
   citations,
+  intro,
 }: {
   readonly citations: readonly CitationView[];
+  /** One sentence under the heading, on the public article. */
+  readonly intro?: string;
 }): ReactNode {
   if (citations.length === 0) return null;
   return (
     <section className="citations" aria-labelledby="sumber-judul">
-      <h2 id="sumber-judul">Sumber</h2>
-      <ol>
+      <h2 id="sumber-judul">Barang bukti</h2>
+      {intro !== undefined && <p className="citations-intro">{intro}</p>}
+      <ol className="cite-list">
         {citations.map((citation, index) => (
           <li key={citation.id} id={`sumber-${String(index + 1)}`}>
+            <p className="cite-tag" aria-hidden="true">
+              Bukti {index + 1}
+            </p>
             <p className="cite-publisher">
               {citation.publisher}
               {citation.primary && <span className="badge">Sumber primer</span>}

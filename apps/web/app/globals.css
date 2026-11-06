@@ -1,7 +1,7 @@
 /* NALARA styles. Tokens come from lib/tokens.ts via layout.tsx.
-   "Tiga lapis" design: the beringin logo's three slanted layers (crown, trunk, roots) stand for how a
-   piece is built (what happened, why it matters, where it comes from). The slant is the one
-   signature; everything around it stays quiet. */
+   "Berkas perkara" design: every article is a case file NALARA has looked into. A fog-grey desk,
+   white case sheets on manila folders, an oxblood rubber stamp for the verification level, and
+   the sources laid out as tagged evidence. Typewriter type is kept for case-file labels only. */
 *,
 *::before,
 *::after {
@@ -20,13 +20,13 @@ body {
   min-width: 320px;
   background: var(--color-paper);
   color: var(--color-ink);
-  font-family: var(--font-sans);
+  font-family: var(--font-reading);
   font-size: 1.0625rem;
   line-height: 1.6;
 }
 
 a {
-  color: var(--color-leaf);
+  color: var(--color-accent);
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
 }
@@ -36,7 +36,7 @@ a:hover {
 
 /* Visible keyboard focus everywhere (TEST-WEB-07). */
 :focus-visible {
-  outline: 3px solid var(--color-leaf);
+  outline: 3px solid var(--color-accent);
   outline-offset: 3px;
 }
 
@@ -46,7 +46,7 @@ a:hover {
   top: -3rem;
   z-index: 10;
   padding: 0.5rem 0.75rem;
-  background: var(--color-leaf);
+  background: var(--color-accent);
   color: var(--color-surface);
 }
 .skip-link:focus {
@@ -79,28 +79,26 @@ main,
 .site-footer-name {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.65rem;
   margin: 0;
-  font-weight: 800;
-  font-size: 1.5rem;
-  letter-spacing: 0.02em;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.85rem;
+  letter-spacing: 0.08em;
   line-height: 1;
 }
 .masthead-name {
-  color: var(--color-leaf-deep);
+  color: var(--color-ink);
   text-decoration: none;
 }
 .brand-mark {
   flex: none;
 }
-.brand-mark-crown {
-  fill: var(--color-leaf);
-}
-.brand-mark-trunk {
+.brand-mark polygon {
   fill: var(--color-ink);
 }
 .brand-mark-roots {
-  fill: var(--color-soil);
+  opacity: 0.75;
 }
 .site-nav ul {
   display: flex;
@@ -109,15 +107,15 @@ main,
   margin: 0;
   padding: 0;
   list-style: none;
-  font-weight: 600;
-  font-size: 0.975rem;
+  font-family: var(--font-type);
+  font-size: 0.95rem;
 }
 .site-nav a {
   color: var(--color-ink);
   text-decoration: none;
 }
 .site-nav a:hover {
-  color: var(--color-leaf);
+  color: var(--color-accent);
   text-decoration: underline;
 }
 /* Phones: topics stay on one line and scroll sideways inside the nav (the page itself never
@@ -162,18 +160,18 @@ main > :not(.front, .os-shell) {
 h1,
 h2,
 h3 {
-  font-family: var(--font-sans);
-  line-height: 1.15;
+  font-family: var(--font-reading);
+  line-height: 1.2;
   color: var(--color-ink);
   text-wrap: balance;
 }
 h1 {
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1.05;
 }
 h2 {
   font-weight: 700;
-  letter-spacing: -0.01em;
 }
 
 .muted {
@@ -184,6 +182,7 @@ form {
   display: grid;
   gap: 1rem;
   max-width: 24rem;
+  font-family: var(--font-sans);
 }
 label {
   display: grid;
@@ -200,11 +199,12 @@ input {
 }
 button {
   font: inherit;
+  font-family: var(--font-sans);
   font-weight: 600;
   padding: 0.65rem 1rem;
-  border: 2px solid var(--color-leaf);
+  border: 2px solid var(--color-accent);
   border-radius: 4px;
-  background: var(--color-leaf);
+  background: var(--color-accent);
   color: var(--color-surface);
   cursor: pointer;
 }
@@ -216,7 +216,7 @@ button.danger {
 }
 button.secondary {
   background: transparent;
-  color: var(--color-leaf);
+  color: var(--color-accent);
 }
 button:disabled {
   opacity: 0.6;
@@ -241,32 +241,42 @@ code,
   list-style: none;
 }
 
-/* --- Public reading pages (P1-06, "Tiga lapis") --- */
+/* --- Public reading pages (P1-06, "Berkas perkara") --- */
 .section-title {
-  margin: 0 0 1rem;
-  font-size: 1.05rem;
+  margin: 0 0 0.75rem;
+  font-family: var(--font-type);
+  font-size: 1rem;
+  font-weight: 700;
   color: var(--color-ink-muted);
 }
+/* Case-file lines: typewriter, small. Topic, date, type of piece. */
+.file-line,
 .topic {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.4rem;
-  margin: 0 0 0.4rem;
-  font-size: 0.925rem;
-  font-weight: 700;
+  gap: 0.35rem 0.6rem;
+  margin: 0 0 0.5rem;
+  font-family: var(--font-type);
+  font-size: 0.875rem;
+  color: var(--color-ink-muted);
 }
+.file-line a,
 .topic a {
+  font-weight: 700;
   text-decoration: none;
 }
-.topic-sep {
-  width: 0.7rem;
-  height: 0.35rem;
-  background: var(--color-rule);
-  transform: skewX(-30deg);
-}
+.file-line a:hover,
 .topic a:hover {
   text-decoration: underline;
+}
+.file-sep {
+  color: var(--color-rule);
+}
+.topic-sep {
+  width: 0.6rem;
+  height: 1px;
+  background: var(--color-ink-muted);
 }
 .meta {
   margin: 0.5rem 0 0;
@@ -281,70 +291,115 @@ code,
 }
 .kicker {
   margin: 0;
-  font-size: 0.9rem;
+  font-family: var(--font-type);
+  font-size: 0.875rem;
   font-weight: 700;
-  color: var(--color-leaf);
+  color: var(--color-accent);
 }
 .kicker a {
   text-decoration: none;
 }
-
-/* The slanted tag: a parallelogram like the logo's layers, text kept upright. */
-.badge,
-.verification-label {
-  position: relative;
-  isolation: isolate;
+.badge {
   display: inline-block;
-  padding: 0.05rem 0.55rem;
+  margin-left: 0.4rem;
+  padding: 0 0.4rem;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  font-family: var(--font-type);
   font-size: 0.8rem;
   font-weight: 700;
   line-height: 1.5;
-  color: var(--color-leaf);
+  color: var(--color-ink);
 }
-.badge {
-  margin-left: 0.4rem;
-}
+.file-line .badge,
 .topic .badge,
 .cite-publisher .badge {
   margin-left: 0;
 }
-.badge::before,
-.verification-label::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border: 1px solid currentColor;
-  transform: skewX(-14deg);
-}
 
-/* "Berakar pada BPS dan BI": the roots of a piece, under its title. */
-.roots {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0.5rem 0 0;
-  font-size: 0.9rem;
-  font-weight: 600;
+/* The rubber stamp: double ruled, slightly crooked, as if pressed by hand. */
+.stamp {
+  display: inline-block;
+  flex: none;
+  padding: 0.3rem 0.65rem 0.25rem;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 0 2px var(--color-surface),
+    inset 0 0 0 3px currentColor;
+  font-family: var(--font-type);
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  transform: rotate(-4deg);
+}
+.stamp-SEBAGIAN,
+.verification-SEBAGIAN .stamp {
+  color: var(--color-ink);
+}
+.stamp-BELUM_TERVERIFIKASI,
+.verification-BELUM_TERVERIFIKASI .stamp {
+  border-style: dashed;
   color: var(--color-ink-muted);
 }
-.roots::before {
-  content: '';
-  flex: none;
-  width: 1.1rem;
-  height: 0.45rem;
-  background: var(--color-soil);
-  transform: skewX(-30deg);
+
+/* "Bukti: BPS dan BI" under each title. */
+.evidence-line {
+  margin: 0.6rem 0 0;
+  font-family: var(--font-type);
+  font-size: 0.875rem;
+  color: var(--color-ink);
+}
+.evidence-line-label {
+  font-weight: 700;
+  color: var(--color-accent);
+}
+.evidence-line-label::after {
+  content: ':';
 }
 
-/* Front page: the tagline, one lead piece, then the rest. */
+/* A case sheet on a manila folder: the folder shows as a tab on top and an edge behind. */
+.folder-tab {
+  display: inline-block;
+  margin: 0;
+  padding: 0.45rem 2rem 0.3rem 1.1rem;
+  background: var(--color-manila);
+  font-family: var(--font-type);
+  font-size: 0.9rem;
+  font-weight: 700;
+  clip-path: polygon(0 0, calc(100% - 1rem) 0, 100% 100%, 0 100%);
+}
+.folder-tab a {
+  color: var(--color-ink);
+  text-decoration: none;
+}
+.folder-tab a:hover {
+  text-decoration: underline;
+}
+.folder-sheet,
+.case-sheet {
+  border-top: 0.5rem solid var(--color-manila);
+  background: var(--color-surface);
+  box-shadow: 0.55rem 0.55rem 0 var(--color-manila);
+}
+
+/* Front page: the tagline, one open case file, then the rest of the files. */
 .front-title {
-  max-width: 14ch;
-  margin: 0 0 2.5rem;
-  font-size: clamp(2.5rem, 9vw, 4.75rem);
-  line-height: 0.98;
-  letter-spacing: -0.035em;
-  color: var(--color-leaf-deep);
+  max-width: 12ch;
+  margin: 0 0 1rem;
+  font-size: clamp(3rem, 10vw, 6rem);
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+}
+.front-text {
+  max-width: 34rem;
+  margin: 0 0 3rem;
+  font-size: 1.2rem;
+  line-height: 1.55;
+  color: var(--color-ink-muted);
 }
 .front-grid {
   display: grid;
@@ -354,18 +409,18 @@ code,
   .front-grid {
     grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
     gap: 4rem;
+    align-items: start;
   }
 }
-.lead {
-  padding-top: 1.25rem;
-  border-top: 4px solid var(--color-leaf);
+.lead .folder-sheet {
+  padding: 1.75rem clamp(1.25rem, 4vw, 2.5rem) 2rem;
 }
 .lead-title {
   margin: 0.25rem 0 0.75rem;
-  font-size: clamp(1.9rem, 5vw, 2.75rem);
-  font-weight: 800;
-  line-height: 1.08;
-  letter-spacing: -0.025em;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 400;
+  line-height: 1.05;
   overflow-wrap: anywhere;
 }
 .lead-title a,
@@ -376,39 +431,52 @@ code,
 .lead-title a:hover,
 .entry-title a:hover {
   text-decoration: underline;
-  text-decoration-thickness: 2px;
+  text-decoration-thickness: 1px;
 }
 .lead-dek {
   max-width: 36rem;
   margin: 0;
-  font-family: var(--font-reading);
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   line-height: 1.55;
   color: var(--color-ink-muted);
 }
+.lead-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--color-rule);
+}
+.lead-foot .evidence-line {
+  margin: 0;
+}
+.lead-foot .stamp {
+  margin-right: 0.35rem;
+}
 .front-list {
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--color-rule);
+  padding-top: 0.5rem;
 }
 .entries {
   display: grid;
 }
 .entry {
-  padding-block: 1.25rem;
+  padding-block: 1.1rem;
   border-bottom: 1px solid var(--color-rule);
 }
 .entry:first-child {
   padding-top: 0;
 }
 .entry-title {
-  margin: 0.15rem 0 0.4rem;
+  margin: 0.1rem 0 0.4rem;
   font-size: 1.3rem;
-  line-height: 1.2;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 .entry-dek {
   margin: 0;
-  font-family: var(--font-reading);
   font-size: 1.025rem;
   line-height: 1.55;
   color: var(--color-ink-muted);
@@ -416,142 +484,105 @@ code,
 
 /* Before launch: the tagline alone. */
 .hero {
-  max-width: 42rem;
+  max-width: 44rem;
   padding-bottom: 1rem;
 }
 .hero-title {
   margin: 0 0 1.25rem;
-  font-size: clamp(2.75rem, 11vw, 5.5rem);
-  line-height: 0.95;
-  letter-spacing: -0.04em;
-  color: var(--color-leaf-deep);
+  font-size: clamp(3.25rem, 12vw, 6.5rem);
+  line-height: 0.92;
+  letter-spacing: -0.01em;
 }
 .hero-text {
   max-width: 34rem;
   margin: 0;
-  font-family: var(--font-reading);
   font-size: 1.25rem;
   line-height: 1.55;
 }
 
-/* The three layers, drawn the way the logo stacks them: each offset, each slanted. */
-.tiga-lapis {
-  max-width: 42rem;
-  margin-top: 4rem;
+/* How we work a story: a real sequence, so the steps are numbered. */
+.method-steps {
+  max-width: 64rem;
+  margin-top: 4.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-rule);
 }
-.tiga-lapis-title {
+.method-steps-title {
   margin: 0 0 1.5rem;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
 }
-.tiga-lapis-layers {
+.method-steps ol {
   display: grid;
-  gap: 1.25rem;
+  gap: 1.75rem 2.5rem;
   margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
 }
-.lapis {
-  display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
-  column-gap: 1.25rem;
-  align-items: start;
+@media (min-width: 48rem) {
+  .method-steps ol {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
-.lapis::before {
-  content: '';
-  grid-row: span 2;
-  height: 1.4rem;
-  margin-top: 0.15rem;
-  transform: skewX(-30deg);
+.method-steps li {
+  counter-increment: step;
 }
-.lapis-tajuk::before {
-  margin-left: 0.75rem;
-  background: var(--color-leaf);
+.method-steps li::before {
+  content: counter(step);
+  display: block;
+  font-family: var(--font-display);
+  font-size: 3rem;
+  line-height: 1;
+  color: var(--color-accent);
 }
-.lapis-batang::before {
-  margin-left: 1.5rem;
-  margin-right: -0.75rem;
-  background: var(--color-ink);
+.method-steps h3 {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 1.15rem;
 }
-.lapis-akar::before {
-  margin-left: 1.1rem;
-  margin-right: -0.35rem;
-  background: var(--color-soil);
-}
-.lapis dt {
-  font-weight: 800;
-  font-size: 1.1rem;
-}
-.lapis dd {
-  margin: 0.15rem 0 0;
+.method-steps p {
+  margin: 0;
   color: var(--color-ink-muted);
 }
-/* Phones: a narrower swatch column, so the explanation keeps most of the width. */
-@media (max-width: 30rem) {
-  .lapis {
-    grid-template-columns: 2.75rem minmax(0, 1fr);
-    column-gap: 0.9rem;
-  }
-  .lapis::before {
-    height: 1.1rem;
-  }
-  .lapis-tajuk::before {
-    margin-left: 0.35rem;
-  }
-  .lapis-batang::before {
-    margin-left: 0.85rem;
-    margin-right: -0.5rem;
-  }
-  .lapis-akar::before {
-    margin-left: 0.6rem;
-    margin-right: -0.25rem;
-  }
-}
 
-/* Article. */
+/* Article: the whole piece is one case sheet. */
+.reading.case {
+  max-width: 46rem;
+}
+.case-sheet {
+  padding: 2rem clamp(1.25rem, 4vw, 2.75rem) 2.5rem;
+}
 .reading h1 {
-  font-size: clamp(2rem, 6vw, 3rem);
-  line-height: 1.08;
+  font-size: clamp(2.25rem, 6.5vw, 3.4rem);
   margin: 0.25rem 0 0.75rem;
   overflow-wrap: anywhere;
 }
-.article-head {
+.case-head {
   margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px dashed var(--color-rule);
 }
-.article-head .dek {
+.case-head .dek {
+  margin: 0 0 1rem;
+}
+.case-head .file-line {
   margin: 0;
 }
 .verification {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.25rem 0.75rem;
+  align-items: center;
+  gap: 0.75rem 1rem;
   margin: 1.25rem 0 0;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-rule);
-  font-size: 0.925rem;
+  font-size: 0.95rem;
   color: var(--color-ink-muted);
 }
-.verification span {
+.verification span:not(.visually-hidden) {
   flex: 1 1 18rem;
 }
 .verification-label {
-  flex: none;
-  margin-left: 0.2rem;
-  font-size: 0.875rem;
-}
-.verification-TERVERIFIKASI .verification-label {
-  color: var(--color-surface);
-}
-.verification-TERVERIFIKASI .verification-label::before {
-  border-color: var(--color-leaf);
-  background: var(--color-leaf);
-}
-.verification-SEBAGIAN .verification-label {
-  color: var(--color-ink);
-}
-.verification-BELUM_TERVERIFIKASI .verification-label {
-  color: var(--color-danger);
+  margin-left: 0.3rem;
 }
 .article-body {
-  font-family: var(--font-reading);
   font-size: 1.1875rem;
   line-height: 1.7;
 }
@@ -560,7 +591,7 @@ code,
   margin: 2.25rem 0 0.5rem;
 }
 .article-body h2 {
-  font-size: 1.5rem;
+  font-size: 1.45rem;
 }
 .article-body h3 {
   font-size: 1.2rem;
@@ -568,7 +599,6 @@ code,
 .reading > p:not([class]),
 .reading > ul:not([class]),
 .reading > ol:not([class]) {
-  font-family: var(--font-reading);
   font-size: 1.125rem;
   line-height: 1.7;
 }
@@ -576,59 +606,45 @@ code,
   margin-top: 2.25rem;
 }
 
-/* Roots: the sources sit in dark soil under the piece, its top edge slanted like the logo. */
-.akar {
-  margin-top: 3.5rem;
-  padding: 3.25rem clamp(1.25rem, 4vw, 2.25rem) 2rem;
-  background: var(--color-soil);
-  color: var(--color-soil-ink);
-  clip-path: polygon(0 1.75rem, 100% 0, 100% 100%, 0 100%);
+/* Evidence: each source is a manila tag with a punched hole, numbered as an exhibit. */
+.evidence {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px dashed var(--color-rule);
 }
-.akar a {
-  color: var(--color-soil-ink);
+.citations h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.3rem;
 }
-.akar :focus-visible {
-  outline-color: var(--color-soil-ink);
-}
-.akar h2 {
-  margin: 1.5rem 0 0.75rem;
-  font-size: 1.2rem;
-  color: var(--color-soil-ink);
-}
-.akar-lead {
-  margin: 0;
-  font-family: var(--font-reading);
-  font-size: 1.05rem;
-  color: var(--color-soil-muted);
-}
-.akar .badge {
-  color: var(--color-soil-ink);
-}
-.akar .method {
-  margin-top: 1.5rem;
-  padding: 0;
-  border: 0;
-}
-.akar .method p {
-  margin: 0;
-  color: var(--color-soil-muted);
+.citations-intro {
+  margin: 0 0 1.25rem;
+  font-style: italic;
+  color: var(--color-ink-muted);
 }
 .citations ol {
   display: grid;
-  gap: 1rem;
+  gap: 0.9rem;
   margin: 0;
-  padding-left: 1.5rem;
+  padding: 0;
+  list-style: none;
 }
 .citations li {
-  padding-left: 0.25rem;
+  padding: 0.9rem 1.25rem 0.95rem 2.9rem;
+  background:
+    radial-gradient(circle at 1.45rem 1.35rem, var(--color-surface) 0.3rem, transparent 0.34rem),
+    var(--color-manila);
+  clip-path: polygon(0.9rem 0, 100% 0, 100% 100%, 0.9rem 100%, 0 calc(100% - 0.9rem), 0 0.9rem);
   /* Long source URLs used as link text must wrap at 320 px. */
   overflow-wrap: anywhere;
 }
-.citations li::marker {
-  font-weight: 700;
-}
 .citations li p {
   margin: 0;
+}
+.cite-tag {
+  font-family: var(--font-type);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-accent);
 }
 .cite-publisher {
   display: flex;
@@ -637,16 +653,22 @@ code,
   gap: 0.5rem;
   font-weight: 700;
 }
-.cite-title {
-  font-family: var(--font-reading);
+.cite-title a {
+  color: var(--color-ink);
 }
 .cite-meta {
-  font-size: 0.875rem;
-  opacity: 0.85;
+  font-family: var(--font-type);
+  font-size: 0.85rem;
+  color: var(--color-ink-muted);
 }
-.akar .cite-meta {
-  opacity: 1;
-  color: var(--color-soil-muted);
+.evidence .method {
+  margin-top: 1.75rem;
+  padding: 0;
+  border: 0;
+}
+.evidence .method h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.1rem;
 }
 
 .method {
@@ -666,31 +688,29 @@ code,
   flex-wrap: wrap;
   gap: 1.5rem;
   margin-top: 2rem;
-  font-weight: 600;
+  font-family: var(--font-type);
+  font-weight: 700;
 }
 
-/* Footer: the roots of the whole site, full width, slanted top edge. */
+/* Footer: the night desk. */
 .site-footer {
   margin-top: 2rem;
-  padding-block: 4rem 2.5rem;
-  background: var(--color-soil);
-  color: var(--color-soil-ink);
-  clip-path: polygon(0 2.5rem, 100% 0, 100% 100%, 0 100%);
+  padding-block: 3rem 2.5rem;
+  border-top: 0.5rem solid var(--color-manila);
+  background: var(--color-night);
+  color: var(--color-night-ink);
 }
 .site-footer-inner {
   display: grid;
   gap: 1rem;
 }
-.site-footer .brand-mark-trunk {
-  fill: var(--color-soil-ink);
-}
-.site-footer .brand-mark-roots {
-  fill: var(--color-soil-muted);
+.site-footer .brand-mark polygon {
+  fill: var(--color-night-ink);
 }
 .site-footer-text {
   max-width: 34rem;
   margin: 0;
-  color: var(--color-soil-muted);
+  color: var(--color-night-muted);
 }
 .site-footer-links {
   display: flex;
@@ -699,13 +719,13 @@ code,
   margin: 0;
   padding: 0;
   list-style: none;
-  font-weight: 600;
+  font-family: var(--font-type);
 }
 .site-footer a {
-  color: var(--color-soil-ink);
+  color: var(--color-night-ink);
 }
 .site-footer :focus-visible {
-  outline-color: var(--color-soil-ink);
+  outline-color: var(--color-night-ink);
 }
 /* The OS is a workspace, not a page to read: no public footer there. */
 body:has(.os-shell) .site-footer {
@@ -719,6 +739,19 @@ main:has(.os-shell) {
 .os-shell {
   display: grid;
   gap: 1.5rem;
+  /* The workspace is a tool, not a case file: one sans face throughout, except previews. */
+  font-family: var(--font-sans);
+}
+.os-shell h1,
+.os-shell h2,
+.os-shell h3 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.os-shell .article-body,
+.os-shell .citations {
+  font-family: var(--font-reading);
 }
 .os-nav {
   display: flex;
@@ -727,7 +760,7 @@ main:has(.os-shell) {
   gap: 0.75rem 1.5rem;
   padding: 0.75rem 1rem;
   border-radius: 6px;
-  background: var(--color-leaf-deep);
+  background: var(--color-night);
   color: var(--color-surface);
 }
 .os-nav a {
@@ -742,7 +775,7 @@ main:has(.os-shell) {
   list-style: none;
 }
 .os-nav .muted {
-  color: var(--color-soil-muted);
+  color: var(--color-night-muted);
 }
 .os-nav button.secondary {
   border-color: var(--color-surface);
@@ -784,7 +817,7 @@ a.button {
   display: inline-block;
   padding: 0.6rem 1rem;
   border-radius: 4px;
-  background: var(--color-leaf);
+  background: var(--color-accent);
   color: var(--color-surface);
   font-weight: 600;
   text-decoration: none;
@@ -865,12 +898,12 @@ a.button {
   color: var(--color-ink-muted);
 }
 .notice {
-  color: var(--color-leaf);
+  color: var(--color-accent);
   font-weight: 600;
 }
 .warnings {
   padding: 0.75rem 1rem;
-  border-left: 4px solid var(--color-leaf);
+  border-left: 4px solid var(--color-accent);
   background: #fff;
 }
 .warnings p {
@@ -932,7 +965,7 @@ label.checkbox {
 .editor-form input[type='checkbox'] {
   width: 1.1rem;
   height: 1.1rem;
-  accent-color: var(--color-leaf);
+  accent-color: var(--color-accent);
 }
 main:focus {
   outline: none;
@@ -948,7 +981,7 @@ main:focus {
   gap: 0.6rem;
   margin-top: 2rem;
   padding: 1rem 1.25rem;
-  border: 2px solid var(--color-leaf);
+  border: 2px solid var(--color-accent);
   border-radius: 6px;
   background: #fff;
 }
@@ -979,7 +1012,7 @@ main:focus {
 }
 .notice-warn {
   padding: 0.5rem 0.75rem;
-  border-left: 4px solid var(--color-leaf);
+  border-left: 4px solid var(--color-accent);
   background: #fff;
 }
 
@@ -987,7 +1020,7 @@ main:focus {
 .corrections {
   margin: 1rem 0;
   padding: 0.6rem 0.9rem;
-  border-left: 4px solid var(--color-leaf);
+  border-left: 4px solid var(--color-accent);
   background: #fff;
 }
 .corrections h2 {
@@ -1013,7 +1046,7 @@ main:focus {
 }
 .editor-form fieldset.correction {
   padding: 0.75rem;
-  border: 1px solid var(--color-leaf);
+  border: 1px solid var(--color-accent);
   border-radius: 4px;
 }
 .editor-form fieldset.correction legend {
@@ -1025,7 +1058,7 @@ main:focus {
 .article-body blockquote {
   margin: 1.5rem 0;
   padding-left: 1rem;
-  border-left: 4px solid var(--color-leaf);
+  border-left: 4px solid var(--color-accent);
 }
 .article-body blockquote footer {
   color: var(--color-ink-muted);
@@ -1041,7 +1074,7 @@ main:focus {
   font-family: var(--font-sans);
   font-size: 2rem;
   font-weight: 700;
-  color: var(--color-leaf);
+  color: var(--color-accent);
 }
 .article-body .stat-period {
   margin: 0;
@@ -1101,7 +1134,7 @@ main:focus {
 }
 .image-missing {
   padding: 0.5rem 0.75rem;
-  border-left: 4px solid var(--color-leaf);
+  border-left: 4px solid var(--color-accent);
   background: #fff;
 }
 .media-grid {
@@ -1271,7 +1304,7 @@ main:focus {
   stroke-linejoin: round;
 }
 .chart-s0 {
-  --series: var(--color-leaf);
+  --series: var(--color-accent);
 }
 .chart-s1 {
   --series: #b5651d;
