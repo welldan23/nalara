@@ -1,6 +1,6 @@
 # Phase 4 — Penerimaan (ACCEPTANCE)
 
-Status: **siap ditinjau founder**. Dibangun dan diuji lokal + CI (D-27), memakai data contoh berlabel TEST. Dataset asli pertama menunggu founder dan deploy (§4).
+Status: **DITERIMA** (PHASE 4 ACCEPTED, D-29, 2026-11-06). Dibangun dan diuji lokal + CI (D-27), memakai data contoh berlabel TEST. Dataset asli pertama menunggu founder dan deploy (§4).
 
 Rencana: [PLAN.md](PLAN.md). Rincian per tiket: [PROGRESS.md](PROGRESS.md). Desain: [ADR-021](../adr/ADR-021-datasets-and-charts.md).
 
@@ -67,7 +67,7 @@ Bug yang **ditemukan oleh tes** lalu diperbaiki:
 
 ## 6. Keputusan founder
 
-- [ ] **PHASE 4 ACCEPTED** (fondasi lokal + CI), dengan G-1..G-2 ditutup setelah deploy, **atau**
+- [x] **PHASE 4 ACCEPTED** (fondasi lokal + CI), dengan G-1..G-2 ditutup setelah deploy. Ditulis founder 2026-11-06 (D-29), **atau**
 - [ ] perubahan yang diminta: …
 
 Phase 3 sudah diterima (D-28). Masih menunggu dari Phase 1: deploy (D-08/D-09) dan **PHASE 1 ACCEPTED**. Fase berikutnya menurut PRD v4 adalah **Fase 5+ (kondisional)**: tools, Labs/API publik, newsletter, monetisasi. Menurut PRD, fase ini baru dimulai bila ada permintaan pembaca nyata, operasi sudah stabil, dan review legal selesai. Karena itu langkah yang disarankan sekarang adalah **deploy** dan validasi pembaca, bukan menambah fitur.
