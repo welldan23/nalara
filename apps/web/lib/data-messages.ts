@@ -68,3 +68,55 @@ export function describeDataField(path: string, rule: string): string {
   }
   return FIELD_ERRORS[`${path}:${rule}`] ?? `Isian "${path}" ditolak (${rule}).`;
 }
+
+const DELIMITERS: Readonly<Record<string, string>> = {
+  ',': 'koma',
+  ';': 'titik koma',
+  '\t': 'tab',
+  '|': 'garis tegak',
+};
+const SEPARATORS: Readonly<Record<string, string>> = {
+  '.': 'titik',
+  ',': 'koma',
+  ' ': 'spasi',
+  '': 'tidak ada',
+};
+
+const PERIOD_WORDS: Readonly<Record<string, string>> = {
+  year: 'tahunan',
+  quarter: 'triwulanan',
+  month: 'bulanan',
+  day: 'harian',
+};
+
+/** The transform rules of a version, in words a reader can follow (P4-04). */
+export function describeSpec(spec: Readonly<Record<string, unknown>>): string[] {
+  const text = (key: string) => (typeof spec[key] === 'string' ? spec[key] : '');
+  const lines = [
+    `Baca file CSV dengan pemisah kolom ${DELIMITERS[text('delimiter')] ?? text('delimiter')}, tanda desimal ${SEPARATORS[text('decimal')] ?? text('decimal')}, dan pemisah ribuan ${SEPARATORS[text('thousands')] ?? text('thousands')}.`,
+  ];
+  if (typeof spec['skipRows'] === 'number' && spec['skipRows'] > 0) {
+    lines.push(`Lewati ${String(spec['skipRows'])} baris pertama (judul atau catatan tabel).`);
+  }
+  lines.push(
+    `Ambil periode (${PERIOD_WORDS[text('periodFormat')] ?? text('periodFormat')}) dari kolom "${text('periodColumn')}" dan nilai dari kolom "${text('valueColumn')}".`,
+  );
+  if (text('seriesColumn') !== '')
+    lines.push(`Pisahkan seri menurut kolom "${text('seriesColumn')}".`);
+  const filters = Array.isArray(spec['filters'])
+    ? (spec['filters'] as { column?: unknown; equals?: unknown }[])
+    : [];
+  for (const filter of filters) {
+    lines.push(`Pakai hanya baris dengan "${String(filter.column)}" = "${String(filter.equals)}".`);
+  }
+  if (typeof spec['scale'] === 'number' && spec['scale'] !== 1) {
+    lines.push(`Kalikan setiap nilai dengan ${String(spec['scale'])}.`);
+  }
+  const missing = Array.isArray(spec['missing']) ? (spec['missing'] as unknown[]).map(String) : [];
+  if (missing.length > 0) {
+    lines.push(
+      `Sel berisi ${missing.map((token) => (token === '' ? '(kosong)' : `"${token}"`)).join(', ')} dianggap tidak ada angka (dilewati, bukan nol).`,
+    );
+  }
+  return lines;
+}

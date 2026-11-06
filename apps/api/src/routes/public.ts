@@ -16,6 +16,7 @@ import {
   publicCorrections,
 } from '../modules/public/articles.ts';
 import { getPublicMediaFile } from '../modules/media/media.ts';
+import { publicDataset, publicDatasetCsv, publicDatasets } from '../modules/data/public.ts';
 import { mediaId, sendImage } from './media.ts';
 
 export interface PublicRoutesOptions {
@@ -72,6 +73,56 @@ export const publicRoutes: FastifyPluginAsync<PublicRoutesOptions> = (app, { db,
   app.get('/corrections', async () => {
     requireLaunch();
     return { corrections: await publicCorrections(db) };
+  });
+
+  // NALARA Data (P4-04): published datasets only; unknown, draft and retracted answer the same 404.
+  const datasetSlug = z
+    .string()
+    .min(3)
+    .max(80)
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+  const datasetParams = (params: unknown) => {
+    const parsed = z.object({ slug: z.string() }).parse(params);
+    if (!datasetSlug.safeParse(parsed.slug).success) throw new AppError('NOT_FOUND');
+    return parsed.slug;
+  };
+
+  app.get('/datasets', async () => {
+    requireLaunch();
+    return { datasets: await publicDatasets(db) };
+  });
+
+  app.get('/datasets/:slug', async (request) => {
+    requireLaunch();
+    const found = await publicDataset(db, datasetParams(request.params));
+    if (found === null) throw new AppError('NOT_FOUND');
+    return found;
+  });
+
+  // The normalised data as CSV, only under a licence that allows reuse.
+  app.get('/datasets/:slug/data.csv', async (request, reply) => {
+    requireLaunch();
+    const query = z
+      .strictObject({
+        versi: z
+          .string()
+          .regex(/^[1-9]\d{0,5}$/)
+          .optional(),
+      })
+      .safeParse(request.query);
+    if (!query.success) throw new AppError('NOT_FOUND');
+    const file = await publicDatasetCsv(
+      db,
+      datasetParams(request.params),
+      query.data.versi === undefined ? undefined : Number(query.data.versi),
+    );
+    if (file === null) throw new AppError('NOT_FOUND');
+    const name = `${datasetParams(request.params)}-v${String(file.version)}.csv`;
+    return reply
+      .header('content-type', 'text/csv; charset=utf-8')
+      .header('content-disposition', `attachment; filename="${name}"`)
+      .header('cache-control', 'public, max-age=300')
+      .send(file.csv);
   });
 
   return Promise.resolve();

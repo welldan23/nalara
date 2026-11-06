@@ -73,6 +73,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                   </li>
                 ))}
                 <li>
+                  <Link href="/data">Data</Link>
+                </li>
+                <li>
                   <Link href="/tentang">Tentang</Link>
                 </li>
               </ul>
