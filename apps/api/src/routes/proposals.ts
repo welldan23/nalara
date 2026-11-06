@@ -13,6 +13,7 @@ import {
   getProposal,
   listProposals,
 } from '../modules/proposals/proposals.ts';
+import { listQueue } from '../modules/stories/queue.ts';
 import type { AuthGuards } from '../plugins/auth.ts';
 
 const uuid = z.uuid();
@@ -32,6 +33,11 @@ export function registerProposalRoutes(
   app: FastifyInstance,
   { db, guards }: { readonly db: NodePgDatabase<typeof schema>; readonly guards: AuthGuards },
 ): void {
+  // Proposal queue (P5-02): radar stories the Penulis agent took, and what became of them.
+  app.get('/stories', { config: { permission: 'proposals.read' } }, async () => ({
+    stories: await listQueue(db),
+  }));
+
   app.get('/proposals', { config: { permission: 'proposals.read' } }, async (request) => {
     const query = parseOrThrow(listQuery, request.query);
     const [page, pendingCount] = await Promise.all([

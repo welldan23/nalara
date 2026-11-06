@@ -580,7 +580,33 @@ export const datasetVersions = pgTable('dataset_versions', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Proposal queue (P5-02): radar stories the Penulis agent takes on. Never deleted. */
+export const STORY_QUEUE_STATUSES = [
+  'drafting',
+  'drafted',
+  'sent',
+  'published',
+  'skipped',
+  'expired',
+] as const;
+export const storyQueue = pgTable('story_queue', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  storyKey: uuid('story_key').notNull().unique(),
+  title: text('title').notNull(),
+  itemIds: uuid('item_ids').array().notNull(),
+  score: integer('score').notNull(),
+  breaking: boolean('breaking').notNull().default(false),
+  status: text('status', { enum: STORY_QUEUE_STATUSES }).notNull().default('drafting'),
+  articleId: uuid('article_id').references(() => articles.id),
+  note: text('note'),
+  queuedAt: timestamp('queued_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
+  storyQueue,
   users,
   sessions,
   loginChallenges,

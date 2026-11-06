@@ -450,3 +450,20 @@ export async function getRadar(
   );
   return body?.radar ?? { quietHours: false, stories: [] };
 }
+
+/** Proposal queue (P5-02). */
+export interface QueuedStory {
+  readonly id: string;
+  readonly title: string;
+  readonly score: number;
+  readonly breaking: boolean;
+  readonly status: string;
+  readonly articleId: string | null;
+  readonly note: string | null;
+  readonly queuedAt: string;
+}
+
+export async function listStoryQueue(cookieHeader: string | null): Promise<QueuedStory[]> {
+  const body = await osGet<{ stories: QueuedStory[] }>('/stories', cookieHeader);
+  return body?.stories ?? [];
+}
