@@ -84,7 +84,12 @@ function rana(): Promise<string> {
   return ranaPromise;
 }
 
-type SatoriFont = { name: string; data: Buffer; weight: 400 | 700; style: 'normal' | 'italic' };
+interface SatoriFont {
+  name: string;
+  data: Buffer;
+  weight: 400 | 700;
+  style: 'normal' | 'italic';
+}
 let fontsPromise: Promise<SatoriFont[]> | null = null;
 
 function fonts(): Promise<SatoriFont[]> {

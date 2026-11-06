@@ -1369,3 +1369,32 @@ main:focus {
 .chart-data summary {
   cursor: pointer;
 }
+
+/* Kartu NALARA (Instagram cards) in the OS. */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+.card-grid img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--color-rule);
+}
+.card-grid p {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+}
+.caption-box textarea {
+  width: 100%;
+  max-width: 40rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-ink-muted);
+  border-radius: 4px;
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 0.95rem;
+}

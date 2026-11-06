@@ -142,7 +142,12 @@ export async function buildApp(config: AppConfig, deps: AppDependencies): Promis
         : {}),
       ...(deps.mfaRateLimitMax !== undefined ? { mfaRateLimitMax: deps.mfaRateLimitMax } : {}),
     });
-    await app.register(osRoutes, { prefix: '/api/v1/os', guards, db: deps.database });
+    await app.register(osRoutes, {
+      prefix: '/api/v1/os',
+      guards,
+      db: deps.database,
+      origin: config.appOrigin,
+    });
     await app.register(agentRoutes, { prefix: '/api/v1/agent', db: deps.database });
     if (deps.telegram !== undefined) {
       await app.register(telegramRoutes, {

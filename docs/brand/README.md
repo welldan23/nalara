@@ -33,6 +33,36 @@ Permintaan founder: nuansa detektif. Supaya tetap terpercaya dan tidak jadi kost
 - **Yang sengaja tidak dipakai:** siluet topi, pipa, atau kaca pembesar; tekstur kertas lusuh; benang merah. Hiasan yang dipakai hanya map dan cap.
 - **Simbol kecil:** `BrandMark` (`apps/web/components/brand.tsx`) menggambar tiga lapis logo dalam satu warna, seperti logo aslinya.
 
+## Kartu NALARA (kartu Instagram, 2026-11-06)
+
+Carousel IG 1080×1350 yang dibuat otomatis dari **artikel yang sudah terbit**. Cara pakainya: buka OS → Newsroom → buka artikel → "Bikin kartu IG", unduh tiap slide, lalu salin caption-nya.
+
+- **Slide:**
+  1. Sampul: judul, ringkasan, cap verifikasi, dan foto cover kalau artikelnya punya gambar berlisensi.
+  2. Angka: dari blok `:::angka`, lengkap dengan periode dan "Bukti: penerbit".
+  3. Poin: tiap subjudul plus paragraf pertamanya.
+  4. Kutipan.
+  5. Barang bukti: sumber-sumbernya, "Baca lengkap", dan Rana yang sedang menjelaskan.
+- **Batas jumlah:** maksimal 7 slide. Sampul dan barang bukti selalu ada.
+- **Caption:** judul, ringkasan, poin dan angka, semua link sumber, kredit foto, link artikel, dan hashtag.
+- **Font:**
+  - judul pakai Libre Caslon Text Bold (pilihan founder: B), karena garisnya cukup tebal untuk feed;
+  - angka besar pakai Caslon Display;
+  - isi pakai Literata;
+  - label pakai Courier Prime.
+
+  Semuanya OFL-1.1 dan dibundel di API, jadi tidak ada request ke luar.
+- **Warna:** palet sepia Rana, sama dengan web.
+- **Batasan:**
+  - Isi kartu tidak pernah ditulis AI.
+  - Kartu tidak pernah memuat catatan editor.
+  - Foto cover hanya dari media yang boleh tampil ke pembaca.
+  - Kartu hanya untuk artikel terbit; kalau bukan, hasilnya 404.
+- **Belum ada:**
+  - Kirim ke Telegram dengan tombol "Sudah diupload": menunggu bot (D-26).
+  - Slide grafik dari dataset.
+  - Varian "Kerja sama" untuk sponsor.
+
 ## Yang masih perlu dibuat
 
 1. **Versi vektor logo lengkap yang disederhanakan** (tiga jajaran genjang plus siluet pohon) untuk favicon dan ikon aplikasi, ditinjau founder. Simbol tiga lapis di masthead sudah ada, tetapi bukan pengganti logo.
