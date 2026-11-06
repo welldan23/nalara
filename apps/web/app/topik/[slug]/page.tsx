@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { cache } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Rana } from '../../../components/brand';
 import { ArticleCard } from '../../../components/public';
 import { publicArticles, publicCategories } from '../../../lib/public-api';
 import { pageAlternates, pageOpenGraph } from '../../../lib/site';
@@ -67,7 +68,10 @@ export default async function TopicPage({
       <h1>{found.name}</h1>
       {found.description !== null && <p className="dek">{found.description}</p>}
       {page.articles.length === 0 ? (
-        <p className="muted">Belum ada artikel di topik ini.</p>
+        <div className="empty-state">
+          <Rana pose="beristirahat" className="empty-state-art" />
+          <p className="muted">Belum ada artikel di topik ini. Rana masih menelusuri.</p>
+        </div>
       ) : (
         <div className="entries">
           {page.articles.map((article) => (

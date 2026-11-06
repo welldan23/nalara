@@ -152,8 +152,8 @@ main {
   flex: 1 0 auto;
   padding-block: 2.5rem 4.5rem;
 }
-/* Ordinary pages read as one column; the front page and the OS opt out. */
-main > :not(.front, .os-shell) {
+/* Ordinary pages read as one column; the front page, the pre-launch hero and the OS opt out. */
+main > :not(.front, .os-shell, .hero, .method-steps) {
   max-width: 42rem;
 }
 
@@ -386,17 +386,86 @@ code,
   box-shadow: 0.55rem 0.55rem 0 var(--color-manila);
 }
 
+/* Rana, the NALARA owl. The art carries its own paper colour, so it only ever sits on --paper. */
+.rana {
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+/* The short gold rule of the brand sheet, under the page's main title. */
+.front-title::after,
+.hero-title::after,
+.reading h1::after,
+.empty-state h1::after {
+  content: '';
+  display: block;
+  width: 3.5rem;
+  height: 2px;
+  margin-top: 1.1rem;
+  background: var(--color-gold);
+}
+.front-head {
+  display: grid;
+  align-items: end;
+  gap: 1rem 3rem;
+  margin-bottom: 3rem;
+}
+.front-head .front-text {
+  margin-bottom: 0;
+}
+.front-art {
+  width: 11rem;
+}
+@media (min-width: 48rem) {
+  .front-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .front-art {
+    width: 14rem;
+  }
+}
+.empty-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 2rem;
+}
+.empty-state > div {
+  flex: 1 1 18rem;
+}
+.empty-state-art {
+  width: 10rem;
+}
+.rana-intro {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0 2rem;
+}
+.rana-intro .rana {
+  width: min(18rem, 100%);
+}
+.rana-intro figcaption {
+  font-size: 1.05rem;
+  color: var(--color-ink-muted);
+}
+@media (min-width: 40rem) {
+  .rana-intro {
+    grid-template-columns: 14rem minmax(0, 1fr);
+    align-items: end;
+  }
+}
+
 /* Front page: the tagline, one open case file, then the rest of the files. */
 .front-title {
   max-width: 12ch;
-  margin: 0 0 1rem;
+  margin: 0;
   font-size: clamp(3rem, 10vw, 6rem);
   line-height: 0.95;
   letter-spacing: -0.01em;
 }
 .front-text {
   max-width: 34rem;
-  margin: 0 0 3rem;
+  margin: 1.25rem 0 3rem;
   font-size: 1.2rem;
   line-height: 1.55;
   color: var(--color-ink-muted);
@@ -482,10 +551,24 @@ code,
   color: var(--color-ink-muted);
 }
 
-/* Before launch: the tagline alone. */
+/* Before launch: the tagline, with Rana on her books beside it. */
 .hero {
-  max-width: 44rem;
+  max-width: 64rem;
+  display: grid;
+  align-items: end;
+  gap: 2rem 3rem;
   padding-bottom: 1rem;
+}
+.hero-art {
+  width: min(16rem, 70%);
+}
+@media (min-width: 52rem) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+  }
+  .hero-art {
+    width: 100%;
+  }
 }
 .hero-title {
   margin: 0 0 1.25rem;
@@ -527,17 +610,22 @@ code,
 .method-steps li {
   counter-increment: step;
 }
-.method-steps li::before {
-  content: counter(step);
+.method-steps-art {
   display: block;
-  font-family: var(--font-display);
-  font-size: 3rem;
-  line-height: 1;
-  color: var(--color-accent);
+  width: auto;
+  height: 9rem;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: left bottom;
 }
 .method-steps h3 {
-  margin: 0.5rem 0 0.25rem;
+  margin: 0.75rem 0 0.25rem;
   font-size: 1.15rem;
+}
+.method-steps h3::before {
+  content: counter(step) '. ';
+  font-family: var(--font-display);
+  color: var(--color-accent);
 }
 .method-steps p {
   margin: 0;

@@ -1,6 +1,7 @@
 // About, method and verification labels (P1-06, PRD v4 §1, §7). Static text: no data from the API.
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Rana } from '../../components/brand';
 import { pageAlternates, pageOpenGraph } from '../../lib/site';
 
 export const metadata: Metadata = {
@@ -48,6 +49,19 @@ export default function AboutPage() {
           opini tanpa klaim faktual.
         </dd>
       </dl>
+
+      <h2 id="rana">Kenalan dengan Rana</h2>
+      <figure className="rana-intro">
+        <Rana
+          pose="rana"
+          alt="Rana, burung hantu berjubah dengan lambang NALARA, bertengger di atas tumpukan buku"
+        />
+        <figcaption>
+          Rana adalah maskot NALARA: seekor burung hantu, simbol rasa ingin tahu, ketelitian, dan
+          kebijaksanaan. Ia membaca, memeriksa, menelusuri, bertanya, lalu menjelaskan, sama seperti
+          cara kami menulis.
+        </figcaption>
+      </figure>
 
       <h2>Koreksi</h2>
       <p>

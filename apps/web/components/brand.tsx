@@ -20,17 +20,64 @@ export function BrandMark({ size = 32 }: { readonly size?: number }): ReactNode 
   );
 }
 
+/** Rana, the NALARA owl (founder's mascot art), in the poses of the brand sheet. */
+const POSES = {
+  rana: { width: 520, height: 760 },
+  membaca: { width: 215, height: 177 },
+  memeriksa: { width: 183, height: 177 },
+  menelusuri: { width: 208, height: 177 },
+  bertanya: { width: 200, height: 204 },
+  menjelaskan: { width: 190, height: 211 },
+  beristirahat: { width: 220, height: 176 },
+} as const;
+
+export type Pose = keyof typeof POSES;
+
+/**
+ * Rana in one pose. Decorative by default (empty alt): every place she appears already says in
+ * words what she illustrates. Pass `alt` only where the picture itself is the content.
+ */
+export function Rana({
+  pose,
+  className,
+  alt = '',
+  priority = false,
+}: {
+  readonly pose: Pose;
+  readonly className?: string;
+  readonly alt?: string;
+  readonly priority?: boolean;
+}): ReactNode {
+  const size = POSES[pose];
+  return (
+    // Static art from /public; next/image would need sharp (ADR-001).
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      className={['rana', className].filter(Boolean).join(' ')}
+      src={`/maskot/${pose}.webp`}
+      width={size.width}
+      height={size.height}
+      alt={alt}
+      loading={priority ? 'eager' : 'lazy'}
+      decoding="async"
+    />
+  );
+}
+
 const STEPS = [
   {
     name: 'Telusuri',
+    pose: 'menelusuri',
     text: 'Setiap klaim kami kejar sampai sumber aslinya: rilis resmi, dokumen, atau data resmi. Bukan dari kata orang.',
   },
   {
     name: 'Periksa',
+    pose: 'memeriksa',
     text: 'Angka dicocokkan dengan satuan dan periodenya. Kalau ada yang janggal, kami tanya dulu, belum ditulis.',
   },
   {
     name: 'Jelaskan',
+    pose: 'menjelaskan',
     text: 'Kesimpulannya ditulis dengan bahasa sehari-hari, dan barang buktinya ditaruh di bawah. Silakan cek sendiri.',
   },
 ] as const;
@@ -45,6 +92,7 @@ export function CaraMenelusuri(): ReactNode {
       <ol>
         {STEPS.map((step) => (
           <li key={step.name}>
+            <Rana pose={step.pose} className="method-steps-art" />
             <h3>{step.name}</h3>
             <p>{step.text}</p>
           </li>
