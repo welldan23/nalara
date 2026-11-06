@@ -44,7 +44,7 @@ $C exec db psql -U postgres -d nalara -c \
 | Gejala | Cek | Tindakan |
 |---|---|---|
 | Situs tidak bisa dibuka | `$C ps`, `$C logs --tail 100 caddy` | Container restart sendiri (`unless-stopped`). Kalau tetap mati: `$C up -d` |
-| API `503` | `$C logs --tail 100 api`, lalu `$C exec api wget -qO- http://127.0.0.1:4000/health/ready` | Biasanya DB belum siap atau migrasi belum jalan (`$C run --rm migrate`) |
+| API `503` | `$C logs --tail 100 api`, lalu `$C exec api node -e "fetch('http://127.0.0.1:4000/health/ready').then((r) => r.text()).then(console.log)"` | Biasanya DB belum siap atau migrasi belum jalan (`$C run --rm migrate`) |
 | DB tidak healthy | `$C logs --tail 100 db`, `df -h` | Disk penuh → §5. Jangan hapus volume `db-data` |
 | Sertifikat TLS gagal | `$C logs caddy \| grep -i acme` | Cek DNS mengarah ke VPS dan port 80/443 terbuka. Caddy mencoba ulang sendiri |
 | Login selalu gagal | Lockout 15 menit setelah 5 kali salah | Tunggu 15 menit. Kalau terus terjadi, ada yang mencoba menebak password: lihat §1 |

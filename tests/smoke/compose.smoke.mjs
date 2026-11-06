@@ -178,7 +178,12 @@ try {
       assert(exec('web', 'node', '-e', probe).status !== 0, 'web can reach the database');
       assert(exec('api', 'node', '-e', probe).status === 0, 'api cannot reach the database');
       assert(
-        exec('web', 'wget', '-q', '-O', '-', 'http://api:4000/health/live').stdout.includes('ok'),
+        exec(
+          'web',
+          'node',
+          '-e',
+          "fetch('http://api:4000/health/live').then((r) => r.text()).then((t) => process.stdout.write(t))",
+        ).stdout.includes('ok'),
         'web cannot reach api',
       );
     },
@@ -588,7 +593,7 @@ try {
 
   await check(
     'RUNBOOK',
-    'founder bootstrap works in the production image (Argon2 on musl, read-only FS)',
+    'founder bootstrap works in the production image (Argon2 on glibc, read-only FS)',
     async () => {
       const password = `smoke ${randomBytes(12).toString('hex')} passphrase`;
       const run = (email) =>
@@ -818,7 +823,7 @@ try {
 
   await check('TEST-COMPOSE-08', 'a crashed process is restarted automatically', async () => {
     const before = Number(inspect('api', '{{.RestartCount}}'));
-    exec('api', 'kill', '1');
+    exec('api', 'node', '-e', 'process.kill(1)');
     const deadline = Date.now() + 60_000;
     while (Date.now() < deadline && Number(inspect('api', '{{.RestartCount}}')) === before)
       await sleep(500);
