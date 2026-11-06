@@ -454,6 +454,27 @@ code,
   margin: 0.15rem 0 0;
   color: var(--color-ink-muted);
 }
+/* Phones: a narrower swatch column, so the explanation keeps most of the width. */
+@media (max-width: 30rem) {
+  .lapis {
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+    column-gap: 0.9rem;
+  }
+  .lapis::before {
+    height: 1.1rem;
+  }
+  .lapis-tajuk::before {
+    margin-left: 0.35rem;
+  }
+  .lapis-batang::before {
+    margin-left: 0.85rem;
+    margin-right: -0.5rem;
+  }
+  .lapis-akar::before {
+    margin-left: 0.6rem;
+    margin-right: -0.25rem;
+  }
+}
 
 /* Article. */
 .reading h1 {
