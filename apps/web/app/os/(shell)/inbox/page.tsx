@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ApiUnauthorized, listCategories, listInbox } from '../../../../lib/api';
+import { ApiUnauthorized, getRadar, listCategories, listInbox } from '../../../../lib/api';
 import { ItemActions } from './item-actions';
 
 export const metadata: Metadata = { title: 'Inbox' };
@@ -40,12 +40,13 @@ export default async function InboxPage({
     data = await Promise.all([
       listInbox(cookie, { status, ...(cursor === undefined ? {} : { cursor }) }),
       listCategories(cookie),
+      status === 'new' && cursor === undefined ? getRadar(cookie) : Promise.resolve(null),
     ]);
   } catch (error) {
     if (error instanceof ApiUnauthorized) redirect('/os/login');
     throw error;
   }
-  const [inbox, categories] = data;
+  const [inbox, categories, radar] = data;
 
   return (
     <>
@@ -66,6 +67,34 @@ export default async function InboxPage({
           </Link>
         ))}
       </nav>
+      {radar !== null && radar.stories.length > 0 && (
+        <section aria-labelledby="radar" className="radar" data-testid="radar">
+          <h2 id="radar">Radar: cerita teratas</h2>
+          <p className="muted">
+            Item yang mirip dikelompokkan jadi satu cerita, lalu diberi skor 0 sampai 100 dari
+            kebaruan, sumber resmi, topikmu, dan jumlah sumber independen.
+            {radar.quietHours ? ' Sekarang jam tenang (01.00 sampai 05.00 WIB).' : ''}
+          </p>
+          <ol className="radar-list">
+            {radar.stories.slice(0, 5).map((story) => (
+              <li key={story.id}>
+                <p className="radar-score">
+                  <strong>{story.score}</strong>
+                  {story.breaking && <span className="badge">Besar</span>}
+                </p>
+                <div>
+                  <p className="inbox-title">{story.title}</p>
+                  <p className="muted">
+                    {String(story.independentSources)} sumber independen,{' '}
+                    {String(story.items.length)} item
+                    {story.keywords.length > 0 ? `. Topik: ${story.keywords.join(', ')}` : ''}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
       {inbox.items.length === 0 ? (
         <p className="muted">
           {status === 'new'

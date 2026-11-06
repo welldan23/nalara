@@ -29,6 +29,7 @@ import { createDraft } from '../articles/articles.ts';
 import { plainText } from '../articles/content.ts';
 import { parseMarkdown } from '../articles/markdown.ts';
 import { fileProposal, getAgentPreferences } from '../proposals/proposals.ts';
+import { loadRadar, radarView } from '../radar/radar.ts';
 import type { AgentRole, ProposalKind } from '../proposals/proposals.ts';
 import type { AgentCredential } from './credentials.ts';
 import { getAiSettings, usageToday } from './settings.ts';
@@ -334,6 +335,31 @@ export const TOOLS = {
       return { notice: EXTERNAL_NOTICE, items: rows.map(itemView) };
     },
   },
+  // Radar (P5-01): the inbox as scored stories, so the agent starts from the strongest ones.
+  'radar.top': {
+    input: z.strictObject({ limit: limit(10, 5) }),
+    writes: false,
+    run: async ({ db }: ToolContext, input: { limit: number }) => {
+      const radar = radarView(await loadRadar(db, { limit: input.limit }));
+      return {
+        notice: EXTERNAL_NOTICE,
+        quietHours: radar.quietHours,
+        stories: radar.stories.map((story) => ({
+          score: story.score,
+          independentSources: story.independentSources,
+          keywords: story.keywords,
+          external: {
+            title: clip(story.title, 300),
+            items: story.items.slice(0, 5).map((item) => ({
+              id: item.id,
+              title: clip(item.title, 300),
+              source: item.source,
+            })),
+          },
+        })),
+      };
+    },
+  },
   'inbox.propose_flag': {
     input: z.strictObject({
       itemId: uuid,
@@ -486,6 +512,7 @@ export const ROLE_TOOLS: Readonly<Record<AgentRole, readonly ToolName[]>> = {
     'preferences.get',
     'preferences.propose_update',
     'inbox.list_new',
+    'radar.top',
     'inbox.propose_flag',
   ],
   penulis: [

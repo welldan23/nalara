@@ -12,6 +12,7 @@ import {
   listInbox,
   setInboxStatus,
 } from '../modules/inbox/inbox.ts';
+import { loadRadar, radarView } from '../modules/radar/radar.ts';
 import type { AuthGuards } from '../plugins/auth.ts';
 
 const uuid = z.uuid();
@@ -36,6 +37,12 @@ export function registerInboxRoutes(
     if (request.auth === null) throw new AppError('UNAUTHORIZED');
     return { userId: request.auth.userId, requestId: request.id };
   };
+
+  // Radar (P5-01): the inbox as stories, clustered and scored.
+  app.get('/radar', { config: { permission: 'inbox.read' } }, async () => {
+    const radar = await loadRadar(db);
+    return { radar: radarView(radar) };
+  });
 
   app.get('/inbox', { config: { permission: 'inbox.read' } }, async (request) => {
     const query = parseOrThrow(listQuery, request.query);
