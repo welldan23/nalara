@@ -11,6 +11,7 @@ import { registerInboxRoutes } from './inbox.ts';
 import { registerMediaRoutes } from './media.ts';
 import { registerProposalRoutes } from './proposals.ts';
 import { registerAiRoutes } from './ai.ts';
+import { registerDatasetRoutes } from './datasets.ts';
 import { registerSourceRoutes } from './sources.ts';
 
 export interface OsRoutesOptions {
@@ -29,5 +30,6 @@ export const osRoutes: FastifyPluginAsync<OsRoutesOptions> = (app, { guards, db 
   registerInboxRoutes(app, { db, guards });
   registerProposalRoutes(app, { db, guards });
   registerAiRoutes(app, { db, guards });
+  registerDatasetRoutes(app, { db, guards });
   return Promise.resolve();
 };

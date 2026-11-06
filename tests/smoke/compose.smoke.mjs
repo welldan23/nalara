@@ -515,7 +515,7 @@ try {
 
   await check(
     'TEST-OPS-06',
-    'large bodies: only the media upload route takes more than 1 MB',
+    'large bodies: only the file upload routes take more than 1 MB',
     async () => {
       // 2 MB of JSON: refused by Caddy (413) anywhere but POST /api/v1/os/media, where it reaches
       // the API and stops at the session check (401) before being parsed.
@@ -537,12 +537,26 @@ try {
           `@${big}`,
           `https://${SITE}${path}`,
         ).stdout;
-      const media = post('/api/v1/os/media');
-      assert(media === '401', `media upload answered ${media}`);
+      // File uploads as base64 JSON: media (P1-09) and dataset files (P4-02).
+      for (const path of [
+        '/api/v1/os/media',
+        '/api/v1/os/datasets/preview',
+        '/api/v1/os/datasets/01900000-0000-7000-8000-000000000001/versions',
+      ]) {
+        const code = post(path);
+        assert(code === '401', `${path} upload answered ${code}`);
+      }
       // API routes with smaller limits. Either Caddy (1 MB) or the API (16-256 KiB, from the
       // Content-Length) refuses first: 413, or 502 when the API closes before Caddy finished
       // sending. Both mean the body never reached a handler; a 401 or 2xx would mean it did.
-      for (const path of ['/api/v1/auth/login', '/api/v1/os/articles', '/api/v1/os/sources']) {
+      for (const path of [
+        '/api/v1/auth/login',
+        '/api/v1/os/articles',
+        '/api/v1/os/sources',
+        '/api/v1/os/datasets',
+        '/api/v1/os/datasets/01900000-0000-7000-8000-000000000001/publish',
+        '/api/v1/os/datasets/x/versions',
+      ]) {
         const code = post(path);
         assert(code === '413' || code === '502', `${path} accepted 2 MB (answered ${code})`);
       }

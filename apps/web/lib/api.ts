@@ -352,3 +352,59 @@ export interface AiOverview {
 export async function getAiOverview(cookieHeader: string | null): Promise<AiOverview | null> {
   return osGet<AiOverview>('/ai', cookieHeader);
 }
+
+// --- NALARA Data (P4-02) ---
+
+export interface Dataset {
+  readonly id: string;
+  readonly slug: string;
+  readonly title: string;
+  readonly description: string;
+  readonly sourceId: string;
+  readonly sourcePageUrl: string;
+  readonly unit: string;
+  readonly frequency: string;
+  readonly methodology: string;
+  readonly licenseStatus: string;
+  readonly licenseNote: string | null;
+  readonly attribution: string | null;
+  readonly status: string;
+  readonly publishedVersion: number | null;
+  readonly publishedAt: string | null;
+  readonly version: number;
+  readonly updatedAt: string;
+  readonly source: {
+    readonly name: string;
+    readonly organization: string;
+    readonly status: string;
+  };
+  readonly versions: number;
+}
+
+export interface DatasetVersion {
+  readonly version: number;
+  readonly rawFilename: string;
+  readonly rawSize: number;
+  readonly rawSha256: string;
+  readonly fileUrl: string;
+  readonly retrievedOn: string;
+  readonly spec: Readonly<Record<string, unknown>>;
+  readonly observationsSha256: string;
+  readonly observationCount: number;
+  readonly series: readonly string[];
+  readonly periodStart: string;
+  readonly periodEnd: string;
+  readonly revisionNote: string;
+  readonly createdAt: string;
+}
+
+export async function listDatasets(cookieHeader: string | null): Promise<Dataset[]> {
+  return (await osGet<{ datasets: Dataset[] }>('/datasets', cookieHeader))?.datasets ?? [];
+}
+
+export async function getDataset(
+  cookieHeader: string | null,
+  id: string,
+): Promise<{ dataset: Dataset; versions: DatasetVersion[] } | null> {
+  return osGet(`/datasets/${encodeURIComponent(id)}`, cookieHeader);
+}

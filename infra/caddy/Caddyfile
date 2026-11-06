@@ -27,16 +27,17 @@
 		-X-Powered-By
 	}
 
-	# 1 MB for every request, except image uploads to the media library (P1-09): 5 MiB images
-	# travel as base64 in JSON. The API re-checks the session before it reads that body.
+	# 1 MB for every request, except file uploads that travel as base64 in JSON: images to the
+	# media library (P1-09) and dataset files (P4-02), both at most 5 MiB raw. The API re-checks
+	# the session before it reads that body.
 	@media_upload {
 		method POST
-		path /api/v1/os/media
+		path_regexp ^/api/v1/os/(media|datasets/preview|datasets/[0-9a-f-]{36}/versions)$
 	}
 	@not_media_upload {
 		not {
 			method POST
-			path /api/v1/os/media
+			path_regexp ^/api/v1/os/(media|datasets/preview|datasets/[0-9a-f-]{36}/versions)$
 		}
 	}
 	request_body @media_upload {

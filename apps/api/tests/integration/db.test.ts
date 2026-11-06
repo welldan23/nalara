@@ -34,6 +34,8 @@ import {
   systemSettings,
   agentUsage,
   approvalTokens,
+  datasets,
+  datasetVersions,
 } from '../../src/db/schema.ts';
 import {
   connect,
@@ -122,6 +124,8 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         'audit_events',
         'categories',
         'corrections',
+        'dataset_versions',
+        'datasets',
         'discovered_items',
         'evidence_snapshots',
         'ingestion_runs',
@@ -241,6 +245,8 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         systemSettings,
         agentUsage,
         approvalTokens,
+        datasets,
+        datasetVersions,
       ]) {
         const { name, columns } = getTableConfig(table);
         const actual = await migrator.query<{ column_name: string; is_nullable: string }>(

@@ -5,6 +5,7 @@ import {
   bigint,
   boolean,
   customType,
+  date,
   integer,
   jsonb,
   pgTable,
@@ -508,6 +509,77 @@ export const approvalTokens = pgTable('approval_tokens', {
   consumedAt: timestamp('consumed_at', { withTimezone: true }),
 });
 
+export const DATASET_FREQUENCIES = [
+  'annual',
+  'quarterly',
+  'monthly',
+  'daily',
+  'irregular',
+] as const;
+export const DATASET_STATUSES = ['draft', 'published', 'retracted'] as const;
+
+/** NALARA Data catalogue (P4-02, ADR-021). Never deleted: retracted instead. */
+export const datasets = pgTable('datasets', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  slug: text('slug').notNull(),
+  title: text('title').notNull(),
+  description: text('description').notNull().default(''),
+  sourceId: uuid('source_id')
+    .notNull()
+    .references(() => sources.id),
+  sourcePageUrl: text('source_page_url').notNull(),
+  unit: text('unit').notNull(),
+  frequency: text('frequency', { enum: DATASET_FREQUENCIES }).notNull(),
+  methodology: text('methodology').notNull().default(''),
+  licenseStatus: text('license_status', { enum: LICENSE_STATUSES }).notNull().default('unknown'),
+  licenseNote: text('license_note'),
+  attribution: text('attribution'),
+  status: text('status', { enum: DATASET_STATUSES }).notNull().default('draft'),
+  publishedVersion: integer('published_version'),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  version: integer('version').notNull().default(1),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One immutable version: raw file + transform + observations, each with its SHA-256. */
+export const datasetVersions = pgTable('dataset_versions', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  datasetId: uuid('dataset_id')
+    .notNull()
+    .references(() => datasets.id),
+  version: integer('version').notNull(),
+  raw: bytea('raw').notNull(),
+  rawSha256: bytea('raw_sha256').notNull(),
+  rawFilename: text('raw_filename').notNull(),
+  fileUrl: text('file_url').notNull(),
+  retrievedOn: date('retrieved_on', { mode: 'string' }).notNull(),
+  spec: jsonb('spec').$type<Record<string, unknown>>().notNull(),
+  observations: jsonb('observations')
+    .$type<{ series: string | null; period: string; value: number }[]>()
+    .notNull(),
+  observationsSha256: bytea('observations_sha256').notNull(),
+  observationCount: integer('observation_count').notNull(),
+  series: text('series')
+    .array()
+    .notNull()
+    .default(sql`'{}'`),
+  periodStart: text('period_start').notNull(),
+  periodEnd: text('period_end').notNull(),
+  revisionNote: text('revision_note').notNull(),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
   users,
   sessions,
@@ -533,4 +605,6 @@ export const schema = {
   systemSettings,
   agentUsage,
   approvalTokens,
+  datasets,
+  datasetVersions,
 };
