@@ -24,3 +24,25 @@
   - unit `tests/unit/radar.test.ts`: 10 tes;
   - integrasi: route `/radar` (urutan skor, 401 tanpa sesi) dan gateway (`radar.top` untuk Radar, 403 untuk Penulis, 400 untuk batas berlebih);
   - daftar tool runner diperbarui.
+
+## P5-02: Antrean usulan (bagian 1: antrean + draft dari agent)
+
+- **Migrasi `0019_story_queue.sql`:** satu baris per cerita Radar yang diambil agent.
+  - Isinya: item penyusun, skor, status (`drafting` → `drafted` → `sent` → `published`, atau `skipped`/`expired`), artikel draftnya, dan catatan.
+  - Baris tidak bisa dihapus (trigger).
+- **Aturan di kode** (`modules/stories/queue.ts`), bukan di prompt:
+  - Hanya cerita dengan skor ≥55.
+  - Jam 01.00–05.00 WIB hanya cerita besar.
+  - Jatah 3 per jam dan 12 per hari, dihitung dari tabel antrean.
+  - Satu cerita dipegang satu kali; cerita yang dipegang lebih dari 2 jam kedaluwarsa.
+  - Cerita yang itemnya sudah pernah diantrekan tidak diambil lagi.
+- **Bahan bernomor:** sumber resmi diurutkan pertama. Draft **hanya** boleh mengutip nomor bahan itu (pelajaran dari VORSA × SENTINEL).
+- **Dukungan sumber minimal:** satu sumber resmi primer, atau dua organisasi berbeda. Kalau kurang, draft ditolak.
+  - Media tidak boleh ditandai primer.
+- **Sitasi tidak pernah ditandai "sudah dicek" oleh agent.** Itu tugas tap founder (P5-03).
+- **Tool agent Penulis:** `stories.next`, `stories.submit_draft`, `stories.skip`. Kuota draft harian AI (P3-02) tetap berlaku.
+- **OS:** halaman Usulan menampilkan "Antrean Radar" (`GET /api/v1/os/stories`, izin `proposals.read`).
+- **Bagian berikutnya** (P5-02b dan P5-03):
+  - snapshot bukti untuk sumber yang dikutip;
+  - Kartu IG dari draft;
+  - paket ke Telegram dengan tombol.

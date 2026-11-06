@@ -219,6 +219,9 @@ describe.skipIf(!databaseAvailable)('agent gateway', { timeout: 60_000 }, () => 
       expect.arrayContaining([itemIds[0]]),
     );
     expect((await tool('radar.top', 'penulis')).statusCode).toBe(403);
+    // The proposal queue (P5-02) belongs to Penulis only.
+    expect((await tool('stories.next', 'radar')).statusCode).toBe(403);
+    expect((await tool('stories.skip', 'pemeriksa', {})).statusCode).toBe(403);
     expect((await tool('radar.top', 'radar', { limit: 99 })).statusCode).toBe(400);
   });
 

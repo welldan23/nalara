@@ -4,9 +4,18 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ApiUnauthorized, listProposals } from '../../../../lib/api';
+import { ApiUnauthorized, listProposals, listStoryQueue } from '../../../../lib/api';
 import { PROPOSAL_STATUS_LABELS } from '../../../../lib/proposal-messages';
 import { ProposalCard } from './proposal-card';
+
+const QUEUE_STATUS_LABELS: Readonly<Record<string, string>> = {
+  drafting: 'Sedang ditulis agent',
+  drafted: 'Draft siap dicek',
+  sent: 'Dikirim ke Telegram',
+  published: 'Terbit',
+  skipped: 'Dilewati',
+  expired: 'Kedaluwarsa',
+};
 
 export const metadata: Metadata = { title: 'Usulan agent' };
 export const dynamic = 'force-dynamic';
@@ -24,8 +33,12 @@ export default async function ProposalsPage({
     typeof query.setelah === 'string' && query.setelah.length <= 512 ? query.setelah : undefined;
   const cookie = (await headers()).get('cookie');
   let page;
+  let queue;
   try {
-    page = await listProposals(cookie, { status, ...(cursor === undefined ? {} : { cursor }) });
+    [page, queue] = await Promise.all([
+      listProposals(cookie, { status, ...(cursor === undefined ? {} : { cursor }) }),
+      listStoryQueue(cookie),
+    ]);
   } catch (error) {
     if (error instanceof ApiUnauthorized) redirect('/os/login');
     throw error;
@@ -62,6 +75,34 @@ export default async function ProposalsPage({
             </li>
           ))}
         </ul>
+      )}
+      {queue.length > 0 && (
+        <section aria-labelledby="antrean" data-testid="story-queue">
+          <h2 id="antrean">Antrean Radar</h2>
+          <p className="muted">
+            Cerita berskor tinggi yang diambil agent Penulis untuk dijadikan draft. Paling banyak 3
+            per jam dan 12 per hari; jam 01.00 sampai 05.00 WIB hanya cerita besar.
+          </p>
+          <ul className="article-list">
+            {queue.map((story) => (
+              <li key={story.id}>
+                <p>
+                  <strong>{story.score}</strong> {story.title}
+                </p>
+                <p className="muted">
+                  {QUEUE_STATUS_LABELS[story.status] ?? story.status}
+                  {story.articleId !== null && (
+                    <>
+                      {'. '}
+                      <Link href={`/os/newsroom/${story.articleId}`}>Buka draft</Link>
+                    </>
+                  )}
+                  {story.note !== null ? `. Catatan: ${story.note}` : ''}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       {page.nextCursor !== null && (
         <nav className="pager" aria-label="Halaman usulan">

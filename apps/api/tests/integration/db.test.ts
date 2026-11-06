@@ -138,6 +138,7 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         'sessions',
         'source_checks',
         'sources',
+        'story_queue',
         'system_settings',
         'users',
       ]);

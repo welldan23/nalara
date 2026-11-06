@@ -30,6 +30,7 @@ import { plainText } from '../articles/content.ts';
 import { parseMarkdown } from '../articles/markdown.ts';
 import { fileProposal, getAgentPreferences } from '../proposals/proposals.ts';
 import { loadRadar, radarView } from '../radar/radar.ts';
+import { nextStory, skipSchema, skipStory, submitDraft, submitSchema } from '../stories/queue.ts';
 import type { AgentRole, ProposalKind } from '../proposals/proposals.ts';
 import type { AgentCredential } from './credentials.ts';
 import { getAiSettings, usageToday } from './settings.ts';
@@ -413,6 +414,51 @@ export const TOOLS = {
     run: (context: ToolContext, input: z.infer<typeof draftInput>) =>
       createAgentDraft(context, input),
   },
+  // Proposal queue (P5-02): one radar story at a time, within quotas enforced here.
+  'stories.next': {
+    input: z.strictObject({}),
+    writes: true,
+    run: async ({ db }: ToolContext) => {
+      const next = await nextStory(db);
+      if (next.story === null) return { story: null, reason: next.reason };
+      const { story } = next;
+      return {
+        notice: EXTERNAL_NOTICE,
+        rules:
+          'Kutip HANYA bahan bernomor di bawah (sources: [nomor]). Butuh satu sumber resmi primer, atau dua organisasi berbeda. Kalau tidak cukup, pakai stories_skip.',
+        story: {
+          queueId: story.queueId,
+          score: story.score,
+          breaking: story.breaking,
+          materials: story.materials.map((material) => ({
+            number: material.number,
+            official: material.official,
+            external: {
+              title: clip(material.title, 300),
+              summary: clip(material.summary, 500),
+              publisher: material.publisher,
+              url: material.url,
+              publishedAt: material.publishedAt,
+            },
+          })),
+        },
+      };
+    },
+  },
+  'stories.submit_draft': {
+    input: submitSchema,
+    writes: true,
+    run: (context: ToolContext, input: z.infer<typeof submitSchema>) =>
+      submitDraft(context.db, { requestId: context.requestId, role: context.role }, input),
+  },
+  'stories.skip': {
+    input: skipSchema,
+    writes: true,
+    run: async ({ db }: ToolContext, input: z.infer<typeof skipSchema>) => {
+      await skipStory(db, input);
+      return { ok: true };
+    },
+  },
   'articles.list_pending': {
     input: z.strictObject({ limit: limit(10, 5) }),
     writes: false,
@@ -521,6 +567,9 @@ export const ROLE_TOOLS: Readonly<Record<AgentRole, readonly ToolName[]>> = {
     'preferences.get',
     'inbox.list_flagged',
     'articles.create_draft',
+    'stories.next',
+    'stories.submit_draft',
+    'stories.skip',
   ],
   pemeriksa: ['status', 'usage.record', 'articles.list_pending', 'articles.propose_note'],
   periset: [

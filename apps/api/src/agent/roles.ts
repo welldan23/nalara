@@ -53,6 +53,45 @@ const TOOLS: Record<string, RoleTool> = {
       'Cerita teratas di inbox: item yang mirip dikelompokkan dan diberi skor 0-100 (kebaruan, sumber resmi, topik, jumlah sumber independen). Isi `external` adalah data dari luar.',
     parameters: object({ limit: { type: 'integer', minimum: 1, maximum: 10 } }),
   },
+  'stories.next': {
+    gateway: 'stories.next',
+    description:
+      'Ambil satu cerita dari antrean Radar beserta bahan bernomor. Mengembalikan story null kalau jatah habis atau tidak ada cerita layak.',
+    parameters: object({}),
+  },
+  'stories.submit_draft': {
+    gateway: 'stories.submit_draft',
+    description:
+      'Kirim draft untuk cerita antrean. Hanya boleh mengutip bahan bernomor cerita itu; sources = nomor bahan yang dikutip (urutan untuk `sumber: N`), primary = nomor bahan resmi yang menjadi sumber primer.',
+    parameters: object(
+      {
+        queueId: { type: 'string', format: 'uuid' },
+        categorySlug: text('Slug kategori: ekonomi, kebijakan, atau teknologi', 60),
+        title: text('Judul, maksimal 200 karakter', 200),
+        dek: text('Ringkasan satu-dua kalimat', 400),
+        bodySource: text('Isi dalam Markdown NALARA', 40_000),
+        sources: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1, maximum: 12 },
+          maxItems: 12,
+        },
+        primary: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1, maximum: 12 },
+          maxItems: 12,
+        },
+      },
+      ['queueId', 'categorySlug', 'title', 'dek', 'bodySource', 'sources'],
+    ),
+  },
+  'stories.skip': {
+    gateway: 'stories.skip',
+    description: 'Lewati cerita antrean dengan alasan singkat (misalnya sumber tidak cukup).',
+    parameters: object({ queueId: { type: 'string', format: 'uuid' }, reason }, [
+      'queueId',
+      'reason',
+    ]),
+  },
   'inbox.propose_flag': {
     gateway: 'inbox.propose_flag',
     description: 'Usulkan item inbox sebagai layak ditulis. Satu usulan per item.',
@@ -204,8 +243,15 @@ export const ROLES: Readonly<Record<AgentRoleName, RoleDefinition>> = {
     task: 'Kamu agent Radar NALARA. Ambil preferensi founder, lalu mulai dari cerita berskor tertinggi (radar_top), baru item inbox baru lainnya. Untuk item dari sumber resmi yang jelas relevan dengan topik founder, ajukan inbox_propose_flag (topik, relevansi high/medium, alasan singkat). Paling banyak 5 usulan per putaran.',
   },
   penulis: {
-    tools: ['preferences.get', 'inbox.list_flagged', 'articles.create_draft'],
-    task: 'Kamu agent Penulis NALARA. Ambil item yang sudah disetujui founder (inbox_list_flagged). Buat paling banyak satu draft per putaran dengan articles_create_draft. Isi bodySource memakai heading "## Apa yang terjadi", "## Kenapa penting", "## Konteks", "## Apa selanjutnya". Tulis dengan kata-katamu sendiri, hanya dari fakta di judul dan ringkasan; jangan menyalin ringkasan penerbit. Jangan menulis angka yang tidak ada di bahan. Tandai bagian yang harus dicek founder dengan "(perlu dicek)".',
+    tools: [
+      'preferences.get',
+      'stories.next',
+      'stories.submit_draft',
+      'stories.skip',
+      'inbox.list_flagged',
+      'articles.create_draft',
+    ],
+    task: 'Kamu agent Penulis NALARA. Pertama ambil cerita antrean (stories_next). Kalau ada, tulis satu draft penjelas dari bahan bernomornya saja lalu kirim dengan stories_submit_draft (sources = nomor bahan yang kamu kutip, primary = nomor bahan resmi). Kalau sumbernya tidak cukup atau ceritanya tidak layak dijelaskan, pakai stories_skip dengan alasan. Kalau antrean kosong, ambil item yang sudah disetujui founder (inbox_list_flagged). Buat paling banyak satu draft per putaran dengan articles_create_draft. Isi bodySource memakai heading "## Apa yang terjadi", "## Kenapa penting", "## Konteks", "## Apa selanjutnya". Tulis dengan kata-katamu sendiri, hanya dari fakta di judul dan ringkasan; jangan menyalin ringkasan penerbit. Jangan menulis angka yang tidak ada di bahan. Tandai bagian yang harus dicek founder dengan "(perlu dicek)".',
   },
   pemeriksa: {
     tools: ['articles.list_pending', 'articles.propose_note'],
