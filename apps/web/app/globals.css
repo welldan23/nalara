@@ -120,6 +120,35 @@ main,
   color: var(--color-leaf);
   text-decoration: underline;
 }
+/* Phones: topics stay on one line and scroll sideways inside the nav (the page itself never
+   scrolls sideways). The strip runs edge to edge and fades out on the right as a hint. */
+@media (max-width: 40rem) {
+  .masthead-inner {
+    gap: 0.5rem;
+    padding-bottom: 0.25rem;
+  }
+  .site-nav {
+    width: calc(100% + 2 * clamp(1rem, 5vw, 3rem));
+    margin-inline: calc(-1 * clamp(1rem, 5vw, 3rem));
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+  }
+  .site-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .site-nav ul {
+    flex-wrap: nowrap;
+    width: max-content;
+    gap: 1.25rem;
+    /* Room for the focus outline, and for the last topic to scroll clear of the fade. */
+    padding: 0.5rem 3rem 0.6rem clamp(1rem, 5vw, 3rem);
+  }
+  .site-nav li {
+    white-space: nowrap;
+  }
+}
 
 main {
   flex: 1 0 auto;
