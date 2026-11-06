@@ -1,8 +1,8 @@
-// Brand pieces for the "Tiga lapis" design: the beringin logo reduced to its three slanted layers
-// (crown, trunk, roots), and the short explanation of how NALARA writes that the layers stand for.
+// Brand pieces for the "Berkas perkara" design: the beringin logo's three layers as a small mark,
+// the verification stamp, and the short account of how NALARA works a story.
 import type { ReactNode } from 'react';
 
-/** The logo's three layers as a small vector mark: crown (leaf), trunk (ink), roots (soil). */
+/** The logo's three slanted layers (crown, trunk, roots) as a small one-colour vector mark. */
 export function BrandMark({ size = 32 }: { readonly size?: number }): ReactNode {
   return (
     <svg
@@ -20,39 +20,51 @@ export function BrandMark({ size = 32 }: { readonly size?: number }): ReactNode 
   );
 }
 
-const LAYERS = [
+const STEPS = [
   {
-    name: 'Tajuk',
-    text: 'Apa yang terjadi, dalam beberapa kalimat. Yang kamu lihat duluan.',
+    name: 'Telusuri',
+    text: 'Setiap klaim kami kejar sampai sumber aslinya: rilis resmi, dokumen, atau data resmi. Bukan dari kata orang.',
   },
   {
-    name: 'Batang',
-    text: 'Kenapa penting, apa konteksnya, dan angka yang bisa dicek: lengkap dengan satuan dan periodenya.',
+    name: 'Periksa',
+    text: 'Angka dicocokkan dengan satuan dan periodenya. Kalau ada yang janggal, kami tanya dulu, belum ditulis.',
   },
   {
-    name: 'Akar',
-    text: 'Sumber resmi dan data yang kami buka sendiri. Ada di bawah setiap tulisan, bisa kamu telusuri.',
+    name: 'Jelaskan',
+    text: 'Kesimpulannya ditulis dengan bahasa sehari-hari, dan barang buktinya ditaruh di bawah. Silakan cek sendiri.',
   },
 ] as const;
 
-/** How every NALARA piece is built, drawn as the logo's stacked layers. */
-export function TigaLapis({ headingLevel = 2 }: { readonly headingLevel?: 2 | 3 }): ReactNode {
-  const Heading = headingLevel === 2 ? 'h2' : 'h3';
+/** How NALARA works a story, in order: an actual sequence, so it is numbered. */
+export function CaraMenelusuri(): ReactNode {
   return (
-    <section className="tiga-lapis" aria-labelledby="tiga-lapis-judul">
-      <Heading id="tiga-lapis-judul" className="tiga-lapis-title">
-        Setiap tulisan punya tiga lapis
-      </Heading>
-      <dl className="tiga-lapis-layers">
-        {LAYERS.map((layer) => (
-          <div key={layer.name} className={`lapis lapis-${layer.name.toLowerCase()}`}>
-            <dt>{layer.name}</dt>
-            <dd>{layer.text}</dd>
-          </div>
+    <section className="method-steps" aria-labelledby="cara-menelusuri">
+      <h2 id="cara-menelusuri" className="method-steps-title">
+        Cara kami menelusuri
+      </h2>
+      <ol>
+        {STEPS.map((step) => (
+          <li key={step.name}>
+            <h3>{step.name}</h3>
+            <p>{step.text}</p>
+          </li>
         ))}
-      </dl>
+      </ol>
     </section>
   );
+}
+
+const STAMP_TEXT: Readonly<Record<string, string>> = {
+  TERVERIFIKASI: 'Terverifikasi',
+  SEBAGIAN: 'Sebagian terverifikasi',
+  BELUM_TERVERIFIKASI: 'Tanpa sumber terverifikasi',
+};
+
+/** The rubber stamp on a case file: the verification level, as decoration with a text twin. */
+export function Stamp({ level }: { readonly level: string }): ReactNode {
+  const text = STAMP_TEXT[level];
+  if (text === undefined) return null;
+  return <span className={`stamp stamp-${level}`}>{text}</span>;
 }
 
 /** "BPS", "BPS dan BI", "BPS, BI, dan OJK". */

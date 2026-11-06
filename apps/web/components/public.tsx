@@ -1,8 +1,8 @@
-// Shared pieces of the public reading pages (P1-06, "Tiga lapis" redesign).
+// Shared pieces of the public reading pages (P1-06, "Berkas perkara" design).
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { PublicArticleSummary } from '../lib/public-api';
-import { TigaLapis, joinNames } from './brand';
+import { CaraMenelusuri, Stamp, joinNames } from './brand';
 
 export const TYPE_BADGES: Readonly<Record<string, string | null>> = {
   explainer: null,
@@ -34,51 +34,59 @@ export function formatDate(iso: string): string {
   return dateFormat.format(new Date(iso));
 }
 
-/** Where the article is rooted, in one plain sentence; nothing when no source was checked. */
-function Roots({ roots }: { readonly roots: readonly string[] }): ReactNode {
+/** The evidence behind a piece, in one line; nothing when no source was checked. */
+function Evidence({ roots }: { readonly roots: readonly string[] }): ReactNode {
   if (roots.length === 0) return null;
-  return <p className="roots">Berakar pada {joinNames(roots)}</p>;
-}
-
-function Topic({ article }: { readonly article: PublicArticleSummary }): ReactNode {
-  const badge = TYPE_BADGES[article.articleType];
   return (
-    <p className="topic">
-      <Link href={`/topik/${article.category.slug}`}>{article.category.name}</Link>
-      {badge !== null && badge !== undefined && <span className="badge">{badge}</span>}
+    <p className="evidence-line">
+      <span className="evidence-line-label">Bukti</span> {joinNames(roots)}
     </p>
   );
 }
 
-/** The newest article, given the room of a front page. */
+/** The newest article, laid on the desk as an open case file. */
 export function LeadArticle({ article }: { readonly article: PublicArticleSummary }): ReactNode {
+  const badge = TYPE_BADGES[article.articleType];
   return (
-    <article className="lead">
-      <Topic article={article} />
-      <h2 className="lead-title">
-        <Link href={`/artikel/${article.slug}`}>{article.title}</Link>
-      </h2>
-      {article.dek !== '' && <p className="lead-dek">{article.dek}</p>}
-      <p className="meta">
-        <time dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
+    <article className="lead folder">
+      <p className="folder-tab">
+        <Link href={`/topik/${article.category.slug}`}>{article.category.name}</Link>
       </p>
-      <Roots roots={article.roots} />
+      <div className="folder-sheet">
+        <p className="file-line">
+          Berkas <time dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
+          {badge !== null && badge !== undefined && <span className="badge">{badge}</span>}
+        </p>
+        <h2 className="lead-title">
+          <Link href={`/artikel/${article.slug}`}>{article.title}</Link>
+        </h2>
+        {article.dek !== '' && <p className="lead-dek">{article.dek}</p>}
+        <div className="lead-foot">
+          <Evidence roots={article.roots} />
+          <Stamp level={article.verification} />
+        </div>
+      </div>
     </article>
   );
 }
 
 export function ArticleCard({ article }: { readonly article: PublicArticleSummary }): ReactNode {
+  const badge = TYPE_BADGES[article.articleType];
   return (
     <article className="entry">
-      <Topic article={article} />
+      <p className="file-line">
+        <Link href={`/topik/${article.category.slug}`}>{article.category.name}</Link>
+        <span className="file-sep" aria-hidden="true">
+          /
+        </span>
+        <time dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
+        {badge !== null && badge !== undefined && <span className="badge">{badge}</span>}
+      </p>
       <h3 className="entry-title">
         <Link href={`/artikel/${article.slug}`}>{article.title}</Link>
       </h3>
       {article.dek !== '' && <p className="entry-dek">{article.dek}</p>}
-      <p className="meta">
-        <time dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
-      </p>
-      <Roots roots={article.roots} />
+      <Evidence roots={article.roots} />
     </article>
   );
 }
@@ -89,11 +97,11 @@ export function ComingSoon(): ReactNode {
       <section className="hero">
         <h1 className="hero-title">Biar semua paham.</h1>
         <p className="hero-text">
-          NALARA menjelaskan berita, kebijakan, dan angka di Indonesia dengan sumber yang bisa kamu
-          telusuri sendiri. Artikel pertama sedang ditulis.
+          NALARA menelusuri berita, kebijakan, dan angka di Indonesia sampai ke sumbernya, lalu
+          menjelaskannya dengan bahasa sehari-hari. Berkas pertama sedang ditelusuri.
         </p>
       </section>
-      <TigaLapis />
+      <CaraMenelusuri />
     </>
   );
 }

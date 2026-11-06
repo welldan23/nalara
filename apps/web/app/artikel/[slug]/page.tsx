@@ -1,4 +1,4 @@
-// Article reading page (P1-06, PRD v4 §4.1; "Tiga lapis" layout: head, body, and the sources as roots): title, summary, body, numbered sources, dates and
+// Article reading page (P1-06, PRD v4 §4.1; "Berkas perkara" layout: the case file, the account, and the sources as evidence): title, summary, body, numbered sources, dates and
 // the verification label, and any substantial corrections (P1-07). Only published articles exist here; everything else is a 404.
 import type { Metadata } from 'next';
 import { cache } from 'react';
@@ -55,75 +55,80 @@ export default async function ArticlePage({
   const updated = article.publishedAt !== article.firstPublishedAt;
 
   return (
-    <article className="reading">
-      <header className="article-head">
-        <p className="topic">
-          <Link href={`/topik/${article.category.slug}`}>{article.category.name}</Link>
-          {badge !== null && badge !== undefined && <span className="badge">{badge}</span>}
-        </p>
-        <h1>{article.title}</h1>
-        {article.dek !== '' && <p className="dek">{article.dek}</p>}
-        <p className="meta article-meta">
-          Terbit{' '}
-          <time dateTime={article.firstPublishedAt}>{formatDate(article.firstPublishedAt)}</time>
-          {updated && (
-            <>
-              , diperbarui{' '}
-              <time dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
-            </>
+    <article className="reading case">
+      <p className="folder-tab">
+        <Link href={`/topik/${article.category.slug}`}>{article.category.name}</Link>
+      </p>
+      <div className="case-sheet">
+        <header className="case-head">
+          <h1>{article.title}</h1>
+          {article.dek !== '' && <p className="dek">{article.dek}</p>}
+          <p className="file-line article-meta">
+            {badge !== null && badge !== undefined && <span className="badge">{badge}</span>}
+            Berkas terbit{' '}
+            <time dateTime={article.firstPublishedAt}>{formatDate(article.firstPublishedAt)}</time>
+            {updated && (
+              <>
+                , diperbarui{' '}
+                <time dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
+              </>
+            )}
+          </p>
+          {verification !== undefined && (
+            <p className={`verification verification-${article.verification}`}>
+              <strong className="verification-label stamp">
+                {verification.label}
+                <span className="visually-hidden">.</span>
+              </strong>{' '}
+              <span>
+                {verification.detail}{' '}
+                <Link href="/tentang#verifikasi">Cara kami memverifikasi</Link>
+              </span>
+            </p>
           )}
-        </p>
-        {verification !== undefined && (
-          <p className={`verification verification-${article.verification}`}>
-            <strong className="verification-label">{verification.label}.</strong>{' '}
-            <span>
-              {verification.detail} <Link href="/tentang#verifikasi">Cara kami memverifikasi</Link>
-            </span>
+        </header>
+        {article.corrections.length > 0 && (
+          <aside className="corrections" aria-labelledby="koreksi" data-testid="corrections">
+            <h2 id="koreksi">Koreksi</h2>
+            <ul>
+              {article.corrections.map((correction, index) => (
+                <li key={`${correction.visibleAt}-${String(index)}`}>
+                  <time dateTime={correction.visibleAt}>{formatDate(correction.visibleAt)}</time>:{' '}
+                  {correction.description}
+                </li>
+              ))}
+            </ul>
+            <p className="muted">
+              <Link href="/koreksi">Semua koreksi</Link>
+            </p>
+          </aside>
+        )}
+        {article.sourceException !== null && (
+          <p className="notice-warn">
+            <strong>Catatan redaksi:</strong> {article.sourceException}
           </p>
         )}
-      </header>
-      {article.corrections.length > 0 && (
-        <aside className="corrections" aria-labelledby="koreksi" data-testid="corrections">
-          <h2 id="koreksi">Koreksi</h2>
-          <ul>
-            {article.corrections.map((correction, index) => (
-              <li key={`${correction.visibleAt}-${String(index)}`}>
-                <time dateTime={correction.visibleAt}>{formatDate(correction.visibleAt)}</time>:{' '}
-                {correction.description}
-              </li>
-            ))}
-          </ul>
-          <p className="muted">
-            <Link href="/koreksi">Semua koreksi</Link>
-          </p>
-        </aside>
-      )}
-      {article.sourceException !== null && (
-        <p className="notice-warn">
-          <strong>Catatan redaksi:</strong> {article.sourceException}
-        </p>
-      )}
-      <ArticleBody
-        blocks={article.body}
-        citations={article.citations}
-        media={article.media}
-        charts={article.charts}
-      />
-      {(article.citations.length > 0 || article.methodNote !== null) && (
-        <div className="akar">
-          <p className="akar-lead">
-            Akar tulisan ini. Klaim penting di atas berasal dari sumber berikut, dan kamu bisa
-            membukanya sendiri.
-          </p>
-          <CitationList citations={article.citations} />
-          {article.methodNote !== null && (
-            <section aria-labelledby="metode" className="method">
-              <h2 id="metode">Catatan metode</h2>
-              <p>{article.methodNote}</p>
-            </section>
-          )}
-        </div>
-      )}
+        <ArticleBody
+          blocks={article.body}
+          citations={article.citations}
+          media={article.media}
+          charts={article.charts}
+        />
+        {(article.citations.length > 0 || article.methodNote !== null) && (
+          <div className="evidence">
+            <CitationList
+              citations={article.citations}
+              intro="Sumber yang kami buka dan cocokkan sendiri untuk klaim penting di atas. Silakan cek."
+            />
+            {article.methodNote !== null && (
+              <section aria-labelledby="metode" className="method">
+                <h2 id="metode">Catatan metode</h2>
+                <p>{article.methodNote}</p>
+              </section>
+            )}
+          </div>
+        )}
+      </div>
     </article>
   );
 }

@@ -12,6 +12,9 @@ import { BrandMark } from '../components/brand';
 import '@fontsource-variable/plus-jakarta-sans';
 import '@fontsource-variable/literata/opsz.css';
 import '@fontsource-variable/literata/opsz-italic.css';
+import '@fontsource/libre-caslon-display/400.css';
+import '@fontsource/courier-prime/400.css';
+import '@fontsource/courier-prime/700.css';
 import './globals.css';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -101,8 +104,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <span>NALARA</span>
             </p>
             <p className="site-footer-text">
-              Media penjelas Indonesia. Setiap tulisan ditinjau redaksi dan berakar pada sumber yang
-              bisa kamu buka sendiri.
+              Media penjelas Indonesia. Setiap berkas ditinjau redaksi, dan barang buktinya bisa
+              kamu buka sendiri.
             </p>
             <ul className="site-footer-links">
               <li>

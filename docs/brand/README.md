@@ -10,20 +10,28 @@ Keputusan founder **D-22** (2026-11-04): logo **beringin tiga lapis** dipakai un
 
 Tiga lapis bidang miring: tajuk (yang terlihat), batang, dan akar (sumbernya). Ini sejalan dengan prinsip *source-first*: setiap klaim bisa ditelusuri sampai ke akarnya.
 
-## Sistem visual "Tiga lapis" (2026-11-06)
+## Sistem visual "Berkas perkara" (2026-11-06)
 
-Tampilan publik dirombak dari logo ini, bukan dari template. Tiga bidang miring logo jadi cara menyusun tulisan, dan bentuk miring itu satu-satunya "hiasan":
+Permintaan founder: nuansa detektif. Supaya tetap terpercaya dan tidak jadi kostum, metaforanya dibuat dari cara kerja NALARA sendiri: setiap artikel adalah **berkas** yang sudah ditelusuri, dan sumbernya adalah **barang bukti**. Nama dan ikon tokoh detektif tertentu sengaja tidak dipakai.
 
-| Lapis logo | Di tulisan | Di layar |
-|---|---|---|
-| Tajuk (hijau daun) | Apa yang terjadi | Judul besar dan ringkasan |
-| Batang (tinta) | Kenapa penting, angka yang bisa dicek | Isi artikel (Literata) |
-| Akar (tanah gelap) | Sumber dan data | Pita "Akar tulisan ini" berwarna tanah dengan sisi atas miring, baris "Berakar pada BPS dan BI" di bawah judul, dan footer |
+| Unsur | Di layar |
+|---|---|
+| Meja berkabut | Latar abu-abu dingin `#E9EBE7` (bukan krem) |
+| Lembar berkas di atas map manila | Artikel dan artikel utama di beranda: lembar putih, tab map berisi topik, tepi map manila `#DCC995` di belakangnya |
+| Cap karet | Label verifikasi: bingkai ganda, sedikit miring, merah tua `#7B1E22`. Teks aslinya tetap ada untuk pembaca layar |
+| Barang bukti | Setiap sumber berupa label manila berlubang, bernomor "Bukti 1, 2, ..." |
+| Garis "Bukti: BPS dan BI" | Di bawah judul, dari penerbit sumber yang sudah dicek |
+| Cara kami menelusuri | Telusuri, Periksa, Jelaskan: urutan kerja sungguhan, jadi boleh bernomor |
+| Meja malam | Footer gelap `#17191F` |
 
-- **Warna** (`apps/web/lib/tokens.ts`): kertas `#F6F7F5`, tinta `#18211E`, daun `#245640`, daun tua `#15291F`, tanah `#2A221C`, teks di tanah `#EFE8DD`. Semua pasangan teks lolos kontras AA (diuji di `tests/tokens.test.ts`). Latar krem lama dibuang.
-- **Huruf**: Plus Jakarta Sans (judul dan antarmuka, karya desainer Indonesia) dan Literata (bacaan panjang). Keduanya lisensi OFL-1.1, di-host sendiri lewat paket `@fontsource-variable`, jadi CSP tetap `font-src 'self'` dan tidak ada permintaan ke Google Fonts.
-- **Yang sengaja tidak dipakai**: label huruf kapital semua, deretan meta dengan titik tengah, kartu seragam berbayangan, dan gradasi.
-- **Simbol kecil**: `apps/web/components/brand.tsx` (`BrandMark`) menggambar tiga jajaran genjang sebagai SVG untuk masthead dan footer. Logo beringin lengkap tetap dipakai untuk favicon, gambar share, dan OS.
+- **Huruf:** semuanya lisensi OFL-1.1 dan di-host sendiri, jadi CSP tetap `font-src 'self'`.
+  - Libre Caslon Display untuk judul besar. Bentuknya mirip cetakan abad ke-19.
+  - Literata untuk bacaan dan judul kecil.
+  - Courier Prime (mesin ketik) **hanya** untuk label berkas: topik, tanggal, nomor bukti, dan cap.
+  - Plus Jakarta Sans untuk OS (dapur redaksi) dan formulir.
+- **Kontras:** semua pasangan warna teks lolos AA dan diuji di `tests/tokens.test.ts`.
+- **Yang sengaja tidak dipakai:** siluet topi, pipa, atau kaca pembesar; tekstur kertas lusuh; benang merah. Hiasan yang dipakai hanya map dan cap.
+- **Simbol kecil:** `BrandMark` (`apps/web/components/brand.tsx`) menggambar tiga lapis logo dalam satu warna, seperti logo aslinya.
 
 ## Yang masih perlu dibuat
 
