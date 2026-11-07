@@ -52,7 +52,13 @@ Go to the repository → **Settings → Secrets and variables → Actions → Ne
 | `VPS_KNOWN_HOSTS` | the line under `=== VPS_KNOWN_HOSTS` |
 | `VPS_SSH_KEY` | everything under `=== VPS_SSH_KEY`, from `-----BEGIN` to `-----END ...-----` |
 
+| `VPS_PORT` | only when SSH is not on port 22, e.g. a NAT VPS where the provider forwards a high port (`ssh -p 20191 ...`) |
+
 Never paste these into chat, issues or screenshots. The VPS password is not needed anywhere.
+
+**NAT VPS** (shared public IP, `hostname -I` shows only a `10.x`/`192.168.x` address):
+- SSH: set `VPS_PORT` to the forwarded port. The host field of `VPS_KNOWN_HOSTS` is rebuilt from `VPS_HOST` and the port, so the line copied in §A works as is.
+- Web: readers need ports 80 and 443 forwarded to the VPS. Check the provider panel, because a NAT VPS often forwards only a port range.
 
 ### C. Set up and deploy
 

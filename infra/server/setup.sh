@@ -11,7 +11,7 @@
 #     (/usr/local/sbin/nalara-ci: deploy or status only, no shell, no forwarding);
 #   - writes /srv/nalara/.env with fresh random secrets once (mode 0600). A later run never
 #     touches existing secrets; it only updates the address when --site is given;
-#   - opens 22, 80 and 443 in ufw and denies the rest.
+#   - opens SSH (22 and the port sshd listens on), 80 and 443 in ufw and denies the rest.
 # Without --site the site lives at <public-ip>.sslip.io until a domain is bought (D-08).
 set -euo pipefail
 umask 022
@@ -152,6 +152,10 @@ chmod 0600 "$ENV_FILE"
 
 log "Firewall"
 ufw allow OpenSSH >/dev/null
+# Never lock SSH out: also allow every port sshd really listens on (some hosts move it off 22).
+for ssh_port in $(sshd -T 2>/dev/null | awk '$1 == "port" {print $2}'); do
+  ufw allow "$ssh_port/tcp" >/dev/null
+done
 ufw allow 80/tcp >/dev/null
 ufw allow 443/tcp >/dev/null
 ufw allow 443/udp >/dev/null
