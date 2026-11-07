@@ -21,15 +21,25 @@ Jangan pernah menempel token atau API key di chat, git, atau screenshot.
    docker compose -f compose.prod.yaml exec api node dist/cli/agent-credential.js create runner
    ```
    Salin baris token ke `/srv/nalara/.env` sebagai `AGENT_TOKEN=...`.
-3. **Isi provider** di `/srv/nalara/.env`:
+3. **Isi provider** di `/srv/nalara/.env`. Pilihan founder (D-25) adalah **OpenCode Go**:
    ```bash
-   AI_BASE_URL=https://<provider>/v1
-   AI_API_KEY=<key khusus NALARA>
-   AI_MODEL=<nama model>
-   # Opsional:
+   AI_BASE_URL=https://opencode.ai/inference/go/openai/v1
+   AI_API_KEY=<key OpenCode Go, khusus NALARA>
+   AI_MODEL=<model bawaan, misalnya model "flash" yang murah>
+   # Opsional: model berbeda per peran (kosong = pakai AI_MODEL)
+   # AI_MODEL_RADAR=<murah dan cepat>
+   # AI_MODEL_PENULIS=<paling kuat untuk bahasa Indonesia>
+   # AI_MODEL_PEMERIKSA=<keluarga BERBEDA dari Penulis, supaya kesalahannya tidak sama>
+   # AI_MODEL_PERISET=<menengah>
+   # AI_MODEL_PEMANTAU=<termurah>
    # AGENT_ROLES=radar,pemeriksa        (mulai dari sedikit peran)
    # AGENT_INTERVAL_SECONDS=1800
    ```
+   - **Nama model:** tulis nama model persis seperti di daftar model OpenCode Go, huruf kecil dan tanpa awalan `opencode-go/`. Daftarnya bisa dilihat di `https://opencode.ai/inference/go/v1/models` atau di halaman dokumentasi Go. Daftar itu bisa berubah, jadi cek dulu saat mengisi.
+   - **Privasi:** di OpenCode Console → Settings → Privacy, biarkan *"Allow paid endpoints that train on request data"* **mati**. Jangan pakai model yang namanya berakhiran `-contributor`: model itu melatih dirinya dari prompt.
+   - **Header:** runner mengirim User-Agent `NALARA-Agent/1.0` dan `x-opencode-session` (acak per tugas), sesuai permintaan dokumentasi Go. Runner tidak menyamar sebagai aplikasi lain.
+   - **Batas pemakaian Go:** ada jatah per 5 jam, per minggu, dan per bulan. Kalau jatah habis, provider menjawab error dan tugas agent berhenti dengan rapi (`model:rate_limited` atau `model:http_error`), lalu dicoba lagi di putaran berikutnya.
+   - **Risiko yang diterima founder (D-25):** ketentuan layanan OpenCode membatasi proses otomatis saat tidak login dan pemakaian untuk pihak ketiga (lihat R-02). Kalau akun dibatasi atau diblokir, **pindah provider tanpa ubah kode**: ganti `AI_BASE_URL`, `AI_API_KEY`, dan nama model ke provider API berbayar (misalnya OpenRouter atau OpenAI), lalu `docker compose ... up -d agent`.
 4. **Jalankan:**
    ```bash
    docker compose -f compose.prod.yaml --profile agent up -d agent

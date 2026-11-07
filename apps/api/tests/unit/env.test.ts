@@ -13,6 +13,7 @@ import {
   loadConfig,
   loadMigratorConfig,
   loadAgentRunnerConfig,
+  modelFor,
 } from '../../src/config/env.ts';
 
 // Obvious, low-entropy fixture values: test-only, never real secrets.
@@ -439,7 +440,30 @@ describe('loadAgentRunnerConfig (P3-03)', () => {
       }),
     ).toMatchObject({
       roles: ['radar', 'pemantau'],
-      provider: { baseUrl: 'https://provider.example/v1', model: 'vendor/model-1' },
+      provider: { baseUrl: 'https://provider.example/v1', model: 'vendor/model-1', roleModels: {} },
     });
+  });
+
+  it('lets each role run on its own model, falling back to AI_MODEL', () => {
+    const provider = loadAgentRunnerConfig({
+      ...base,
+      AI_BASE_URL: 'https://opencode.ai/inference/go/openai/v1',
+      AI_API_KEY: 'fixture-key',
+      AI_MODEL: 'glm-5.3-flash',
+      AI_MODEL_PENULIS: 'kimi-k3',
+      AI_MODEL_PEMERIKSA: 'claude-haiku-5-5',
+    }).provider;
+    expect(provider?.roleModels).toEqual({ penulis: 'kimi-k3', pemeriksa: 'claude-haiku-5-5' });
+    expect(provider === null ? null : modelFor(provider, 'penulis')).toBe('kimi-k3');
+    expect(provider === null ? null : modelFor(provider, 'radar')).toBe('glm-5.3-flash');
+    expect(() =>
+      loadAgentRunnerConfig({
+        ...base,
+        AI_BASE_URL: 'https://provider.example/v1',
+        AI_API_KEY: 'fixture-key',
+        AI_MODEL: 'm',
+        AI_MODEL_RADAR: 'bad model name!',
+      }),
+    ).toThrow(/AI_MODEL_RADAR must be a model name/);
   });
 });

@@ -91,10 +91,17 @@ function parseReply(body: Buffer): ModelReply {
   };
 }
 
+/** Per call: which model, and a stable id for the task (providers use it for caching/routing). */
+export interface ChatOptions {
+  readonly model: string;
+  readonly sessionId: string;
+}
+
 export async function chat(
   provider: AgentProviderConfig,
   messages: readonly ChatMessage[],
   tools: readonly ToolSpec[],
+  options: ChatOptions,
   fetchOptions: ModelFetchOptions = {},
 ): Promise<ModelReply> {
   let response;
@@ -103,14 +110,20 @@ export async function chat(
       ...fetchOptions,
       method: 'POST',
       body: {
-        model: provider.model,
+        model: options.model,
         messages,
         tools,
         tool_choice: 'auto',
         temperature: 0.2,
         max_tokens: 1500,
       },
-      headers: { authorization: `Bearer ${provider.apiKey}`, accept: 'application/json' },
+      headers: {
+        authorization: `Bearer ${provider.apiKey}`,
+        accept: 'application/json',
+        // OpenCode asks clients for a stable session id per conversation (D-25). It is random per
+        // task and carries nothing about NALARA or its content.
+        'x-opencode-session': options.sessionId,
+      },
       contentTypes: ['application/json'],
       maxBytes: 2 * 1024 * 1024,
       timeoutMs: 90_000,

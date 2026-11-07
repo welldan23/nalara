@@ -80,6 +80,11 @@ export const KNOWN_ENV_KEYS = [
   'AI_BASE_URL',
   'AI_API_KEY',
   'AI_MODEL',
+  'AI_MODEL_RADAR',
+  'AI_MODEL_PENULIS',
+  'AI_MODEL_PEMERIKSA',
+  'AI_MODEL_PERISET',
+  'AI_MODEL_PEMANTAU',
   // Founder Telegram bot (P3-04, D-26).
   'TELEGRAM_BOT_TOKEN',
   'TELEGRAM_WEBHOOK_SECRET',
@@ -475,7 +480,15 @@ export interface AgentProviderConfig {
   /** OpenAI-compatible base URL, e.g. https://api.example.com/v1 (https only). */
   readonly baseUrl: string;
   readonly apiKey: string;
+  /** Default model for every role. */
   readonly model: string;
+  /** Per-role overrides (AI_MODEL_RADAR, AI_MODEL_PENULIS, ...); a role without one uses `model`. */
+  readonly roleModels: Readonly<Partial<Record<AgentRoleName, string>>>;
+}
+
+/** The model a role runs on. */
+export function modelFor(provider: AgentProviderConfig, role: AgentRoleName): string {
+  return provider.roleModels[role] ?? provider.model;
 }
 
 export interface AgentRunnerConfig {
@@ -505,7 +518,14 @@ const agentSchema = z.object({
   AI_BASE_URL: z.string().optional(),
   AI_API_KEY: z.string().optional(),
   AI_MODEL: z.string().optional(),
+  AI_MODEL_RADAR: z.string().optional(),
+  AI_MODEL_PENULIS: z.string().optional(),
+  AI_MODEL_PEMERIKSA: z.string().optional(),
+  AI_MODEL_PERISET: z.string().optional(),
+  AI_MODEL_PEMANTAU: z.string().optional(),
 });
+
+const MODEL_NAME = /^[A-Za-z0-9._:/-]{1,100}$/;
 
 /**
  * Config for the agent runner (P3-03, ADR-020): a gateway token and, optionally, an AI provider.
@@ -546,13 +566,23 @@ export function loadAgentRunnerConfig(env: RawEnv = process.env): AgentRunnerCon
       const problem = notPlaceholder('AI_API_KEY')(data.AI_API_KEY);
       if (problem !== undefined) issues.push(problem);
     }
-    if (data.AI_MODEL === undefined || !/^[A-Za-z0-9._:/-]{1,100}$/.test(data.AI_MODEL)) {
+    if (data.AI_MODEL === undefined || !MODEL_NAME.test(data.AI_MODEL)) {
       issues.push('AI_MODEL is required with AI_BASE_URL (letters, digits, . _ : / -)');
+    }
+    const roleModels: Partial<Record<AgentRoleName, string>> = {};
+    for (const role of AGENT_ROLE_NAMES) {
+      const key = `AI_MODEL_${role.toUpperCase()}` as const;
+      const value = data[key as keyof typeof data] as string | undefined;
+      if (value === undefined) continue;
+      if (!MODEL_NAME.test(value))
+        issues.push(`${key} must be a model name (letters, digits, . _ : / -)`);
+      else roleModels[role] = value;
     }
     provider = {
       baseUrl: data.AI_BASE_URL.replace(/\/+$/, ''),
       apiKey: data.AI_API_KEY ?? '',
       model: data.AI_MODEL ?? '',
+      roleModels,
     };
   }
   if (issues.length > 0) throw new ConfigError(issues);
