@@ -15,6 +15,26 @@ AI dimatikan oleh tiga lapis. Semuanya harus dibuka dengan sengaja:
 
 Jangan pernah menempel token atau API key di chat, git, atau screenshot.
 
+**Cara cepat (disarankan):** di server jalankan `sudo nalara ai`. Perintah itu mengerjakan langkah 2–4 di bawah:
+1. **API key:** ditempel tanpa tampil di layar, lalu dicek dengan satu permintaan kecil ke OpenCode Go. Key yang ditolak (401/403) tidak disimpan.
+2. **Model:** model bawaan dan model per agen diisi dengan pilihan awal (tabel di bawah), dan hanya kalau model itu ada di daftar provider.
+3. **Agent:** kredensial runner dibuat (kalau belum ada), lalu agent dijalankan. Perintahnya baru selesai setelah log menunjukkan `agent runner started`.
+
+Setelah itu tinggal **nyalakan saklar** di NALARA OS → Agent AI (langkah 5).
+
+| Peran | Model awal | Alasan |
+|---|---|---|
+| bawaan (`AI_MODEL`) | `deepseek-v4.1-flash` | murah, mendukung tool calling |
+| radar | `gpt-6-luna` | murah dan cepat untuk memilah berita |
+| penulis | `qwen3.8-max` | model kuat untuk menulis panjang |
+| pemeriksa | `deepseek-v4-pro` | keluarga berbeda dari penulis, supaya kesalahannya tidak sama |
+| periset | `minimax-m3` | menengah |
+| pemantau | `gpt-6-luna` | termurah |
+
+Perintah lain:
+- `sudo nalara ai-model <peran|default> <model>` mengganti model satu agent. Model yang namanya berakhiran `-contributor` atau `-free` ditolak, karena model seperti itu bisa melatih dirinya dari prompt. Tanpa nama model, perintah ini menampilkan daftar model yang boleh dipakai.
+- `sudo nalara ai-off` menghentikan container agent. CMS tetap jalan.
+
 1. **Pilih provider (D-25)** dan jalankan checklist di [R-02 §4](../phase-3/R-02-SPIKE.md): ketentuan layanan membolehkan pemakaian lewat aplikasi, data tidak dipakai untuk melatih model, dan batas biaya bulanan sudah dipasang di dashboard provider. Provider harus menyediakan API OpenAI-compatible (`/chat/completions` dengan tool calling).
 2. **Buat kredensial runner** (tokennya tampil sekali saja):
    ```bash
