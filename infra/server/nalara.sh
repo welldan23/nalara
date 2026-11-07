@@ -60,7 +60,8 @@ telegram() {
   echo "Buka bot barumu di Telegram dan kirim: /start"
   read -rp "Sudah? Tekan Enter. " _
   local ids user chat
-  ids="$(compose exec -T worker node dist/cli/telegram-setup.js ids 2>&1 || true)"
+  # A one-off container: works even while the worker itself waits for the chat id.
+  ids="$(compose run --rm --no-deps -T worker node dist/cli/telegram-setup.js ids 2>&1 || true)"
   user="$(grep -o '"userId":[0-9]*' <<< "$ids" | tail -n 1 | cut -d: -f2)"
   chat="$(grep -o '"chatId":-\{0,1\}[0-9]*' <<< "$ids" | tail -n 1 | cut -d: -f2)"
   # A re-run (webhook already set, so no updates to read) keeps the ids saved earlier.

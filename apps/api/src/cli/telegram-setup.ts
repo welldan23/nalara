@@ -22,7 +22,9 @@ async function main(): Promise<number> {
   // `ids` runs before the chat id is known, so a placeholder chat id is accepted there.
   const bot = loadTelegramBotConfig({
     ...process.env,
-    TELEGRAM_CHAT_ID: process.env['TELEGRAM_CHAT_ID'] ?? '0',
+    // `ids` runs before the chat id is known; compose passes an empty value then.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- empty means unset
+    TELEGRAM_CHAT_ID: process.env['TELEGRAM_CHAT_ID'] || '0',
   });
   if (bot === null) {
     log('error', 'TELEGRAM_BOT_TOKEN is not set');
