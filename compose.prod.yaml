@@ -153,6 +153,11 @@ services:
       AI_BASE_URL: ${AI_BASE_URL:-}
       AI_API_KEY: ${AI_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-}
+      AI_MODEL_RADAR: ${AI_MODEL_RADAR:-}
+      AI_MODEL_PENULIS: ${AI_MODEL_PENULIS:-}
+      AI_MODEL_PEMERIKSA: ${AI_MODEL_PEMERIKSA:-}
+      AI_MODEL_PERISET: ${AI_MODEL_PERISET:-}
+      AI_MODEL_PEMANTAU: ${AI_MODEL_PEMANTAU:-}
     networks: [agent, egress]
     healthcheck:
       # The runner rewrites this file at least every 30 s, also while idle.

@@ -41,6 +41,7 @@ const INJECTION =
 
 interface ModelRequest {
   readonly authorization: string | undefined;
+  readonly session: string | undefined;
   readonly body: {
     model: string;
     messages: { role: string; content: string | null; tool_call_id?: string }[];
@@ -143,6 +144,7 @@ describe.skipIf(!databaseAvailable)('agent runner', { timeout: 60_000 }, () => {
       req.on('end', () => {
         const request: ModelRequest = {
           authorization: req.headers.authorization,
+          session: req.headers['x-opencode-session'] as string | undefined,
           body: JSON.parse(raw) as ModelRequest['body'],
         };
         requests.push(request);
@@ -173,6 +175,8 @@ describe.skipIf(!databaseAvailable)('agent runner', { timeout: 60_000 }, () => {
         baseUrl: `https://model.test:${String(modelPort)}/v1`,
         apiKey: 'fixture-provider-key',
         model: 'fake/model-1',
+        // Penulis runs on another model (AI_MODEL_PENULIS); Radar keeps the default.
+        roleModels: { penulis: 'fake/writer-2' },
       },
       log,
       fetchOptions: {
@@ -241,6 +245,9 @@ describe.skipIf(!databaseAvailable)('agent runner', { timeout: 60_000 }, () => {
     const [first] = requests;
     expect(first?.authorization).toBe('Bearer fixture-provider-key');
     expect(first?.body.model).toBe('fake/model-1');
+    // One random session id per task, the same on every call of that task.
+    expect(first?.session).toMatch(/^[0-9a-f-]{36}$/);
+    expect(new Set(requests.map((request) => request.session)).size).toBe(1);
     expect(first?.body.tools.map((tool) => tool.function.name).sort()).toEqual([
       'inbox_list_new',
       'inbox_propose_flag',
@@ -345,5 +352,18 @@ describe.skipIf(!databaseAvailable)('agent runner', { timeout: 60_000 }, () => {
     script = () => reply(null, 'Normal.');
     const cycle = await runCycle({ ...deps, roles: ['pemantau', 'pemeriksa'] });
     expect(cycle.map((task) => task.outcome)).toEqual(['done', 'done']);
+  });
+
+  it('runs each role on its own model, with a fresh session id per task', async () => {
+    await enable();
+    requests = [];
+    script = () => reply(null, 'Selesai.');
+    const cycle = await runCycle({ ...deps, roles: ['radar', 'penulis'] });
+    expect(cycle.map((task) => task.outcome)).toEqual(['done', 'done']);
+    expect(requests.map((request) => request.body.model)).toEqual([
+      'fake/model-1',
+      'fake/writer-2',
+    ]);
+    expect(requests[0]?.session).not.toBe(requests[1]?.session);
   });
 });

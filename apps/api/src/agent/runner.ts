@@ -6,6 +6,8 @@
 // - Every model call's token use is reported to the gateway (usage.record).
 // - The kill switch, a spent quota or an unreachable gateway ends the task at once.
 // - Nothing the model writes is logged: only counts, codes and durations.
+import { randomUUID } from 'node:crypto';
+import { modelFor } from '../config/env.ts';
 import type { AgentProviderConfig, AgentRoleName } from '../config/env.ts';
 import { GatewayError } from './gateway-client.ts';
 import type { Gateway } from './gateway-client.ts';
@@ -52,6 +54,8 @@ export async function runTask(deps: TaskDeps, role: AgentRoleName): Promise<Task
     return { role, outcome: 'disabled', steps: 0, toolCalls: 0, refusedCalls: 0 };
   }
   const { specs, byModelName } = roleTools(role);
+  // Each role may run on its own model (AI_MODEL_<ROLE>), e.g. a checker from another family.
+  const chatOptions = { model: modelFor(provider, role), sessionId: randomUUID() };
   const messages: ChatMessage[] = [
     { role: 'system', content: systemPrompt(role) },
     { role: 'user', content: 'Mulai putaran tugasmu sekarang.' },
@@ -64,7 +68,7 @@ export async function runTask(deps: TaskDeps, role: AgentRoleName): Promise<Task
     }
     let reply;
     try {
-      reply = await chat(provider, messages, specs, deps.fetchOptions);
+      reply = await chat(provider, messages, specs, chatOptions, deps.fetchOptions);
     } catch (error) {
       const code = error instanceof ModelError ? error.code : 'model:unknown';
       log.warn({ role, code }, 'model call failed');
@@ -72,7 +76,7 @@ export async function runTask(deps: TaskDeps, role: AgentRoleName): Promise<Task
     }
     try {
       await gateway.call(role, 'usage.record', {
-        model: provider.model,
+        model: chatOptions.model,
         inputTokens: reply.usage.inputTokens,
         outputTokens: reply.usage.outputTokens,
       });
