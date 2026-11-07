@@ -9,6 +9,9 @@
 #   sudo nalara telegram          connect the founder Telegram bot (D-26), step by step
 #   sudo nalara backup-setup      encrypted daily backups (ADR-007): key, schedule, first backup
 #   sudo nalara backup-now        one encrypted backup now
+#   sudo nalara ai                connect the AI team to OpenCode Go (D-25), step by step
+#   sudo nalara ai-model <role|default> <model>   change one agent's model
+#   sudo nalara ai-off            stop the agent container (the CMS keeps working)
 set -euo pipefail
 
 ROOT=/srv/nalara
@@ -124,6 +127,98 @@ backup_setup() {
   backup_now
 }
 
+AI_BASE_DEFAULT="${NALARA_AI_BASE:-https://opencode.ai/inference/go/openai/v1}"
+AI_ROLES=(radar penulis pemeriksa periset pemantau)
+# Starting picks (founder can change any with `nalara ai-model`): a cheap default, a strong
+# writer, a checker from another model family than the writer, mid-range research.
+declare -A AI_PICK=(
+  [default]=deepseek-v4.1-flash
+  [radar]=gpt-6-luna
+  [penulis]=qwen3.8-max
+  [pemeriksa]=deepseek-v4-pro
+  [periset]=minimax-m3
+  [pemantau]=gpt-6-luna
+)
+
+ai_models() { # model ids the provider lists, minus the ones that train on prompts
+  curl -fsS --max-time 20 "${1:-$AI_BASE_DEFAULT}/models" |
+    grep -o '"id":"[^"]*"' | cut -d'"' -f4 | grep -v -e '-contributor' -e '-free$' | sort
+}
+
+ai_model() {
+  local role="${1:-}" model="${2:-}" models base
+  [[ "$role" == default || " ${AI_ROLES[*]} " == *" $role "* ]] || { echo "Peran: default, ${AI_ROLES[*]}" >&2; exit 2; }
+  base="$(sed -n 's/^AI_BASE_URL=//p' "$ENV_FILE")"
+  models="$(ai_models "${base:-$AI_BASE_DEFAULT}")"
+  if [[ -z "$model" ]]; then
+    echo "Model yang boleh dipakai:"; tr '\n' ' ' <<< "$models" | fold -s -w 78; echo
+    exit 2
+  fi
+  grep -qx -- "$model" <<< "$models" || { echo "Model '$model' tidak ada di daftar (atau melatih dirinya dari prompt)." >&2; exit 1; }
+  if [[ "$role" == default ]]; then set_kv AI_MODEL "$model"; else set_kv "AI_MODEL_${role^^}" "$model"; fi
+  compose --profile agent up -d agent >/dev/null
+  echo "Oke: $role → $model"
+}
+
+ai_setup() {
+  say "Langkah 1/3 — API key OpenCode Go"
+  echo "Di opencode.ai: Console → API keys → buat key khusus NALARA."
+  echo "Cek juga Settings → Privacy: 'Allow paid endpoints that train on request data' harus MATI."
+  local key=''
+  read -rsp "Tempel API key di sini (tidak akan tampil), lalu Enter: " key
+  echo
+  [[ "$key" =~ ^[A-Za-z0-9._-]{20,200}$ ]] || { echo "Itu tidak terlihat seperti API key. Ulangi: sudo nalara ai" >&2; exit 1; }
+  local code
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$AI_BASE_DEFAULT/chat/completions" \
+    -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -H 'User-Agent: NALARA-Agent/1.0' \
+    -d "{\"model\":\"${AI_PICK[default]}\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}]}")"
+  case "$code" in
+    200) echo "Key diterima." ;;
+    401|403) echo "Key ditolak OpenCode ($code). Cek lagi key-nya, lalu ulangi." >&2; exit 1 ;;
+    *) echo "OpenCode menjawab $code; key tetap disimpan, cek 'sudo nalara logs agent' nanti." ;;
+  esac
+  set_kv AI_BASE_URL "$AI_BASE_DEFAULT"
+  set_kv AI_API_KEY "$key"
+  unset key
+
+  say "Langkah 2/3 — Model per agen"
+  local models role pick
+  models="$(ai_models)"
+  set_kv AI_MODEL "${AI_PICK[default]}"
+  for role in "${AI_ROLES[@]}"; do
+    pick="${AI_PICK[$role]}"
+    if grep -qx -- "$pick" <<< "$models"; then
+      set_kv "AI_MODEL_${role^^}" "$pick"
+      printf '  %-10s %s\n' "$role" "$pick"
+    else
+      printf '  %-10s %s (default; %s tidak tersedia)\n' "$role" "${AI_PICK[default]}" "$pick"
+    fi
+  done
+  echo "Ganti kapan saja: sudo nalara ai-model penulis <nama-model>"
+
+  say "Langkah 3/3 — Kredensial agent dan start"
+  if ! grep -q '^AGENT_TOKEN=.\{20,\}' "$ENV_FILE"; then
+    compose exec -T api node dist/cli/agent-credential.js revoke runner >/dev/null 2>&1 || true
+    local token
+    token="$(compose exec -T api node dist/cli/agent-credential.js create runner 2>/dev/null | tail -n 1)"
+    [[ "$token" =~ ^[A-Za-z0-9._~-]{20,}$ ]] || { echo "Gagal membuat kredensial agent. Kirim 'sudo nalara logs api' ke developer." >&2; exit 1; }
+    set_kv AGENT_TOKEN "$token"
+    unset token
+  fi
+  compose --profile agent up -d agent >/dev/null
+  local _
+  for _ in $(seq 1 20); do
+    compose logs --tail 50 agent 2>/dev/null | grep -q '"msg":"agent runner started"' && break
+    sleep 2
+  done
+  if compose logs --tail 50 agent 2>/dev/null | grep -q '"msg":"agent runner started"'; then
+    echo "Agent jalan. AI masih MATI sampai kamu menyalakan saklar di NALARA OS → Agent AI."
+  else
+    echo "Agent belum melapor 'started'. Cek: sudo nalara logs agent" >&2
+    exit 1
+  fi
+}
+
 case "${1:-}" in
   status) compose ps ;;
   logs) compose logs --tail 100 "${2:-api}" ;;
@@ -137,5 +232,8 @@ case "${1:-}" in
   telegram) telegram ;;
   backup-setup) backup_setup ;;
   backup-now) backup_now ;;
-  *) sed -n '5,11p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  ai) ai_setup ;;
+  ai-model) ai_model "${2:-}" "${3:-}" ;;
+  ai-off) compose --profile agent stop agent ;;
+  *) sed -n '5,14p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
