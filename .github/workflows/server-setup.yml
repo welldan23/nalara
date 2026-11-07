@@ -2,7 +2,8 @@
 # CI key; the script then moves that key to the `nalara` user, locked to deploy/status only, so
 # this workflow works once per key. To run it again, authorize a fresh key for root (§A).
 #
-# Secrets (Settings → Secrets and variables → Actions): VPS_HOST, VPS_SSH_KEY, VPS_KNOWN_HOSTS.
+# Secrets (Settings → Secrets and variables → Actions): VPS_HOST, VPS_SSH_KEY, VPS_KNOWN_HOSTS,
+# and VPS_PORT when SSH is not on port 22.
 name: Server setup
 
 on:
@@ -48,8 +49,16 @@ jobs:
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
         run: |
           [[ -n "$VPS_SSH_KEY" && -n "$VPS_KNOWN_HOSTS" && -n "$VPS_HOST" ]] || { echo "::error::set VPS_HOST, VPS_SSH_KEY and VPS_KNOWN_HOSTS"; exit 1; }
+          # VPS_HOST is an IP or name, optionally with :port (NAT hosts forward a high port to 22).
+          host="${VPS_HOST%%:*}"
+          port="${VPS_PORT:-22}"
+          [[ "$VPS_HOST" != *:* ]] || port="${VPS_HOST##*:}"
+          [[ "$port" =~ ^[0-9]{1,5}$ ]] || { echo "::error::SSH port must be a number"; exit 1; }
+          echo "::add-mask::$host"
+          printf 'VPS_ADDR=%s\nVPS_SSH_PORT=%s\n' "$host" "$port" >> "$GITHUB_ENV"
           install -d -m 0700 ~/.ssh
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/nalara
           chmod 0600 ~/.ssh/nalara
@@ -58,23 +67,25 @@ jobs:
           read -r -a parts <<< "$(printf '%s' "$VPS_KNOWN_HOSTS" | tr '\r\n\t' '   ')"
           [[ ${#parts[@]} -ge 3 ]] || { echo "::error::VPS_KNOWN_HOSTS must be '<ip> ssh-ed25519 AAAA...'"; exit 1; }
           key="$(printf '%s' "${parts[@]:2}")"
-          printf '%s %s %s\n' "${parts[0]}" "${parts[1]}" "$key" > ~/.ssh/known_hosts
+          # The host field comes from VPS_HOST and the port, whatever the copied line starts with.
+          entry="$host"
+          [[ "$port" == 22 ]] || entry="[$host]:$port"
+          printf '%s %s %s\n' "$entry" "${parts[1]}" "$key" > ~/.ssh/known_hosts
           # Fingerprints are public: compare with `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`
           # on the server when the connection is refused.
           echo "Pinned host key:   $(ssh-keygen -lf ~/.ssh/known_hosts | awk '{print $2}')"
-          echo "Server presents:   $(ssh-keyscan -t ed25519 -T 10 "$VPS_HOST" 2>/dev/null | ssh-keygen -lf - 2>/dev/null | awk '{print $2}')"
+          echo "Server presents:   $(ssh-keyscan -p "$port" -t ed25519 -T 10 "$host" 2>/dev/null | ssh-keygen -lf - 2>/dev/null | awk '{print $2}')"
 
       - name: Run setup.sh as root
         env:
           EMAIL: ${{ inputs.email }}
           SITE: ${{ inputs.site }}
-          VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           args="--email $(printf '%q' "$EMAIL")"
           [[ -z "$SITE" ]] || args="$args --site $(printf '%q' "$SITE")"
           tar -cz -C infra/server setup.sh nalara-ci.sh nalara.sh |
-            ssh -i ~/.ssh/nalara -o BatchMode=yes -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
-              "root@$VPS_HOST" \
+            ssh -i ~/.ssh/nalara -o BatchMode=yes -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -p "$VPS_SSH_PORT" \
+              "root@$VPS_ADDR" \
               "d=\$(mktemp -d) && tar -xz -C \"\$d\" && bash \"\$d/setup.sh\" $args; rc=\$?; rm -rf \"\$d\"; exit \$rc"
 
       - name: Forget the key
