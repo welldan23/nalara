@@ -4,6 +4,13 @@ Decision: [ADR-007](../adr/ADR-007-backup-restore.md). Scripts: [`infra/scripts`
 
 **Offsite destination: Google Drive (D-04, decided 2026-11-04)**, through `rclone` ([§7](#7-offsite-copy-to-google-drive-d-04)). Only `age` ciphertext is uploaded; the decryption key never leaves the founder's own machines. The gate stays open until the first real upload and a restore from Drive are recorded on the VPS.
 
+**Quick path on the VPS:** `sudo nalara backup-setup` does §1 and §2 in one go:
+1. It generates the key pair on the server, shows the private key **once** for the founder's password manager, and waits for `SIMPAN`.
+2. It shreds the private key and keeps only `backup.pub`.
+3. It installs the daily job with §3 retention and takes the first backup.
+
+The private key exists on the server only during those few seconds, which suits a founder working from a phone. §1 below remains the stricter option: the key is never on the server at all.
+
 ## 1. Keys (once, on the founder's own machine — not on the server)
 
 ```bash
