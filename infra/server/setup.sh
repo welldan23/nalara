@@ -84,7 +84,9 @@ usermod -aG docker "$USER_NAME"
 install -d -o "$USER_NAME" -g "$USER_NAME" -m 0750 "$ROOT" "$ROOT/releases"
 install -d -o "$USER_NAME" -g "$USER_NAME" -m 0700 "$ROOT/backups"
 install -o root -g root -m 0755 "$HERE/nalara-ci.sh" /usr/local/sbin/nalara-ci
-install -o root -g root -m 0755 "$HERE/nalara.sh" /usr/local/bin/nalara
+# The founder helper runs from the deployed release, so deploys bring its newest commands.
+printf '%s\n' '#!/usr/bin/env bash' 'exec bash /srv/nalara/app/infra/server/nalara.sh "$@"' > /usr/local/bin/nalara
+chmod 0755 /usr/local/bin/nalara
 
 log "CI key"
 home="$(getent passwd "$USER_NAME" | cut -d: -f6)"

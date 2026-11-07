@@ -58,7 +58,9 @@ Never paste these into chat, issues or screenshots. The VPS password is not need
 
 **NAT VPS** (shared public IP, `hostname -I` shows only a `10.x`/`192.168.x` address):
 - SSH: set `VPS_PORT` to the forwarded port. The host field of `VPS_KNOWN_HOSTS` is rebuilt from `VPS_HOST` and the port, so the line copied in §A works as is.
-- Web: readers need ports 80 and 443 forwarded to the VPS. Check the provider panel, because a NAT VPS often forwards only a port range.
+- Web: readers need ports 80 and 443 to reach the VPS. A NAT VPS often forwards only a port range.
+  - On VPS Indonesia (the founder's provider), add the site's host name under **Jaringan → Domain (proxy 80/443)**. It works with `<ip-with-dashes>.sslip.io`.
+  - Checked on 2026-11-07: a valid Let's Encrypt certificate, NALARA's own security headers, `/os/login` 200 and `/health/ready` 404 from outside. It is not yet confirmed whether the proxy passes TLS through or terminates it.
 
 ### C. Set up and deploy
 
@@ -77,7 +79,16 @@ Never paste these into chat, issues or screenshots. The VPS password is not need
    ```
    Then open `https://<site>/os/login`: password → TOTP → store the recovery codes offline.
 
-Other shortcuts on the server: `sudo nalara status`, `sudo nalara logs api` and `sudo nalara restart`.
+Other shortcuts on the server (they run from the deployed release, so every deploy brings the newest ones):
+- `sudo nalara status`
+- `sudo nalara logs api`
+- `sudo nalara restart`
+- `sudo nalara telegram` connects the founder bot step by step ([telegram-bot.md](telegram-bot.md)).
+- `sudo nalara backup-setup`:
+  - shows the backup **private** key once, for the password manager, and keeps only the public key on the server;
+  - installs the daily encrypted backup with retention;
+  - takes the first backup.
+- `sudo nalara backup-now` takes one encrypted backup now.
 
 When a domain is bought:
 1. Point its A record at the VPS.

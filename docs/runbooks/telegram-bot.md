@@ -1,6 +1,6 @@
 # Runbook — Bot Telegram founder (Phase 3)
 
-Tiket: P3-04 · Keputusan: D-26 (belum diputuskan) · Desain: [ADR-020](../adr/ADR-020-agent-gateway.md), [Phase 3 PLAN](../phase-3/PLAN.md).
+Tiket: P3-04 · Keputusan: D-26 · Desain: [ADR-020](../adr/ADR-020-agent-gateway.md), [Phase 3 PLAN](../phase-3/PLAN.md).
 
 Bot ini dipakai untuk tiga hal:
 - mengirimi founder pesan untuk setiap usulan agent baru, lengkap dengan tombol **Setujui** / **Tolak**;
@@ -24,6 +24,14 @@ Bot **mati** sampai langkah di bawah dijalankan. Tanpa bot, usulan tetap bisa di
 ## Setup (setelah deploy, D-08/D-09)
 
 Jangan pernah menempel token bot atau secret di chat, di git, atau di screenshot.
+
+**Cara cepat (disarankan):** di server jalankan `sudo nalara telegram`. Perintah itu mengerjakan langkah 2–4 di bawah:
+- token ditempel tanpa tampil di layar;
+- secret webhook dibuat acak;
+- `userId` dan `chatId` diambil sendiri setelah kamu mengirim `/start` ke bot;
+- webhook dipasang.
+
+Langkah manual di bawah tetap berlaku sebagai cadangan.
 
 1. Di Telegram, buka **@BotFather** → `/newbot`. Pilih nama, misalnya "NALARA Founder", dan username yang berakhiran `bot`. Simpan tokennya di password manager.
 2. Di server, isi `/srv/nalara/.env`:
