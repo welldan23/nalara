@@ -20,7 +20,6 @@ async function main(): Promise<void> {
   let telegram;
   try {
     config = loadConfig(process.env);
-    telegram = loadTelegramWebhookConfig(process.env);
   } catch (error) {
     if (error instanceof ConfigError) {
       fatal('invalid configuration, refusing to start', { issues: error.issues });
@@ -28,6 +27,22 @@ async function main(): Promise<void> {
       return;
     }
     throw error;
+  }
+  // The founder bot is optional: a half-finished setup turns the bot off instead of taking the
+  // whole site down. The webhook stays unregistered (404) until the setup is complete.
+  try {
+    telegram = loadTelegramWebhookConfig(process.env);
+  } catch (error) {
+    if (!(error instanceof ConfigError)) throw error;
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        time: new Date().toISOString(),
+        msg: 'telegram bot configuration incomplete; bot off (run: sudo nalara telegram)',
+        issues: error.issues,
+      }),
+    );
+    telegram = null;
   }
 
   const database = createDatabase(config.databaseUrl);

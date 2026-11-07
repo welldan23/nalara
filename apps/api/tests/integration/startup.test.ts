@@ -36,6 +36,32 @@ describe('API process', { timeout: 20_000 }, () => {
     expect(`${result.stdout}${result.stderr}`).not.toContain(DB_PASSWORD);
   });
 
+  it('starts with the founder bot off when its setup is incomplete', async () => {
+    // A half-finished `nalara telegram`: secret saved, ids not yet. The site must stay up.
+    const env = {
+      ...baseEnv,
+      PORT: String(Number(port) + 1),
+      TELEGRAM_WEBHOOK_SECRET: 'fixture-webhook-secret-'.padEnd(40, 'x'),
+    };
+    const child = spawn(process.execPath, ['src/main.ts'], { cwd: apiRoot, env });
+    let output = '';
+    child.stdout.on('data', (chunk: Buffer) => (output += chunk.toString('utf8')));
+    child.stderr.on('data', (chunk: Buffer) => (output += chunk.toString('utf8')));
+    const exited = new Promise<number | null>((resolve) => child.on('exit', resolve));
+    const deadline = Date.now() + 10_000;
+    while (!output.includes('Server listening') && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    expect(output).toContain('telegram bot configuration incomplete; bot off');
+    expect(output).toContain('TELEGRAM_FOUNDER_USER_ID must be a numeric Telegram id');
+    expect(output).toContain('"telegramWebhook":"off"');
+    const live = await fetch(`http://127.0.0.1:${env.PORT}/health/live`);
+    expect(live.status).toBe(200);
+    child.kill('SIGTERM');
+    expect(await exited).toBe(0);
+    expect(output).not.toContain(env.TELEGRAM_WEBHOOK_SECRET);
+  });
+
   it('serves liveness, reports not-ready without a database, and stops on SIGTERM', async () => {
     const child = spawn(process.execPath, ['src/main.ts'], { cwd: apiRoot, env: baseEnv });
     let output = '';

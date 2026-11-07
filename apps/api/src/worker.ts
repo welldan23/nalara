@@ -37,7 +37,6 @@ function main(): void {
   let telegram;
   try {
     config = loadWorkerConfig(process.env);
-    telegram = loadTelegramBotConfig(process.env);
   } catch (error) {
     if (error instanceof ConfigError) {
       line('fatal', { issues: error.issues }, 'invalid configuration, refusing to start');
@@ -45,6 +44,18 @@ function main(): void {
       return;
     }
     throw error;
+  }
+  // Optional bot: an incomplete setup turns sending off; feeds and evidence keep running.
+  try {
+    telegram = loadTelegramBotConfig(process.env);
+  } catch (error) {
+    if (!(error instanceof ConfigError)) throw error;
+    line(
+      'error',
+      { issues: error.issues },
+      'telegram bot configuration incomplete; sending off (run: sudo nalara telegram)',
+    );
+    telegram = null;
   }
   const database = createDatabase(config.databaseUrl, { max: 2 });
   const workerId = `${hostname()}-${String(process.pid)}`.slice(0, 100);

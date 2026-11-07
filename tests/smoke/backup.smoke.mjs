@@ -30,6 +30,7 @@ const work = mkdtempSync(join(tmpdir(), 'nalara-backup-'));
 const backupDir = join(work, 'backups');
 const hex = () => randomBytes(24).toString('hex');
 const migratorPassword = hex();
+const superPassword = hex();
 const port = String(20_000 + Math.floor(Math.random() * 20_000));
 const FOUNDER = `founder-${tag}@nalara.test`;
 
@@ -69,7 +70,7 @@ try {
     '-p',
     `127.0.0.1:${port}:5432`,
     '-e',
-    `POSTGRES_PASSWORD=${hex()}`,
+    `POSTGRES_PASSWORD=${superPassword}`,
     '-e',
     `DB_MIGRATOR_PASSWORD=${migratorPassword}`,
     '-e',
@@ -80,12 +81,25 @@ try {
     `${join(root, 'db', 'init')}:/docker-entrypoint-initdb.d:ro`,
     IMAGE,
   ]);
+  // Ready means reachable over TCP: during first start the image runs the init scripts on a
+  // socket-only server and then restarts, so a socket check can pass too early.
   for (let i = 0; i < 60; i += 1) {
-    if (
-      run('docker', ['exec', source, 'psql', '-U', 'postgres', '-d', 'nalara', '-c', 'select 1'])
-        .status === 0
-    )
-      break;
+    const check = run('docker', [
+      'exec',
+      '-e',
+      `PGPASSWORD=${superPassword}`,
+      source,
+      'psql',
+      '-h',
+      '127.0.0.1',
+      '-U',
+      'postgres',
+      '-d',
+      'nalara',
+      '-c',
+      'select 1',
+    ]);
+    if (check.status === 0) break;
     await sleep(1_000);
   }
   const migrate = run(process.execPath, ['src/db/migrate-cli.ts'], {
