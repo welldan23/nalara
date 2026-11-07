@@ -15,6 +15,69 @@ What runs where:
 | `migrate` | `run --rm` only | Explicit migrations (ADR-003) |
 | `agent` | only with `--profile agent` | AI agent runner (P3, ADR-020). No database credentials. Off until D-25 |
 
+## Quick path: GitHub Actions (recommended)
+
+Three steps for the founder. Everything after that runs from GitHub Actions. Sections 0–3 below are the same work done by hand and stay as the reference.
+
+### A. On the VPS, once (about 2 minutes)
+
+Log in the way the provider gives you (web console or `ssh`). Then paste:
+
+```bash
+sudo -i
+sshd -T | grep -i permitrootlogin      # must say prohibit-password or yes (not "no")
+ssh-keygen -t ed25519 -N "" -C nalara-ci -f /root/nalara-ci -q
+install -d -m 700 /root/.ssh && cat /root/nalara-ci.pub >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys
+IP=$(curl -fsS4 https://api.ipify.org)
+echo "=== VPS_HOST";        echo "$IP"
+echo "=== VPS_KNOWN_HOSTS"; echo "$IP $(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)"
+echo "=== VPS_SSH_KEY";     cat /root/nalara-ci
+```
+
+Copy each value into GitHub (step B). Only after that, delete the private key from the server:
+
+```bash
+shred -u /root/nalara-ci /root/nalara-ci.pub
+```
+
+If the provider has its own firewall or security group, also open 22, 80 and 443 there.
+
+### B. In GitHub, once
+
+Go to the repository → **Settings → Secrets and variables → Actions → New repository secret**, and create:
+
+| Name | Value |
+|---|---|
+| `VPS_HOST` | the line under `=== VPS_HOST` |
+| `VPS_KNOWN_HOSTS` | the line under `=== VPS_KNOWN_HOSTS` |
+| `VPS_SSH_KEY` | everything under `=== VPS_SSH_KEY`, from `-----BEGIN` to `-----END ...-----` |
+
+Never paste these into chat, issues or screenshots. The VPS password is not needed anywhere.
+
+### C. Set up and deploy
+
+1. **Actions → Server setup → Run workflow.** Give an email for the HTTPS certificate. Leave the domain empty until one is bought (D-08). The site is then served at `https://<ip-with-dashes>.sslip.io`, with a real certificate.
+   - The run executes [`infra/server/setup.sh`](../../infra/server/setup.sh) as root. It installs Docker, ufw, unattended upgrades and swap, creates `/srv/nalara/.env` with fresh random secrets, and opens 22/80/443.
+   - It then moves the CI key from root to the `nalara` user, locked to [`nalara-ci`](../../infra/server/nalara-ci.sh). From then on the key can only `deploy` or report `status`: no shell, no root.
+2. **Actions → Deploy → Run workflow** (ref `main`). The run:
+   - ships `git archive` of that commit;
+   - builds, takes a backup (once `/srv/nalara/backup.pub` exists), then migrates;
+   - starts the stack and waits until db, api, worker and web are healthy.
+   - If they are not healthy, it switches back to the previous release.
+   - To deploy automatically after every green CI on main, set the repository variable `AUTO_DEPLOY` to `true` (**Settings → Secrets and variables → Actions → Variables**).
+3. On the server, create the founder account (the password is typed there, never sent anywhere):
+   ```bash
+   sudo nalara founder you@example.com
+   ```
+   Then open `https://<site>/os/login`: password → TOTP → store the recovery codes offline.
+
+Other shortcuts on the server: `sudo nalara status`, `sudo nalara logs api` and `sudo nalara restart`.
+
+When a domain is bought:
+1. Point its A record at the VPS.
+2. Run **Server setup** again with the domain. Setup runs as root, so first authorize a fresh key for root (step A) and update `VPS_SSH_KEY`. Existing secrets are kept; only the address changes.
+3. Run **Deploy**.
+
 ## 0. Read-only discovery (change nothing)
 
 ```bash

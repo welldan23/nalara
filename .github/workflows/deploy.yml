@@ -1,0 +1,79 @@
+# Deploy a commit of main to the VPS (deploy-vps.md §C). The CI key can only run
+# /usr/local/sbin/nalara-ci on the server (deploy or status), as the `nalara` user.
+#
+# - Manual: Actions → Deploy → Run workflow (a branch, tag or sha that is on main).
+# - Automatic after green CI on main: set the repository variable AUTO_DEPLOY to `true`.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit, tag or branch to deploy (must be on main)'
+        required: true
+        default: main
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-server
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to the VPS
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (vars.AUTO_DEPLOY == 'true' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve the commit (main only)
+        id: commit
+        env:
+          REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.workflow_run.head_sha }}
+        run: |
+          sha="$(git rev-parse --verify --quiet "origin/$REF^{commit}" || git rev-parse --verify --quiet "$REF^{commit}" || true)"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::unknown ref"; exit 1; }
+          git merge-base --is-ancestor "$sha" origin/main || { echo "::error::$sha is not on main"; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Deploying $sha"
+
+      - name: SSH key and pinned host key
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          [[ -n "$VPS_SSH_KEY" && -n "$VPS_KNOWN_HOSTS" && -n "$VPS_HOST" ]] || { echo "::error::set VPS_HOST, VPS_SSH_KEY and VPS_KNOWN_HOSTS"; exit 1; }
+          install -d -m 0700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/nalara
+          chmod 0600 ~/.ssh/nalara
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Ship and start
+        env:
+          SHA: ${{ steps.commit.outputs.sha }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          git archive --format=tar.gz "$SHA" |
+            ssh -i ~/.ssh/nalara -o BatchMode=yes -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
+              -o ServerAliveInterval=30 "nalara@$VPS_HOST" "deploy $SHA"
+
+      - name: Forget the key
+        if: always()
+        run: rm -f ~/.ssh/nalara
