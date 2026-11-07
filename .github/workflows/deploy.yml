@@ -2,7 +2,8 @@
 # /usr/local/sbin/nalara-ci on the server (deploy or status), as the `nalara` user.
 #
 # - Manual: Actions → Deploy → Run workflow (a branch, tag or sha that is on main).
-# - Automatic after green CI on main: set the repository variable AUTO_DEPLOY to `true`.
+# - Automatic after green CI on main (founder decision 2026-11-07). To pause it, set the
+#   repository variable AUTO_DEPLOY to `false`.
 name: Deploy
 
 on:
@@ -29,7 +30,7 @@ jobs:
     name: Deploy to the VPS
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (vars.AUTO_DEPLOY == 'true' &&
+      (vars.AUTO_DEPLOY != 'false' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push')
     runs-on: ubuntu-24.04
