@@ -46,3 +46,40 @@
   - snapshot bukti untuk sumber yang dikutip;
   - Kartu IG dari draft;
   - paket ke Telegram dengan tombol.
+
+## P5-03: Paket usulan di Telegram (D-32 "campuran")
+
+- **Arsip bukti dulu:**
+  - Saat draft dikirim agent, semua sumber yang dikutip langsung diminta diarsipkan (snapshot + SHA-256, P2).
+  - Worker baru mengirim paket setelah **semua** sumber berhasil diarsipkan.
+  - Kalau ada sumber yang gagal diarsipkan, ceritanya dilewati dengan catatan.
+- **Isi paket:** satu pesan teks biasa (tanpa format, jadi teks AI tidak bisa menjadi tautan tersembunyi). Isinya:
+  - skor, judul, ringkasan;
+  - daftar sumber dengan URL-nya (primer ditandai);
+  - tautan ke draft di OS;
+  - cuplikan isi draft.
+- **Rute (D-32):**
+  - **Cepat**, kalau draft mengutip sumber resmi primer. Tombolnya **✅ Sumber sudah kucek, terbitkan** dan **❌ Lewati**.
+    - ✅ membuat revisi baru yang isinya sama, dengan sumber ditandai sudah dicek oleh founder ("Sumber dicek founder lewat tombol Telegram").
+    - Setelah itu alur biasa berjalan (ajukan → setujui → terbitkan) atas nama founder. Gerbang terbit dan pengikatan persetujuan ke hash tetap berlaku.
+  - **Cek**, kalau sumbernya media saja. **Tidak ada ✅**; yang ada hanya ❌ Lewati. Founder mengecek dan menerbitkan dari OS.
+- **Token tombol:**
+  - sekali pakai, dan tombol pasangannya ikut mati;
+  - berlaku ≤23 jam, dihitung oleh jam database;
+  - **terikat ke revisi yang ditampilkan**: kalau draft sudah diedit, ✅ ditolak ("Draft sudah berubah");
+  - hanya user ID founder di chat founder (aturan webhook P3-04);
+  - worker tidak bisa membaca hash token atau memakai token.
+- **Teks paket disusun API saat draft dikirim** dan disimpan di antrean, bersama revisi, daftar URL sumber, dan rute. Dengan begitu worker **tidak pernah membaca isi artikel**. Worker hanya membaca antrean, status arsip bukti, dan tiga kolom artikel (id, revisi saat ini, status) untuk memastikan draft belum berubah. Ini dijaga tes hak akses.
+- **Migrasi `0020_story_telegram.sql`:**
+  - kolom `route`, `revision_id`, `package_text`, `source_urls`, dan `sent_at` di `story_queue`;
+  - tabel `story_tokens` dengan trigger sekali-pakai;
+  - hak akses minimum untuk worker.
+- **Tes `story-package.test.ts` (6 tes):**
+  - menunggu bukti;
+  - paket cepat dengan ✅/❌, teks biasa, dan tautan OS;
+  - ✅ menerbitkan revisi yang ditampilkan dengan sumber tercatat sudah dicek, dan tidak bisa diulang;
+  - paket media tanpa ✅, lalu ❌ melewati;
+  - ✅ ditolak setelah draft diedit;
+  - sumber gagal diarsipkan → dilewati;
+  - token tidak bisa disentuh worker dan tidak bisa dihapus.
+- **Ditemukan saat tes:** masa berlaku token sempat dihitung dengan jam Node.js sementara batasnya dicek jam Postgres. Selisih milidetik kadang melanggar batas 1 hari, jadi sekarang dihitung di database.

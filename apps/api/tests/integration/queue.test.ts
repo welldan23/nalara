@@ -195,13 +195,20 @@ describe.skipIf(!databaseAvailable)('job queue', { timeout: 60_000 }, () => {
         'sessions',
         'recovery_codes',
         'audit_events',
-        'articles',
         'article_revisions',
         'media_assets',
       ]) {
         expect(await sqlState(workerClient.query(`SELECT 1 FROM ${table} LIMIT 1`)), table).toBe(
           '42501',
         );
+      }
+      // Story packages (P5-03): the worker may see only whether a draft is still the prepared
+      // revision, never its content or approval data.
+      for (const column of ['slug', 'approved_content_sha256', 'source_exception']) {
+        expect(
+          await sqlState(workerClient.query(`SELECT ${column} FROM articles LIMIT 1`)),
+          column,
+        ).toBe('42501');
       }
       expect(await sqlState(workerClient.query('DELETE FROM job_runs'))).toBe('42501');
       expect(await sqlState(workerClient.query('CREATE TABLE x (id int)'))).toBe('42501');

@@ -17,7 +17,9 @@ import { createDraft } from '../articles/articles.ts';
 import { plainText } from '../articles/content.ts';
 import { parseMarkdown } from '../articles/markdown.ts';
 import { getAiSettings, usageToday } from '../agent/settings.ts';
+import { requestEvidence } from '../evidence/evidence.ts';
 import { loadRadar } from '../radar/radar.ts';
+import { preparePackage } from './telegram.ts';
 import { inQuietHours } from '../radar/score.ts';
 import type { Story } from '../radar/score.ts';
 
@@ -307,13 +309,36 @@ export async function submitDraft(
   await db.transaction(async (tx) => {
     await tx
       .update(storyQueue)
-      .set({ status: 'drafted', articleId: saved.articleId, updatedAt: sql`now()` })
+      .set({
+        status: 'drafted',
+        articleId: saved.articleId,
+        revisionId: saved.revisionId,
+        // The Telegram package, prepared here so the worker never reads article content (P5-03).
+        ...preparePackage({
+          title: input.title,
+          dek: input.dek,
+          score: entry.score,
+          bodySource: input.bodySource,
+          citations: citedMaterials.map((material) => ({
+            url: material.url,
+            publisher: material.publisher,
+            primary: primary.has(material.number),
+          })),
+        }),
+        updatedAt: sql`now()`,
+      })
       .where(and(eq(storyQueue.id, entry.id), eq(storyQueue.status, 'drafting')));
     await tx
       .update(discoveredItems)
       .set({ status: 'used', statusChangedAt: sql`now()` })
       .where(inArray(discoveredItems.id, entry.itemIds));
   });
+  // Archive every cited source now (P5-03): the package is sent only once all are captured.
+  await requestEvidence(
+    db,
+    founder.id,
+    citedMaterials.map((material) => ({ url: material.url, verified: true })),
+  );
   return { articleId: saved.articleId, version: saved.version };
 }
 

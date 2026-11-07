@@ -5,6 +5,7 @@
 import { writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { ConfigError, loadTelegramBotConfig, loadWorkerConfig } from './config/env.ts';
+import { notifyReadyStories } from './modules/stories/telegram.ts';
 import { notifyPendingProposals } from './modules/telegram/bot.ts';
 import { createDatabase } from './db/client.ts';
 import { evidenceSnapshotHandler } from './worker/handlers/evidence-snapshot.ts';
@@ -89,6 +90,13 @@ function main(): void {
           notifyPendingProposals(database.db, telegram)
             .then(({ sent, failed }) => {
               if (sent > 0 || failed !== null) line('info', { sent, failed }, 'telegram notify');
+            })
+            // Story packages (P5-03): drafted stories whose sources are archived.
+            .then(() => notifyReadyStories(database.db, telegram))
+            .then(({ sent, dropped, failed }) => {
+              if (sent > 0 || dropped > 0 || failed !== null) {
+                line('info', { sent, dropped, failed }, 'story packages');
+              }
             })
             .catch(() => {
               line('warn', {}, 'telegram notify failed; database unavailable?');
