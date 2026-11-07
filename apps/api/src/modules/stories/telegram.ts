@@ -52,6 +52,7 @@ const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0
 
 /** Plain text (no parse_mode): nothing the AI wrote can turn into markup or a hidden link. */
 export function storyMessage(input: {
+  readonly number: number;
   readonly title: string;
   readonly dek: string;
   readonly score: number;
@@ -64,7 +65,7 @@ export function storyMessage(input: {
       `${String(index + 1)}. ${citation.publisher}${citation.primary ? ' (primer)' : ''}: ${citation.url}`,
   );
   const head = [
-    `Usulan NALARA (skor ${String(input.score)})`,
+    `Usulan #${String(input.number)} NALARA (skor ${String(input.score)})`,
     '',
     input.title,
     input.dek === '' ? null : input.dek,
@@ -76,6 +77,8 @@ export function storyMessage(input: {
       ? 'Ada sumber resmi primer. Buka dan cek sumbernya, lalu tekan ✅ untuk mencatat bahwa kamu sudah mengecek dan menerbitkan versi ini.'
       : 'Sumbernya media saja. Cek dan terbitkan dari NALARA OS (tombol ✅ sengaja tidak ada di sini).',
     '',
+    `Edit cepat di chat ini: "judul ${String(input.number)}: …", "ringkas ${String(input.number)}: …", "lihat ${String(input.number)}".`,
+    '',
     'Isi draft (ditulis AI, baca dengan kritis):',
   ].filter((line): line is string => line !== null);
   const text = head.join('\n');
@@ -84,6 +87,7 @@ export function storyMessage(input: {
 
 /** API side, when the draft is submitted: everything the worker needs, without article access. */
 export function preparePackage(input: {
+  readonly number: number;
   readonly title: string;
   readonly dek: string;
   readonly score: number;
@@ -278,6 +282,8 @@ export async function decideStory(
     })
     .from(storyQueue)
     .where(eq(storyQueue.id, used.storyId));
+  // Edited from the chat since this message (P5-04): a new package with new buttons is on its way.
+  if (story?.status === 'drafted') throw new AppError('VERSION_CONFLICT');
   if (story?.status !== 'sent' || story.articleId === null) {
     throw new AppError('INVALID_TRANSITION');
   }

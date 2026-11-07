@@ -58,6 +58,18 @@ Langkah manual di bawah tetap berlaku sebagai cadangan.
    `info` harus menunjukkan URL `https://<domain>/api/v1/telegram/webhook` tanpa `lastError`.
 5. Uji: kirim `/status` ke bot. Balasannya harus berbunyi "AI mati. Usulan menunggu: N.".
 
+## Perintah di chat
+
+- `/status`: status AI dan jumlah usulan menunggu.
+- `/stop`: kill switch AI.
+- Edit cepat usulan (P5-04). Nomornya ada di pesan usulan, misalnya "Usulan #12":
+  - `lihat 12`
+  - `judul 12: teks baru`
+  - `ringkas 12: teks baru` (juga pembuka caption Kartu IG)
+  - `lewati 12`
+
+  Tiap edit membuat revisi baru. Tombol di pesan lama tidak berlaku lagi, dan paket baru dengan tombol baru menyusul dalam beberapa detik.
+
 ## Kalau ada masalah
 
 - **Token bot bocor:** di @BotFather jalankan `/revoke`, isi token baru di `.env`, lalu ulangi langkah 4.

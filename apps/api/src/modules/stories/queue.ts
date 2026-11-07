@@ -315,6 +315,7 @@ export async function submitDraft(
         revisionId: saved.revisionId,
         // The Telegram package, prepared here so the worker never reads article content (P5-03).
         ...preparePackage({
+          number: entry.number,
           title: input.title,
           dek: input.dek,
           score: entry.score,

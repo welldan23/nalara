@@ -10,6 +10,7 @@
 //   expiring, bound to its proposal and decision), then the proposal is decided exactly as in the
 //   OS, with channel `telegram`. Replays, expired and foreign tokens are refused.
 // - `/stop` is the kill switch; `/status` reports the switch and the pending count.
+// - Fast edits (P5-04): "lihat N", "judul N: ...", "ringkas N: ...", "lewati N" (stories/chat.ts).
 // - Replies go back in the webhook response itself (Telegram's "method in response"), so the API
 //   still never makes an outbound request.
 import { createHash, timingSafeEqual } from 'node:crypto';
@@ -24,6 +25,12 @@ import { AppError } from '../lib/errors.ts';
 import { recordAudit } from '../modules/audit/audit.ts';
 import { getAiSettings, stopAi } from '../modules/agent/settings.ts';
 import { countPendingProposals, decideProposal } from '../modules/proposals/proposals.ts';
+import {
+  editStory,
+  parseChatCommand,
+  skipStoryFromChat,
+  viewStory,
+} from '../modules/stories/chat.ts';
 import { consumeStoryToken, decideStory } from '../modules/stories/telegram.ts';
 import { consumeToken } from '../modules/telegram/tokens.ts';
 
@@ -62,6 +69,25 @@ const STORY_REFUSALS: Readonly<Record<string, string>> = {
   GATE_BLOCKED: 'Gerbang terbit menolak draft ini. Buka NALARA OS untuk melihat alasannya.',
   FORBIDDEN: 'Cerita ini harus dicek dan diterbitkan dari NALARA OS.',
 };
+
+const CHAT_REFUSALS: Readonly<Record<string, string>> = {
+  NOT_FOUND: 'Nomor usulan itu tidak ada.',
+  INVALID_TRANSITION:
+    'Usulan itu sudah tidak bisa diubah dari chat (sudah terbit, dilewati, atau sedang diedit di OS).',
+  VALIDATION_FAILED: 'Teksnya tidak diterima (kosong atau terlalu panjang). Coba lagi.',
+  VERSION_CONFLICT: 'Draft baru saja berubah. Kirim ulang perintahnya.',
+  NOT_EDITABLE: 'Draft ini sedang dalam alur terbit. Ubah dari NALARA OS.',
+};
+
+const HELP = [
+  'Perintah:',
+  '/status, /stop',
+  'lihat 12 — lihat usulan #12',
+  'judul 12: teks baru — ganti judul',
+  'ringkas 12: teks baru — ganti ringkasan (juga pembuka caption IG)',
+  'lewati 12 — lewati usulan',
+  'Terbit tetap lewat tombol ✅ di pesan usulan.',
+].join('\n');
 
 export function telegramRoutes(
   app: FastifyInstance,
@@ -174,7 +200,32 @@ export function telegramRoutes(
           `AI ${settings.aiEnabled ? 'menyala' : 'mati'}. Usulan menunggu: ${String(pending)}.`,
         );
       }
-      return reply('Perintah: /status, /stop. Usulan diputuskan lewat tombol di pesannya.');
+      // Fast edits (P5-04): plain commands; the text after ":" is data, never instructions.
+      const chat = parseChatCommand(message.text ?? '');
+      if (chat !== null) {
+        try {
+          if (chat.kind === 'view') return reply(await viewStory(db, chat.number));
+          const actor = { ...(await founder()), requestId: request.id };
+          if (chat.kind === 'skip') {
+            await skipStoryFromChat(db, chat.number);
+            await audit('story_chat_skip', 'success', request.id);
+            return reply(`Usulan #${String(chat.number)} dilewati.`);
+          }
+          await editStory(db, actor, chat);
+          await audit(`story_chat_${chat.field}`, 'success', request.id);
+          return reply(
+            `${chat.field === 'title' ? 'Judul' : 'Ringkasan'} usulan #${String(chat.number)} diganti. ` +
+              'Paket baru dengan tombol baru menyusul sebentar lagi; tombol lama tidak berlaku.',
+          );
+        } catch (error) {
+          if (error instanceof AppError) {
+            await audit(`story_chat_${error.code.toLowerCase()}`, 'failure', request.id);
+            return reply(CHAT_REFUSALS[error.code] ?? 'Tidak bisa diproses. Cek di NALARA OS.');
+          }
+          throw error;
+        }
+      }
+      return reply(HELP);
     }
     return {};
   });
