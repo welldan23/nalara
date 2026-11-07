@@ -83,3 +83,32 @@
   - sumber gagal diarsipkan → dilewati;
   - token tidak bisa disentuh worker dan tidak bisa dihapus.
 - **Ditemukan saat tes:** masa berlaku token sempat dihitung dengan jam Node.js sementara batasnya dicek jam Postgres. Selisih milidetik kadang melanggar batas 1 hari, jadi sekarang dihitung di database.
+
+## P5-04: Edit cepat lewat chat Telegram
+
+- **Migrasi `0021_story_number.sql`:**
+  - Tiap cerita dapat nomor pendek (`number`, identity), yang tampil sebagai "Usulan #12".
+  - Token tombol sekarang unik per keputusan **per revisi**, jadi revisi baru dapat tombol baru.
+  - Role app boleh mengosongkan `sent_at`, supaya worker mengirim ulang paket.
+- **Perintah** di chat founder, tanpa AI (`apps/api/src/modules/stories/chat.ts`):
+  - `lihat N`: judul, ringkasan, status, dan sumber.
+  - `judul N: …`: ganti judul.
+  - `ringkas N: …` (juga `ringkasan` / `caption`): ganti ringkasan. Ringkasan juga jadi pembuka caption Kartu IG.
+  - `lewati N`: sama dengan ❌.
+- **Aturan:**
+  - Hanya user id dan chat founder yang dilayani. User lain tidak dijawab dan dicatat di audit.
+  - Teks setelah `:` adalah **data**. Teks itu jadi isi field revisi baru, divalidasi seperti edit di OS, dan dibalas sebagai teks polos.
+  - Tiap edit = **revisi baru**:
+    - cerita kembali ke `drafted` dengan paket baru, dan worker mengirimnya lagi dengan tombol baru;
+    - tombol lama terikat ke revisi lama, jadi ditolak ("Draft sudah berubah");
+    - persetujuan lama gugur lewat aturan revisi yang sudah ada.
+  - Hanya cerita yang masih menunggu (`drafted`/`sent`, artikel masih draft) yang bisa diubah dari chat. Sisanya diubah lewat OS.
+- **Tes:**
+  - unit `story-chat.test.ts`: 3 tes;
+  - integrasi `story-package.test.ts`, 2 tes baru:
+    - edit → revisi baru → ✅ lama ditolak → paket baru → ✅ baru menerbitkan hasil edit;
+    - teks injeksi tersimpan apa adanya;
+    - teks kosong atau terlalu panjang ditolak, nomor tak dikenal ditolak;
+    - user lain diabaikan;
+    - setelah terbit, cerita tidak bisa diubah dari chat.
+- **Belum:** perintah bebas yang diteruskan ke agent (misalnya "buat lebih singkat"). Ini menyusul setelah AI menyala di server (D-25), supaya bisa diuji dengan model sungguhan.
