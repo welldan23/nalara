@@ -72,7 +72,7 @@ Never paste these into chat, issues or screenshots. The VPS password is not need
    - builds, takes a backup (once `/srv/nalara/backup.pub` exists), then migrates;
    - starts the stack and waits until db, api, worker and web are healthy.
    - If they are not healthy, it switches back to the previous release.
-   - To deploy automatically after every green CI on main, set the repository variable `AUTO_DEPLOY` to `true` (**Settings → Secrets and variables → Actions → Variables**).
+   - Every green CI on main also deploys automatically (founder decision, 2026-11-07). To pause that, set the repository variable `AUTO_DEPLOY` to `false` (**Settings → Secrets and variables → Actions → Variables**).
 3. On the server, create the founder account (the password is typed there, never sent anywhere):
    ```bash
    sudo nalara founder you@example.com
