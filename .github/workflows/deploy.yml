@@ -63,7 +63,16 @@ jobs:
           install -d -m 0700 ~/.ssh
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/nalara
           chmod 0600 ~/.ssh/nalara
-          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # A copy from a phone may arrive wrapped: rejoin "<host> <type> <base64>" whatever the
+          # whitespace inside the key.
+          read -r -a parts <<< "$(printf '%s' "$VPS_KNOWN_HOSTS" | tr '\r\n\t' '   ')"
+          [[ ${#parts[@]} -ge 3 ]] || { echo "::error::VPS_KNOWN_HOSTS must be '<ip> ssh-ed25519 AAAA...'"; exit 1; }
+          key="$(printf '%s' "${parts[@]:2}")"
+          printf '%s %s %s\n' "${parts[0]}" "${parts[1]}" "$key" > ~/.ssh/known_hosts
+          # Fingerprints are public: compare with `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`
+          # on the server when the connection is refused.
+          echo "Pinned host key:   $(ssh-keygen -lf ~/.ssh/known_hosts | awk '{print $2}')"
+          echo "Server presents:   $(ssh-keyscan -t ed25519 -T 10 "$VPS_HOST" 2>/dev/null | ssh-keygen -lf - 2>/dev/null | awk '{print $2}')"
 
       - name: Ship and start
         env:
