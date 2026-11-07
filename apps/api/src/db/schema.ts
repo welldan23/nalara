@@ -603,10 +603,35 @@ export const storyQueue = pgTable('story_queue', {
   note: text('note'),
   queuedAt: timestamp('queued_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  /** P5-03 (D-32): fast = ✅ in Telegram publishes; review = check and publish in the OS. */
+  route: text('route', { enum: ['fast', 'review'] }),
+  revisionId: uuid('revision_id'),
+  packageText: text('package_text'),
+  sourceUrls: text('source_urls').array(),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+});
+
+/** Single-use Telegram button tokens for a story package (P5-03), bound to one revision. */
+export const storyTokens = pgTable('story_tokens', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  storyId: uuid('story_id')
+    .notNull()
+    .references(() => storyQueue.id),
+  decision: text('decision', { enum: ['publish', 'skip'] }).notNull(),
+  revisionId: uuid('revision_id')
+    .notNull()
+    .references(() => articleRevisions.id),
+  tokenHash: bytea('token_hash').notNull().unique(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
 });
 
 export const schema = {
   storyQueue,
+  storyTokens,
   users,
   sessions,
   loginChallenges,

@@ -24,6 +24,7 @@ import { AppError } from '../lib/errors.ts';
 import { recordAudit } from '../modules/audit/audit.ts';
 import { getAiSettings, stopAi } from '../modules/agent/settings.ts';
 import { countPendingProposals, decideProposal } from '../modules/proposals/proposals.ts';
+import { consumeStoryToken, decideStory } from '../modules/stories/telegram.ts';
 import { consumeToken } from '../modules/telegram/tokens.ts';
 
 type Db = NodePgDatabase<typeof schema>;
@@ -53,6 +54,13 @@ const OUTCOME_TEXT: Readonly<Record<string, string>> = {
   approved: 'Disetujui dan diterapkan.',
   rejected: 'Ditolak.',
   failed: 'Disetujui, tapi gagal diterapkan (datanya sudah berubah). Cek di NALARA OS.',
+};
+
+const STORY_REFUSALS: Readonly<Record<string, string>> = {
+  VERSION_CONFLICT: 'Draft sudah berubah sejak pesan dikirim. Cek dan terbitkan dari NALARA OS.',
+  INVALID_TRANSITION: 'Cerita ini sudah diputuskan.',
+  GATE_BLOCKED: 'Gerbang terbit menolak draft ini. Buka NALARA OS untuk melihat alasannya.',
+  FORBIDDEN: 'Cerita ini harus dicek dan diterbitkan dari NALARA OS.',
 };
 
 export function telegramRoutes(
@@ -100,6 +108,32 @@ export function telegramRoutes(
         text,
         show_alert: true,
       });
+      // Story packages (P5-03, D-32): `p:` publishes the shown revision, `s:` skips the story.
+      const story = /^([ps]):(.{1,62})$/.exec(callback.data ?? '');
+      if (story !== null) {
+        const decision = story[1] === 'p' ? 'publish' : 'skip';
+        const usedStory = await consumeStoryToken(db, story[2] ?? '', decision);
+        if (usedStory === null) {
+          await audit('token_refused', 'denied', request.id);
+          return answer('Tombol ini sudah tidak berlaku. Buka NALARA OS → Usulan.');
+        }
+        try {
+          const actor = { ...(await founder()), requestId: request.id };
+          const outcome = await decideStory(db, actor, usedStory);
+          await audit(`story_${outcome}`, 'success', request.id);
+          return answer(
+            outcome === 'published'
+              ? 'Terbit. Sumber tercatat sudah kamu cek.'
+              : 'Cerita ini dilewati.',
+          );
+        } catch (error) {
+          if (error instanceof AppError) {
+            await audit(`story_${error.code.toLowerCase()}`, 'failure', request.id);
+            return answer(STORY_REFUSALS[error.code] ?? 'Tidak bisa diproses. Cek di NALARA OS.');
+          }
+          throw error;
+        }
+      }
       const match = /^([ar]):(.{1,62})$/.exec(callback.data ?? '');
       const claimed = match?.[1] === 'a' ? 'approve' : 'reject';
       const used = match?.[2] === undefined ? null : await consumeToken(db, match[2], claimed);

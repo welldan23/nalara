@@ -578,6 +578,8 @@ export interface TelegramWebhookConfig {
 export interface TelegramBotConfig {
   readonly botToken: string;
   readonly chatId: number;
+  /** https origin for OS links in story packages (P5-03), or null. */
+  readonly appOrigin: string | null;
 }
 
 const TELEGRAM_SECRET = /^[A-Za-z0-9_-]{32,256}$/;
@@ -625,5 +627,8 @@ export function loadTelegramBotConfig(env: RawEnv = process.env): TelegramBotCon
   }
   const chatId = telegramId('TELEGRAM_CHAT_ID', raw['TELEGRAM_CHAT_ID'], issues);
   if (issues.length > 0) throw new ConfigError(issues);
-  return { botToken, chatId };
+  // Optional: links to the OS in story packages (P5-03). Only an https origin is used.
+  const base = parseUrl(raw['APP_BASE_URL'] ?? '');
+  const appOrigin = base?.protocol === 'https:' ? base.origin : null;
+  return { botToken, chatId, appOrigin };
 }
