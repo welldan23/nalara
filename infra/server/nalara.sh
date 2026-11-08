@@ -12,6 +12,7 @@
 #   sudo nalara ai                connect the AI team to OpenCode Go (D-25), step by step
 #   sudo nalara ai-model <role|default> <model>   change one agent's model
 #   sudo nalara ai-off            stop the agent container (the CMS keeps working)
+#   sudo nalara sources-seed      add the starter source list as candidates (verify them in the OS)
 set -euo pipefail
 
 ROOT=/srv/nalara
@@ -253,5 +254,6 @@ case "${1:-}" in
   ai) ai_setup ;;
   ai-model) ai_model "${2:-}" "${3:-}" ;;
   ai-off) compose --profile agent stop agent ;;
-  *) sed -n '5,14p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  sources-seed) compose run --rm --no-deps api node dist/cli/seed-sources.js ;;
+  *) sed -n '5,15p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

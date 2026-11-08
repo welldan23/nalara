@@ -89,6 +89,7 @@ Other shortcuts on the server (they run from the deployed release, so every depl
   - installs the daily encrypted backup with retention;
   - takes the first backup.
 - `sudo nalara backup-now` takes one encrypted backup now.
+- `sudo nalara sources-seed` adds the starter source list (11 working RSS feeds: Setkab, DJP, LPS and major media) as **candidates**. The founder verifies each one in NALARA OS → Sumber; nothing is fetched before that.
 
 When a domain is bought:
 1. Point its A record at the VPS.
