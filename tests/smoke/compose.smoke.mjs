@@ -519,6 +519,30 @@ try {
   );
 
   await check(
+    'TEST-COMPOSE-12',
+    'the web image serves its public files (mascot art, brand icons)',
+    async () => {
+      // Next.js standalone output leaves public/ out; the Dockerfile must copy it (found live:
+      // the Rana art was a broken image on the first deploy).
+      for (const [path, type] of [
+        ['/maskot/rana.webp', 'image/webp'],
+        ['/brand/nalara-beringin-192.png', 'image/png'],
+      ]) {
+        const result = curl(
+          '--cacert',
+          caFile,
+          '-o',
+          '/dev/null',
+          '-w',
+          '%{http_code} %{content_type}',
+          `https://${SITE}${path}`,
+        ).stdout;
+        assert(result === `200 ${type}`, `${path}: ${result}`);
+      }
+    },
+  );
+
+  await check(
     'TEST-OPS-06',
     'large bodies: only the file upload routes take more than 1 MB',
     async () => {
