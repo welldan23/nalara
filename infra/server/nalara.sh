@@ -57,17 +57,34 @@ telegram() {
   compose up -d worker >/dev/null
 
   say "Langkah 2/3 — Kenalkan akun kamu"
-  echo "Buka bot barumu di Telegram dan kirim: /start"
-  read -rp "Sudah? Tekan Enter. " _
-  local ids user chat
-  # A one-off container: works even while the worker itself waits for the chat id.
-  ids="$(compose run --rm --no-deps -T worker node dist/cli/telegram-setup.js ids 2>&1 || true)"
-  user="$(grep -o '"userId":[0-9]*' <<< "$ids" | tail -n 1 | cut -d: -f2)"
-  chat="$(grep -o '"chatId":-\{0,1\}[0-9]*' <<< "$ids" | tail -n 1 | cut -d: -f2)"
-  # A re-run (webhook already set, so no updates to read) keeps the ids saved earlier.
-  [[ -n "$user" ]] || user="$(sed -n 's/^TELEGRAM_FOUNDER_USER_ID=\([0-9]*\)$/\1/p' "$ENV_FILE")"
-  [[ -n "$chat" ]] || chat="$(sed -n 's/^TELEGRAM_CHAT_ID=\(-\{0,1\}[0-9]*\)$/\1/p' "$ENV_FILE")"
-  [[ -n "$user" && -n "$chat" ]] || { echo "Belum ada pesan /start yang terlihat. Kirim /start ke bot, lalu ulangi: sudo nalara telegram" >&2; exit 1; }
+  echo "Buka bot barumu di Telegram dan kirim: /start  (cukup sekali; skrip ini menunggu sendiri)"
+  local ids user='' chat='' saved_user saved_chat _
+  # A re-run (webhook already set, so Telegram returns no updates) keeps the ids saved earlier.
+  saved_user="$(sed -n 's/^TELEGRAM_FOUNDER_USER_ID=\([0-9]*\)$/\1/p' "$ENV_FILE" | tail -n 1)"
+  saved_chat="$(sed -n 's/^TELEGRAM_CHAT_ID=\(-\{0,1\}[0-9]*\)$/\1/p' "$ENV_FILE" | tail -n 1)"
+  for _ in $(seq 1 40); do
+    # A one-off container: works even while the worker itself waits for the chat id.
+    ids="$(compose run --rm --no-deps -T worker node dist/cli/telegram-setup.js ids 2>&1 || true)"
+    # `|| true`: no match yet is normal here and must not end the script (set -e, pipefail).
+    user="$(grep -o '"userId":[0-9]*' <<< "$ids" | tail -n 1 | cut -d: -f2 || true)"
+    chat="$(grep -o '"chatId":-\{0,1\}[0-9]*' <<< "$ids" | tail -n 1 | cut -d: -f2 || true)"
+    [[ -n "$user" && -n "$chat" ]] && break
+    if [[ -n "$saved_user" && -n "$saved_chat" ]]; then
+      user="$saved_user"
+      chat="$saved_chat"
+      break
+    fi
+    if grep -q '"level":"error"' <<< "$ids"; then
+      echo "Telegram menolak permintaan: $(grep -o '"code":"[^"]*"' <<< "$ids" | tail -n 1 || true)" >&2
+      echo "Cek token di @BotFather, lalu ulangi: sudo nalara telegram" >&2
+      exit 1
+    fi
+    printf '.'
+    sleep 3
+  done
+  echo
+  [[ -n "$user" && -n "$chat" ]] || { echo "Belum ada pesan /start yang masuk dalam 2 menit. Kirim /start ke bot, lalu ulangi: sudo nalara telegram" >&2; exit 1; }
+  echo "Akun Telegram ditemukan (user id $user)."
   set_kv TELEGRAM_FOUNDER_USER_ID "$user"
   set_kv TELEGRAM_CHAT_ID "$chat"
 
@@ -184,7 +201,7 @@ ai_setup() {
 
   say "Langkah 2/3 — Model per agen"
   local models role pick
-  models="$(ai_models)"
+  models="$(ai_models || true)"
   set_kv AI_MODEL "${AI_PICK[default]}"
   for role in "${AI_ROLES[@]}"; do
     pick="${AI_PICK[$role]}"
