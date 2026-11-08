@@ -44,28 +44,90 @@ function Evidence({ roots }: { readonly roots: readonly string[] }): ReactNode {
   );
 }
 
-/** The newest article, laid on the desk as an open case file. */
-export function LeadArticle({ article }: { readonly article: PublicArticleSummary }): ReactNode {
-  const badge = TYPE_BADGES[article.articleType];
+const timeFormat = new Intl.DateTimeFormat('id-ID', {
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'Asia/Jakarta',
+});
+const dayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' });
+const shortDate = new Intl.DateTimeFormat('id-ID', {
+  day: 'numeric',
+  month: 'short',
+  timeZone: 'Asia/Jakarta',
+});
+
+/** "14.30 WIB" for today's stories (Jakarta time), "7 Nov" for older ones. */
+export function storyTime(iso: string, now = new Date()): string {
+  const date = new Date(iso);
+  return dayKey.format(date) === dayKey.format(now)
+    ? `${timeFormat.format(date)} WIB`
+    : shortDate.format(date);
+}
+
+export function StoryTime({ iso }: { readonly iso: string }): ReactNode {
   return (
-    <article className="lead folder">
-      <p className="folder-tab">
-        <Link href={`/topik/${article.category.slug}`}>{article.category.name}</Link>
-      </p>
-      <div className="folder-sheet">
-        <p className="file-line">
-          Berkas <time dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
-          {badge !== null && badge !== undefined && <span className="badge">{badge}</span>}
-        </p>
-        <h2 className="lead-title">
-          <Link href={`/artikel/${article.slug}`}>{article.title}</Link>
-        </h2>
-        {article.dek !== '' && <p className="lead-dek">{article.dek}</p>}
-        <div className="lead-foot">
-          <Evidence roots={article.roots} />
-          <Stamp level={article.verification} />
-        </div>
+    <time className="story-time" dateTime={iso}>
+      {storyTime(iso)}
+    </time>
+  );
+}
+
+/** Topic above a headline, plus "Analisis"/"Opini" when the piece is not a plain explainer. */
+export function Kicker({
+  article,
+  withTopic = true,
+}: {
+  readonly article: PublicArticleSummary;
+  readonly withTopic?: boolean;
+}): ReactNode {
+  const badge = TYPE_BADGES[article.articleType];
+  const hasBadge = badge !== null && badge !== undefined;
+  if (!withTopic && !hasBadge) return null;
+  return (
+    <p className="kicker">
+      {withTopic && <Link href={`/topik/${article.category.slug}`}>{article.category.name}</Link>}
+      {hasBadge && <span className="badge">{badge}</span>}
+    </p>
+  );
+}
+
+/** The day's main story: the biggest headline on the page, with its summary and evidence. */
+export function LeadStory({ article }: { readonly article: PublicArticleSummary }): ReactNode {
+  return (
+    <article className="lead-story">
+      <Kicker article={article} />
+      <h2 className="lead-story-title">
+        <Link href={`/artikel/${article.slug}`}>{article.title}</Link>
+      </h2>
+      {article.dek !== '' && <p className="lead-story-dek">{article.dek}</p>}
+      <div className="lead-story-meta">
+        <StoryTime iso={article.publishedAt} />
+        <Evidence roots={article.roots} />
+        <Stamp level={article.verification} />
       </div>
+    </article>
+  );
+}
+
+/** A headline in a list or a topic section. */
+export function Headline({
+  article,
+  withDek = false,
+  withTopic = true,
+}: {
+  readonly article: PublicArticleSummary;
+  readonly withDek?: boolean;
+  /** Off inside a topic's own section, where the topic is the section title. */
+  readonly withTopic?: boolean;
+}): ReactNode {
+  return (
+    <article className="headline">
+      <Kicker article={article} withTopic={withTopic} />
+      <h3 className="headline-title">
+        <Link href={`/artikel/${article.slug}`}>{article.title}</Link>
+      </h3>
+      {withDek && article.dek !== '' && <p className="headline-dek">{article.dek}</p>}
+      <StoryTime iso={article.publishedAt} />
     </article>
   );
 }

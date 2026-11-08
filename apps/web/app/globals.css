@@ -153,7 +153,7 @@ main {
   padding-block: 2.5rem 4.5rem;
 }
 /* Ordinary pages read as one column; the front page, the pre-launch hero and the OS opt out. */
-main > :not(.front, .os-shell, .hero, .method-steps) {
+main > :not(.news, .os-shell, .hero, .method-steps) {
   max-width: 42rem;
 }
 
@@ -379,7 +379,6 @@ code,
 .folder-tab a:hover {
   text-decoration: underline;
 }
-.folder-sheet,
 .case-sheet {
   border-top: 0.5rem solid var(--color-manila);
   background: var(--color-surface);
@@ -393,7 +392,6 @@ code,
   max-width: 100%;
 }
 /* The short gold rule of the brand sheet, under the page's main title. */
-.front-title::after,
 .hero-title::after,
 .reading h1::after,
 .empty-state h1::after {
@@ -403,26 +401,6 @@ code,
   height: 2px;
   margin-top: 1.1rem;
   background: var(--color-gold);
-}
-.front-head {
-  display: grid;
-  align-items: end;
-  gap: 1rem 3rem;
-  margin-bottom: 3rem;
-}
-.front-head .front-text {
-  margin-bottom: 0;
-}
-.front-art {
-  width: 11rem;
-}
-@media (min-width: 48rem) {
-  .front-head {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .front-art {
-    width: 14rem;
-  }
 }
 .empty-state {
   display: flex;
@@ -455,79 +433,6 @@ code,
   }
 }
 
-/* Front page: the tagline, one open case file, then the rest of the files. */
-.front-title {
-  max-width: 12ch;
-  margin: 0;
-  font-size: clamp(3rem, 10vw, 6rem);
-  line-height: 0.95;
-  letter-spacing: -0.01em;
-}
-.front-text {
-  max-width: 34rem;
-  margin: 1.25rem 0 3rem;
-  font-size: 1.2rem;
-  line-height: 1.55;
-  color: var(--color-ink-muted);
-}
-.front-grid {
-  display: grid;
-  gap: 3rem;
-}
-@media (min-width: 60rem) {
-  .front-grid {
-    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
-    gap: 4rem;
-    align-items: start;
-  }
-}
-.lead .folder-sheet {
-  padding: 1.75rem clamp(1.25rem, 4vw, 2.5rem) 2rem;
-}
-.lead-title {
-  margin: 0.25rem 0 0.75rem;
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 400;
-  line-height: 1.05;
-  overflow-wrap: anywhere;
-}
-.lead-title a,
-.entry-title a {
-  color: var(--color-ink);
-  text-decoration: none;
-}
-.lead-title a:hover,
-.entry-title a:hover {
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-}
-.lead-dek {
-  max-width: 36rem;
-  margin: 0;
-  font-size: 1.2rem;
-  line-height: 1.55;
-  color: var(--color-ink-muted);
-}
-.lead-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem 1.5rem;
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px dashed var(--color-rule);
-}
-.lead-foot .evidence-line {
-  margin: 0;
-}
-.lead-foot .stamp {
-  margin-right: 0.35rem;
-}
-.front-list {
-  padding-top: 0.5rem;
-}
 .entries {
   display: grid;
 }
@@ -548,6 +453,210 @@ code,
   margin: 0;
   font-size: 1.025rem;
   line-height: 1.55;
+  color: var(--color-ink-muted);
+}
+
+/* --- News front page: the news first, like a paper's front page --- */
+.news {
+  display: grid;
+  gap: 0;
+}
+/* The day's edition line under the masthead. */
+.edition {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin: 0 0 1.5rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--color-rule);
+  font-family: var(--font-type);
+  font-size: 0.85rem;
+  color: var(--color-ink-muted);
+}
+.kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  font-family: var(--font-type);
+  font-size: 0.85rem;
+}
+.kicker a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.kicker a:hover {
+  text-decoration: underline;
+}
+.story-time {
+  display: block;
+  font-family: var(--font-type);
+  font-size: 0.8rem;
+  color: var(--color-ink-muted);
+}
+/* Lead story beside the next headlines. */
+.news-top {
+  display: grid;
+  gap: 2rem;
+  padding-bottom: 2rem;
+}
+@media (min-width: 60rem) {
+  .news-top {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 3rem;
+  }
+  .news-top-list {
+    padding-left: 2rem;
+    border-left: 1px solid var(--color-rule);
+  }
+}
+.lead-story-title {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: clamp(2.1rem, 6vw, 3.6rem);
+  font-weight: 400;
+  line-height: 1.04;
+  overflow-wrap: anywhere;
+}
+.lead-story-title a,
+.headline-title a,
+.stream-title a {
+  color: var(--color-ink);
+  text-decoration: none;
+}
+.lead-story-title a:hover,
+.headline-title a:hover,
+.stream-title a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+}
+.lead-story-dek {
+  max-width: 40rem;
+  margin: 0 0 1rem;
+  font-size: 1.2rem;
+  line-height: 1.55;
+  color: var(--color-ink-muted);
+}
+.lead-story-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+}
+.lead-story-meta .evidence-line {
+  margin: 0;
+}
+.news-top-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.news-top-list > li {
+  padding-block: 1rem;
+  border-top: 1px solid var(--color-rule);
+}
+.news-top-list > li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.headline-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.headline-dek {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--color-ink-muted);
+}
+/* Each band opens with a heavy rule, as sections do in print. */
+.news-band {
+  padding: 1rem 0 2rem;
+  border-top: 3px solid var(--color-ink);
+}
+.band-title {
+  margin: 0 0 1.25rem;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 400;
+}
+.band-title a {
+  color: var(--color-ink);
+  text-decoration: none;
+}
+.band-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+@media (min-width: 48rem) {
+  .band-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2rem;
+  }
+}
+.band-more {
+  margin: 1.25rem 0 0;
+  font-family: var(--font-type);
+  font-size: 0.85rem;
+}
+.band-more a {
+  color: var(--color-accent);
+}
+.stream {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 48rem) {
+  .stream {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 2.5rem;
+  }
+}
+.stream-item {
+  display: grid;
+  grid-template-columns: 4.25rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding-block: 0.85rem;
+  border-bottom: 1px solid var(--color-rule);
+}
+.stream-item .story-time {
+  padding-top: 0.15rem;
+}
+.stream-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+/* Closing trust note: Rana, small, with one line on how the work is checked. */
+.trust-note {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  margin-top: 1rem;
+  padding: 1.5rem 0 0.5rem;
+  border-top: 1px solid var(--color-rule);
+}
+.trust-note-art {
+  width: 5.5rem;
+}
+.trust-note h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.15rem;
+}
+.trust-note p {
+  max-width: 40rem;
+  margin: 0 0 0.5rem;
   color: var(--color-ink-muted);
 }
 
