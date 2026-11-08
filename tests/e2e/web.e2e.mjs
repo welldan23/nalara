@@ -536,6 +536,16 @@ try {
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       );
       assert(overflow <= 0, `${path} overflows by ${overflow}px`);
+      // Every menu link is fully on screen at 320 px (it wraps; nothing hides off to the side).
+      const hidden = await page.evaluate(() =>
+        [...document.querySelectorAll('.site-nav a')]
+          .filter((link) => {
+            const box = link.getBoundingClientRect();
+            return box.left < 0 || box.right > document.documentElement.clientWidth;
+          })
+          .map((link) => link.textContent),
+      );
+      assert(hidden.length === 0, `${path}: menu links off screen: ${hidden.join(', ')}`);
       await shot(page, `10b-320${path === '/' ? '-home' : path.replaceAll('/', '-')}`);
     }
   });
