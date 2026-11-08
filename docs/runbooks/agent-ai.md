@@ -34,6 +34,8 @@ Setelah itu tinggal **nyalakan saklar** di NALARA OS → Agent AI (langkah 5).
 Perintah lain:
 - `sudo nalara ai-model <peran|default> <model>` mengganti model satu agent. Model yang namanya berakhiran `-contributor` atau `-free` ditolak, karena model seperti itu bisa melatih dirinya dari prompt. Tanpa nama model, perintah ini menampilkan daftar model yang boleh dipakai.
 - `sudo nalara ai-off` menghentikan container agent. CMS tetap jalan.
+- `sudo nalara ai-check` menguji key yang tersimpan dengan satu permintaan kecil, lalu menampilkan jawabannya (200 = jalan, 401 = key salah, 402/403 = langganan atau jatah). Key-nya tidak pernah ditampilkan.
+- OpenCode Go menolak permintaan tanpa header `x-opencode-session` (400 `MissingSessionID`). Runner sudah mengirimnya sejak D-25, dan sekarang uji key di skrip juga mengirimnya.
 
 1. **Pilih provider (D-25)** dan jalankan checklist di [R-02 §4](../phase-3/R-02-SPIKE.md): ketentuan layanan membolehkan pemakaian lewat aplikasi, data tidak dipakai untuk melatih model, dan batas biaya bulanan sudah dipasang di dashboard provider. Provider harus menyediakan API OpenAI-compatible (`/chat/completions` dengan tool calling).
 2. **Buat kredensial runner** (tokennya tampil sekali saja):
