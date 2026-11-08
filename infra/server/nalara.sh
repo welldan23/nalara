@@ -12,6 +12,7 @@
 #   sudo nalara ai                connect the AI team to OpenCode Go (D-25), step by step
 #   sudo nalara ai-model <role|default> <model>   change one agent's model
 #   sudo nalara ai-off            stop the agent container (the CMS keeps working)
+#   sudo nalara ai-check          test the saved OpenCode key (prints the answer, never the key)
 #   sudo nalara sources-seed      add the starter source list as candidates (verify them in the OS)
 set -euo pipefail
 
@@ -179,6 +180,37 @@ ai_model() {
   echo "Oke: $role → $model"
 }
 
+# One tiny request with the key. OpenCode Go refuses requests without x-opencode-session (400
+# MissingSessionID), so the check sends one like the agent runner does. Prints the HTTP status.
+ai_ping() {
+  local key="$1" base="$2" session
+  session="$(cat /proc/sys/kernel/random/uuid)"
+  curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$base/chat/completions" \
+    -H "Authorization: Bearer $key" -H 'Content-Type: application/json' \
+    -H 'User-Agent: NALARA-Agent/1.0' -H "x-opencode-session: $session" \
+    -d "{\"model\":\"${AI_PICK[default]}\",\"max_tokens\":16,\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}]}" || true
+}
+
+# Says what an answer means; returns 0 only for a working key.
+ai_explain() {
+  case "$1" in
+    200) echo "Key diterima: OpenCode Go menjawab." ;;
+    401) echo "Key ditolak (401). Buat key baru di opencode.ai → Console → API Keys, lalu: sudo nalara ai" >&2; return 1 ;;
+    402|403) echo "Akses ditolak ($1): biasanya langganan Go belum aktif atau jatahnya habis. Cek di opencode.ai." >&2; return 1 ;;
+    429) echo "Jatah pemakaian sedang habis (429). Key benar; agent mencoba lagi nanti." ; return 1 ;;
+    000) echo "Tidak bisa menghubungi OpenCode (jaringan). Coba lagi sebentar." >&2; return 1 ;;
+    *) echo "OpenCode menjawab $1; key tetap disimpan. Cek: sudo nalara logs agent" >&2; return 1 ;;
+  esac
+}
+
+ai_check() {
+  local key base
+  key="$(sed -n 's/^AI_API_KEY=//p' "$ENV_FILE" | tail -n 1)"
+  base="$(sed -n 's/^AI_BASE_URL=//p' "$ENV_FILE" | tail -n 1)"
+  [[ -n "$key" ]] || { echo "Belum ada API key. Jalankan: sudo nalara ai" >&2; exit 1; }
+  ai_explain "$(ai_ping "$key" "${base:-$AI_BASE_DEFAULT}")"
+}
+
 ai_setup() {
   say "Langkah 1/3 — API key OpenCode Go"
   echo "Di opencode.ai: Console → API keys → buat key khusus NALARA."
@@ -188,14 +220,8 @@ ai_setup() {
   echo
   [[ "$key" =~ ^[A-Za-z0-9._-]{20,200}$ ]] || { echo "Itu tidak terlihat seperti API key. Ulangi: sudo nalara ai" >&2; exit 1; }
   local code
-  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$AI_BASE_DEFAULT/chat/completions" \
-    -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -H 'User-Agent: NALARA-Agent/1.0' \
-    -d "{\"model\":\"${AI_PICK[default]}\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}]}")"
-  case "$code" in
-    200) echo "Key diterima." ;;
-    401|403) echo "Key ditolak OpenCode ($code). Cek lagi key-nya, lalu ulangi." >&2; exit 1 ;;
-    *) echo "OpenCode menjawab $code; key tetap disimpan, cek 'sudo nalara logs agent' nanti." ;;
-  esac
+  code="$(ai_ping "$key" "$AI_BASE_DEFAULT")"
+  ai_explain "$code" || [[ "$code" != 401 && "$code" != 403 ]] || exit 1
   set_kv AI_BASE_URL "$AI_BASE_DEFAULT"
   set_kv AI_API_KEY "$key"
   unset key
@@ -254,6 +280,7 @@ case "${1:-}" in
   ai) ai_setup ;;
   ai-model) ai_model "${2:-}" "${3:-}" ;;
   ai-off) compose --profile agent stop agent ;;
+  ai-check) ai_check ;;
   sources-seed) compose run --rm --no-deps api node dist/cli/seed-sources.js ;;
-  *) sed -n '5,15p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '5,16p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
