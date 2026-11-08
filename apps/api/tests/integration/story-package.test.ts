@@ -16,6 +16,7 @@ import { migrate } from '../../src/db/migrate.ts';
 import { MIGRATIONS_DIR } from '../../src/db/migrations-dir.ts';
 import { saveRevision } from '../../src/modules/articles/articles.ts';
 import { onlyAddresses } from '../../src/modules/fetch/address-policy.ts';
+import { inQuietHours } from '../../src/modules/radar/score.ts';
 import { nextStory, submitDraft } from '../../src/modules/stories/queue.ts';
 import { notifyReadyStories } from '../../src/modules/stories/telegram.ts';
 import type { PackageOptions } from '../../src/modules/stories/telegram.ts';
@@ -39,6 +40,16 @@ const FOUNDER = 111_222_333;
 const CHAT = 444_555_666;
 const CONTEXT = { requestId: 'test-request', role: 'penulis' };
 const BODY = '## Apa yang terjadi\n\nTeks TEST yang ditulis agent tiruan.';
+// The queue takes only breaking stories in quiet hours (01-05 WIB). These tests are about the
+// package, not the hours, so they run on a clock outside them whatever the real time is (CI once
+// ran at 01:03 WIB and every story was held back). Items are dated on the same clock.
+const SHIFT_MS = (() => {
+  let shift = 0;
+  const quietAt = (ms: number) => inQuietHours(new Date(Date.now() + ms));
+  while (quietAt(shift) || quietAt(shift + 15 * 60_000)) shift += 30 * 60_000;
+  return shift;
+})();
+const testNow = () => new Date(Date.now() + SHIFT_MS);
 
 interface Sent {
   readonly method: string;
@@ -70,8 +81,8 @@ describe.skipIf(!databaseAvailable)('story packages on Telegram', { timeout: 90_
     const url = `https://${sourceKey}.example/${encodeURIComponent(title)}`;
     await migrator.query(
       `INSERT INTO discovered_items (source_id, run_id, canonical_url, guid, title, summary, fingerprint, published_at, first_seen_at)
-       VALUES ($1, $2, $3, $3, $4, 'Ringkasan TEST.', sha256(convert_to(lower($4), 'UTF8')), now(), now())`,
-      [sourceIds[sourceKey], run.rows[0]?.id, url, title],
+       VALUES ($1, $2, $3, $3, $4, 'Ringkasan TEST.', sha256(convert_to(lower($4), 'UTF8')), $5, $5)`,
+      [sourceIds[sourceKey], run.rows[0]?.id, url, title, testNow()],
     );
   };
   // The worker archives sources; here the outcome is set directly.
@@ -89,7 +100,7 @@ describe.skipIf(!databaseAvailable)('story packages on Telegram', { timeout: 90_
       [status],
     );
   const draftNext = async (sources: number[], primary: number[]) => {
-    const next = await nextStory(database.db);
+    const next = await nextStory(database.db, testNow());
     const queueId = next.story?.queueId ?? '';
     const saved = await submitDraft(database.db, CONTEXT, {
       queueId,
