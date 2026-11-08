@@ -151,11 +151,13 @@ AI_BASE_DEFAULT="${NALARA_AI_BASE:-https://opencode.ai/inference/go/openai/v1}"
 AI_ROLES=(radar penulis pemeriksa periset pemantau)
 # Starting picks (founder can change any with `nalara ai-model`): a cheap default, a strong
 # writer, a checker from another model family than the writer, mid-range research.
+# DeepSeek is left out: OpenCode serves it outside Europe/US, and an account limited to those
+# regions gets 400 "hosted outside Europe and the United States" (founder's account, 2026-11-08).
 declare -A AI_PICK=(
-  [default]=deepseek-v4.1-flash
+  [default]=gpt-6-luna
   [radar]=gpt-6-luna
   [penulis]=qwen3.8-max
-  [pemeriksa]=deepseek-v4-pro
+  [pemeriksa]=claude-haiku-5-5
   [periset]=minimax-m3
   [pemantau]=gpt-6-luna
 )
@@ -181,34 +183,54 @@ ai_model() {
 }
 
 # One tiny request with the key. OpenCode Go refuses requests without x-opencode-session (400
-# MissingSessionID), so the check sends one like the agent runner does. Prints the HTTP status.
+# MissingSessionID), so the check sends one like the agent runner does. Prints the HTTP status on
+# the first line and OpenCode's error message (never the key) on the second.
 ai_ping() {
-  local key="$1" base="$2" session
+  local key="$1" base="$2" model="$3" session out
   session="$(cat /proc/sys/kernel/random/uuid)"
-  curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$base/chat/completions" \
+  out="$(mktemp)"
+  curl -s -o "$out" -w '%{http_code}\n' --max-time 60 "$base/chat/completions" \
     -H "Authorization: Bearer $key" -H 'Content-Type: application/json' \
     -H 'User-Agent: NALARA-Agent/1.0' -H "x-opencode-session: $session" \
-    -d "{\"model\":\"${AI_PICK[default]}\",\"max_tokens\":16,\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}]}" || true
+    -d "{\"model\":\"$model\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}]}" || echo 000
+  grep -o '"message":"[^"]*"' "$out" | head -n 1 | cut -d'"' -f4 || true
+  rm -f "$out"
 }
 
 # Says what an answer means; returns 0 only for a working key.
 ai_explain() {
-  case "$1" in
-    200) echo "Key diterima: OpenCode Go menjawab." ;;
+  local code="$1" detail="${2:-}" model="${3:-}"
+  case "$code" in
+    200) echo "Key diterima: OpenCode Go menjawab (model $model)." ;;
     401) echo "Key ditolak (401). Buat key baru di opencode.ai → Console → API Keys, lalu: sudo nalara ai" >&2; return 1 ;;
-    402|403) echo "Akses ditolak ($1): biasanya langganan Go belum aktif atau jatahnya habis. Cek di opencode.ai." >&2; return 1 ;;
+    402|403) echo "Akses ditolak ($code): biasanya langganan Go belum aktif atau jatahnya habis. Cek di opencode.ai." >&2; return 1 ;;
     429) echo "Jatah pemakaian sedang habis (429). Key benar; agent mencoba lagi nanti." ; return 1 ;;
     000) echo "Tidak bisa menghubungi OpenCode (jaringan). Coba lagi sebentar." >&2; return 1 ;;
-    *) echo "OpenCode menjawab $1; key tetap disimpan. Cek: sudo nalara logs agent" >&2; return 1 ;;
+    *)
+      echo "OpenCode menjawab $code untuk model $model." >&2
+      [[ -z "$detail" ]] || echo "Pesan OpenCode: $detail" >&2
+      if [[ "$detail" == *"outside Europe"* ]]; then
+        echo "Model ini tidak diizinkan oleh pengaturan wilayah akunmu. Ganti modelnya: sudo nalara ai-model <peran|default> <model>" >&2
+      fi
+      return 1 ;;
   esac
 }
 
+# Tests the saved key with every model the agents are set to use (default and per role).
 ai_check() {
-  local key base
+  local key base models model answer code detail bad=0
   key="$(sed -n 's/^AI_API_KEY=//p' "$ENV_FILE" | tail -n 1)"
   base="$(sed -n 's/^AI_BASE_URL=//p' "$ENV_FILE" | tail -n 1)"
   [[ -n "$key" ]] || { echo "Belum ada API key. Jalankan: sudo nalara ai" >&2; exit 1; }
-  ai_explain "$(ai_ping "$key" "${base:-$AI_BASE_DEFAULT}")"
+  models="$(sed -n 's/^AI_MODEL\(_[A-Z]*\)\{0,1\}=//p' "$ENV_FILE" | sort -u)"
+  [[ -n "$models" ]] || models="${AI_PICK[default]}"
+  for model in $models; do
+    answer="$(ai_ping "$key" "${base:-$AI_BASE_DEFAULT}" "$model")"
+    code="$(head -n 1 <<< "$answer")"
+    detail="$(sed -n 2p <<< "$answer")"
+    ai_explain "$code" "$detail" "$model" || bad=1
+  done
+  return "$bad"
 }
 
 ai_setup() {
@@ -219,9 +241,11 @@ ai_setup() {
   read -rsp "Tempel API key di sini (tidak akan tampil), lalu Enter: " key
   echo
   [[ "$key" =~ ^[A-Za-z0-9._-]{20,200}$ ]] || { echo "Itu tidak terlihat seperti API key. Ulangi: sudo nalara ai" >&2; exit 1; }
-  local code
-  code="$(ai_ping "$key" "$AI_BASE_DEFAULT")"
-  ai_explain "$code" || [[ "$code" != 401 && "$code" != 403 ]] || exit 1
+  local answer code
+  answer="$(ai_ping "$key" "$AI_BASE_DEFAULT" "${AI_PICK[default]}")"
+  code="$(head -n 1 <<< "$answer")"
+  ai_explain "$code" "$(sed -n 2p <<< "$answer")" "${AI_PICK[default]}" ||
+    [[ "$code" != 401 && "$code" != 403 ]] || exit 1
   set_kv AI_BASE_URL "$AI_BASE_DEFAULT"
   set_kv AI_API_KEY "$key"
   unset key
