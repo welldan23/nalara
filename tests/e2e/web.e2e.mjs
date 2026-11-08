@@ -1476,6 +1476,14 @@ try {
         'noindex, nofollow',
       'page robots while launch is unconfirmed',
     );
+    // Before launch (or unconfirmed): readers can still find "Tentang" in the navigation, and the
+    // page does not link to the corrections page, which opens with the launch.
+    const nav = page.getByRole('navigation', { name: 'Navigasi' });
+    assert((await nav.getByRole('link', { name: 'Tentang' }).count()) === 1, 'Tentang in the nav');
+    assert(
+      (await page.locator('main a[href="/koreksi"]').count()) === 0,
+      'Tentang links to /koreksi before launch',
+    );
   });
 
   await check('console', 'no unexpected browser console errors', async () => {

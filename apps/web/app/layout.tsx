@@ -74,23 +74,24 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <BrandMark size={34} />
               <span>NALARA</span>
             </Link>
-            {categories.length > 0 && (
-              <nav aria-label="Topik" className="site-nav">
-                <ul>
-                  {categories.map((category) => (
-                    <li key={category.slug}>
-                      <Link href={`/topik/${category.slug}`}>{category.name}</Link>
-                    </li>
-                  ))}
+            {/* Before launch there are no topics yet, but "Tentang" is always there to find. */}
+            <nav aria-label="Navigasi" className="site-nav">
+              <ul>
+                {categories.map((category) => (
+                  <li key={category.slug}>
+                    <Link href={`/topik/${category.slug}`}>{category.name}</Link>
+                  </li>
+                ))}
+                {categories.length > 0 && (
                   <li>
                     <Link href="/data">Data</Link>
                   </li>
-                  <li>
-                    <Link href="/tentang">Tentang</Link>
-                  </li>
-                </ul>
-              </nav>
-            )}
+                )}
+                <li>
+                  <Link href="/tentang">Tentang</Link>
+                </li>
+              </ul>
+            </nav>
           </div>
         </header>
         {/* Focusable target for the skip link, so keyboard users land in the content. */}
