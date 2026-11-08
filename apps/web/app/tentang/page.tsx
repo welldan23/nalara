@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Rana } from '../../components/brand';
+import { publicCategories } from '../../lib/public-api';
 import { pageAlternates, pageOpenGraph } from '../../lib/site';
 
 export const metadata: Metadata = {
@@ -15,7 +16,15 @@ export const metadata: Metadata = {
   }),
 };
 
-export default function AboutPage() {
+// The corrections page opens with the public site (ADR-015); link to it only once it exists.
+export const dynamic = 'force-dynamic';
+
+export default async function AboutPage() {
+  // Same memoised launch check as the navigation; if the API is down the page still renders.
+  const correctionsOpen = await publicCategories().then(
+    (categories) => categories !== null,
+    () => false,
+  );
   return (
     <article className="reading">
       <h1>Tentang NALARA</h1>
@@ -67,7 +76,8 @@ export default function AboutPage() {
       <p>
         Kalau kami keliru, kami memperbaikinya secara terbuka dan riwayat perubahan tidak dihapus.
         Koreksi soal fakta, angka, atau kutipan ditandai di artikelnya dan tercantum di{' '}
-        <Link href="/koreksi">halaman koreksi</Link> beserta tanggalnya.
+        {correctionsOpen ? <Link href="/koreksi">halaman koreksi</Link> : 'halaman koreksi'} beserta
+        tanggalnya.
       </p>
     </article>
   );
