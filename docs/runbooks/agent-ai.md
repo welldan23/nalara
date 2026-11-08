@@ -24,17 +24,18 @@ Setelah itu tinggal **nyalakan saklar** di NALARA OS → Agent AI (langkah 5).
 
 | Peran | Model awal | Alasan |
 |---|---|---|
-| bawaan (`AI_MODEL`) | `deepseek-v4.1-flash` | murah, mendukung tool calling |
+| bawaan (`AI_MODEL`) | `gpt-6-luna` | murah, mendukung tool calling |
 | radar | `gpt-6-luna` | murah dan cepat untuk memilah berita |
 | penulis | `qwen3.8-max` | model kuat untuk menulis panjang |
-| pemeriksa | `deepseek-v4-pro` | keluarga berbeda dari penulis, supaya kesalahannya tidak sama |
+| pemeriksa | `claude-haiku-5-5` | keluarga berbeda dari penulis, supaya kesalahannya tidak sama |
 | periset | `minimax-m3` | menengah |
 | pemantau | `gpt-6-luna` | termurah |
 
 Perintah lain:
 - `sudo nalara ai-model <peran|default> <model>` mengganti model satu agent. Model yang namanya berakhiran `-contributor` atau `-free` ditolak, karena model seperti itu bisa melatih dirinya dari prompt. Tanpa nama model, perintah ini menampilkan daftar model yang boleh dipakai.
 - `sudo nalara ai-off` menghentikan container agent. CMS tetap jalan.
-- `sudo nalara ai-check` menguji key yang tersimpan dengan satu permintaan kecil, lalu menampilkan jawabannya (200 = jalan, 401 = key salah, 402/403 = langganan atau jatah). Key-nya tidak pernah ditampilkan.
+- **Wilayah akun OpenCode:** kalau akun diatur ke "Europe/United States", model yang dilayani di luar wilayah itu ditolak dengan 400 *"hosted outside Europe and the United States"*. Pada 2026-11-08 itu berlaku untuk DeepSeek, jadi DeepSeek tidak dipakai sebagai pilihan awal. `ai-check` menampilkan pesan ini lengkap dengan cara menggantinya.
+- `sudo nalara ai-check` menguji key yang tersimpan dengan satu permintaan kecil **per model yang dipakai agent**, lalu menampilkan jawabannya beserta pesan OpenCode (200 = jalan, 401 = key salah, 402/403 = langganan atau jatah). Key-nya tidak pernah ditampilkan.
 - OpenCode Go menolak permintaan tanpa header `x-opencode-session` (400 `MissingSessionID`). Runner sudah mengirimnya sejak D-25, dan sekarang uji key di skrip juga mengirimnya.
 
 1. **Pilih provider (D-25)** dan jalankan checklist di [R-02 §4](../phase-3/R-02-SPIKE.md): ketentuan layanan membolehkan pemakaian lewat aplikasi, data tidak dipakai untuk melatih model, dan batas biaya bulanan sudah dipasang di dashboard provider. Provider harus menyediakan API OpenAI-compatible (`/chat/completions` dengan tool calling).
