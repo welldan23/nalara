@@ -19,7 +19,7 @@ import { eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { z } from 'zod';
 import type { TelegramWebhookConfig } from '../config/env.ts';
-import { users } from '../db/schema.ts';
+import { storyQueue, users } from '../db/schema.ts';
 import type { schema } from '../db/schema.ts';
 import { AppError } from '../lib/errors.ts';
 import { recordAudit } from '../modules/audit/audit.ts';
@@ -91,9 +91,14 @@ const HELP = [
 
 export function telegramRoutes(
   app: FastifyInstance,
-  options: { readonly db: Db; readonly telegram: TelegramWebhookConfig },
+  options: {
+    readonly db: Db;
+    readonly telegram: TelegramWebhookConfig;
+    /** Called after a story is published from the chat (queues its Kartu IG). Must not throw. */
+    readonly onPublished?: (articleId: string) => void;
+  },
 ): Promise<void> {
-  const { db, telegram } = options;
+  const { db, telegram, onPublished } = options;
   const expected = digest(telegram.secret);
 
   const audit = (outcome: string, result: 'success' | 'denied' | 'failure', requestId: string) =>
@@ -147,6 +152,13 @@ export function telegramRoutes(
           const actor = { ...(await founder()), requestId: request.id };
           const outcome = await decideStory(db, actor, usedStory);
           await audit(`story_${outcome}`, 'success', request.id);
+          if (outcome === 'published' && onPublished !== undefined) {
+            const [story] = await db
+              .select({ articleId: storyQueue.articleId })
+              .from(storyQueue)
+              .where(eq(storyQueue.id, usedStory.storyId));
+            if (story?.articleId != null) onPublished(story.articleId);
+          }
           return answer(
             outcome === 'published'
               ? 'Terbit. Sumber tercatat sudah kamu cek.'

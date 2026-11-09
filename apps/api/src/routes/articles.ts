@@ -109,7 +109,15 @@ function articleId(params: unknown): string {
 
 export function registerArticleRoutes(
   app: FastifyInstance,
-  { db, guards }: { readonly db: NodePgDatabase<typeof schema>; readonly guards: AuthGuards },
+  {
+    db,
+    guards,
+    onPublished,
+  }: {
+    readonly db: NodePgDatabase<typeof schema>;
+    readonly guards: AuthGuards;
+    readonly onPublished?: (articleId: string) => void;
+  },
 ): void {
   const actor = (request: { auth: { userId: string } | null; id: string }) => {
     if (request.auth === null) throw new AppError('UNAUTHORIZED');
@@ -236,13 +244,15 @@ export function registerArticleRoutes(
       async (request) => {
         const id = articleId(request.params);
         const input = parseOrThrow(transitionSchema, request.body);
-        return transition(db, actor(request), id, action, {
+        const result = await transition(db, actor(request), id, action, {
           expectedVersion: input.expectedVersion,
           ...(input.note !== undefined ? { note: input.note } : {}),
           ...(input.sourceException !== undefined
             ? { sourceException: input.sourceException }
             : {}),
         });
+        if (action === 'publish') onPublished?.(id);
+        return result;
       },
     );
   }

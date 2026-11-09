@@ -259,6 +259,15 @@ describe.skipIf(!databaseAvailable)('story packages on Telegram', { timeout: 90_
     expect(article.rows[0]?.citations.every((citation) => citation.verified)).toBe(true);
     expect(article.rows[0]?.change_note).toMatch(/Telegram/);
     expect((await queueStatus(fast.queueId))?.status).toBe('published');
+    // Its Kartu IG are queued for the chat (P5-04b); rendering runs after the answer.
+    let cards = 0;
+    for (let tries = 0; tries < 120 && cards === 0; tries += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      cards =
+        (await migrator.query('SELECT 1 FROM card_outbox WHERE article_id = $1', [fast.articleId]))
+          .rowCount ?? 0;
+    }
+    expect(cards).toBe(1);
     // A replay is refused.
     expect(parse<{ text: string }>(await webhook(publish ?? '')).text).toMatch(/tidak berlaku/);
   });

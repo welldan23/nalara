@@ -2,6 +2,7 @@
 // internet egress). Messages are plain text (no parse_mode), so agent-written text can never
 // become markup or links that Telegram renders. The bot token is in the request path and never
 // logged; failures surface as stable codes only.
+import { randomBytes } from 'node:crypto';
 import { and, asc, eq, notExists, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { aiActionProposals, approvalTokens } from '../../db/schema.ts';
@@ -34,17 +35,79 @@ export async function callBot(
   method: string,
   body: unknown,
 ): Promise<unknown> {
+  return send(options, method, { body, maxBytes: 256 * 1024, timeoutMs: 15_000 });
+}
+
+export interface BotFile {
+  /** Form field name, referenced as attach://<field> in the JSON fields. Letters and digits. */
+  readonly field: string;
+  readonly filename: string;
+  readonly contentType: string;
+  readonly data: Buffer;
+}
+
+const FIELD = /^[A-Za-z0-9_]{1,64}$/;
+
+/**
+ * Uploads files (multipart/form-data) with plain fields, e.g. sendMediaGroup (P5-04b). Field
+ * names and file names are this module's own constants, checked anyway so nothing can break out
+ * of a part header.
+ */
+export async function callBotUpload(
+  options: BotOptions,
+  method: string,
+  fields: Readonly<Record<string, string>>,
+  files: readonly BotFile[],
+): Promise<unknown> {
+  const boundary = `nalara-${randomBytes(16).toString('hex')}`;
+  const parts: Buffer[] = [];
+  for (const [name, value] of Object.entries(fields)) {
+    if (!FIELD.test(name)) throw new TelegramError('invalid_field');
+    parts.push(
+      Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`,
+        'utf8',
+      ),
+    );
+  }
+  for (const file of files) {
+    if (!FIELD.test(file.field) || !/^[A-Za-z0-9_.-]{1,100}$/.test(file.filename)) {
+      throw new TelegramError('invalid_field');
+    }
+    parts.push(
+      Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${file.field}"; filename="${file.filename}"\r\nContent-Type: ${file.contentType}\r\n\r\n`,
+        'utf8',
+      ),
+      file.data,
+      Buffer.from('\r\n', 'utf8'),
+    );
+  }
+  parts.push(Buffer.from(`--${boundary}--\r\n`, 'utf8'));
+  return send(options, method, {
+    rawBody: {
+      data: Buffer.concat(parts),
+      contentType: `multipart/form-data; boundary=${boundary}`,
+    },
+    maxBytes: 256 * 1024,
+    timeoutMs: 60_000,
+  });
+}
+
+async function send(
+  options: BotOptions,
+  method: string,
+  request: Pick<SafeFetchOptions, 'body' | 'rawBody' | 'maxBytes' | 'timeoutMs'>,
+): Promise<unknown> {
   let response;
   try {
     response = await safeFetch(
       `${options.apiBase ?? 'https://api.telegram.org'}/bot${options.botToken}/${method}`,
       {
         ...options.fetchOptions,
+        ...request,
         method: 'POST',
-        body,
         contentTypes: ['application/json'],
-        maxBytes: 256 * 1024,
-        timeoutMs: 15_000,
       },
     );
   } catch (error) {

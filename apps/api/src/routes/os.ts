@@ -20,17 +20,19 @@ export interface OsRoutesOptions {
   readonly db: NodePgDatabase<typeof schema>;
   /** Public origin for links printed on Instagram cards; null in tests without one. */
   readonly origin?: string | null;
+  /** Called after an article is published (queues its Kartu IG for Telegram). Must not throw. */
+  readonly onPublished?: (articleId: string) => void;
 }
 
 export const osRoutes: FastifyPluginAsync<OsRoutesOptions> = (
   app,
-  { guards, db, origin = null },
+  { guards, db, origin = null, onPublished },
 ) => {
   app.addHook('preHandler', guards.requireFounder);
   enforcePolicy(app);
 
   app.get('/ping', { config: { permission: 'os.access' } }, () => Promise.resolve({ ok: true }));
-  registerArticleRoutes(app, { db, guards });
+  registerArticleRoutes(app, { db, guards, ...(onPublished === undefined ? {} : { onPublished }) });
   registerSourceRoutes(app, { db, guards });
   registerMediaRoutes(app, { db, guards });
   registerInboxRoutes(app, { db, guards });

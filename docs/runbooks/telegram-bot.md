@@ -70,6 +70,20 @@ Langkah manual di bawah tetap berlaku sebagai cadangan.
 
   Tiap edit membuat revisi baru. Tombol di pesan lama tidak berlaku lagi, dan paket baru dengan tombol baru menyusul dalam beberapa detik.
 
+## Kartu IG setelah terbit (P5-04b)
+
+Begitu sebuah berita **terbit** (lewat ✅ di Telegram atau tombol Terbitkan di OS), bot mengirim:
+
+1. **Album** berisi gambar Kartu IG (1080×1350, urut). Simpan semuanya ke galeri.
+2. **Caption** sebagai pesan terpisah. Tekan lama pesannya, lalu Salin.
+
+Lalu posting manual di Instagram (pilih beberapa foto, tempel caption). Biasanya datang 1-2 menit setelah terbit.
+
+- Gambarnya sama persis dengan yang ada di NALARA OS → Newsroom → Kartu IG. Kalau album tidak datang, ambil dari situ.
+- Album tidak dikirim dua kali. Kalau hanya caption yang gagal, yang dikirim ulang hanya caption.
+- Gagal 10 kali atau lebih dari 3 hari: berhenti dicoba. Ambil kartunya dari OS.
+- Telegram mengompres foto sedikit. Kalau mau kualitas penuh, unduh PNG dari OS.
+
 ## Kalau ada masalah
 
 - **Token bot bocor:** di @BotFather jalankan `/revoke`, isi token baru di `.env`, lalu ulangi langkah 4.
