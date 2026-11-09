@@ -38,6 +38,8 @@ export const AUDIT_ACTIONS = {
   'agent.credential': ['label', 'change'],
   'ai.settings': ['version', 'ai_enabled', 'changed'],
   'ai.preferences': ['version'],
+  // Autopilot switch (P5-10).
+  'autopilot.settings': ['enabled', 'channel'],
   // Founder Telegram bot (P3-04): what happened to an update, never its content.
   'telegram.update': ['outcome'],
   'telegram.notify': ['sent', 'failed'],

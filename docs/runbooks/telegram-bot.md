@@ -62,6 +62,7 @@ Langkah manual di bawah tetap berlaku sebagai cadangan.
 
 - `/status`: status AI dan jumlah usulan menunggu.
 - `/stop`: kill switch AI.
+- `/autopilot on|off`: terbit otomatis (P5-10).
 - Edit cepat usulan (P5-04). Nomornya ada di pesan usulan, misalnya "Usulan #12":
   - `lihat 12`
   - `judul 12: teks baru`
@@ -69,6 +70,20 @@ Langkah manual di bawah tetap berlaku sebagai cadangan.
   - `lewati 12`
 
   Tiap edit membuat revisi baru. Tombol di pesan lama tidak berlaku lagi, dan paket baru dengan tombol baru menyusul dalam beberapa detik.
+
+## Autopilot: terbit otomatis (P5-10)
+
+- `/autopilot on` menyalakan, `/autopilot off` mematikan, `/autopilot` menampilkan status. `/status` juga menampilkannya. Setiap perubahan tercatat di audit.
+- Saat nyala, usulan yang **LOLOS** cek Pemeriksa (lihat [runbook agent](agent-ai.md)) dan punya sumber resmi primer menampilkan baris "Autopilot: terbit otomatis 15 menit setelah pesan ini masuk".
+- Kalau dalam 15 menit kamu tidak menekan ❌, sistem menerbitkannya sendiri lewat gerbang terbit yang sama. Kartu IG + caption menyusul seperti biasa.
+- **Tidak pernah otomatis:**
+  - usulan DITAHAN;
+  - usulan dengan sumber media saja;
+  - usulan yang diedit setelah dicek;
+  - usulan yang pesannya tidak menyebut autopilot;
+  - jam 01-05 WIB (menunggu sampai jam 05);
+  - lebih dari 8 per hari.
+- Rem darurat: `/autopilot off`, atau `/stop` (mematikan semua AI).
 
 ## Kartu IG setelah terbit (P5-04b)
 

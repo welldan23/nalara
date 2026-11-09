@@ -18,6 +18,7 @@ import { saveRevision } from '../../src/modules/articles/articles.ts';
 import { onlyAddresses } from '../../src/modules/fetch/address-policy.ts';
 import { inQuietHours } from '../../src/modules/radar/score.ts';
 import { nextStory, submitDraft } from '../../src/modules/stories/queue.ts';
+import { publishDueStories } from '../../src/modules/stories/autopilot.ts';
 import { storiesToCheck, submitCheck } from '../../src/modules/stories/check.ts';
 import { notifyReadyStories } from '../../src/modules/stories/telegram.ts';
 import type { PackageOptions } from '../../src/modules/stories/telegram.ts';
@@ -166,13 +167,15 @@ describe.skipIf(!databaseAvailable)('story packages on Telegram', { timeout: 90_
           )
         ).rows[0]?.id ?? '';
     }
-    await migrator.query('UPDATE system_settings SET daily_draft_quota = 10');
+    await migrator.query('UPDATE system_settings SET daily_draft_quota = 30');
     database = createDatabase(testDb.appUrl, { max: 5 });
     workerDb = createDatabase(testDb.workerUrl, { max: 2 });
     app = await buildApp(config, {
       readiness: () => Promise.resolve(true),
       database: database.db,
       telegram: { secret: WEBHOOK_SECRET, founderUserId: FOUNDER, chatId: CHAT },
+      // The autopilot runs are called directly below, never from a timer.
+      autopilotIntervalMs: 0,
     });
     await app.ready();
     telegram = createServer({ key: tls.key, cert: tls.cert }, (req, res) => {
@@ -526,5 +529,72 @@ describe.skipIf(!databaseAvailable)('story packages on Telegram', { timeout: 90_
     );
     expect(note.rows[0]?.check_status).toBe('held');
     expect(note.rows[0]?.package_text).toContain('Pemeriksa AI: DITAHAN');
+  });
+
+  // P5-10: autopilot. Only PASSED stories announced as automatic, after 15 minutes, without ❌.
+  const checkedStory = async (title: string) => {
+    await notifyReadyStories(workerDb.db, bot); // anything earlier tests left unsent
+    await migrator.query(`UPDATE story_queue SET queued_at = queued_at - interval '2 hours'`);
+    await addItem('bi', `${title} TEST`);
+    await addItem('media-a', `${title} menurut media TEST`);
+    const story = await draftNext([1, 2], [1]);
+    await archive('captured', PAGE);
+    const [toCheck] = await storiesToCheck(database.db, 1);
+    await submitCheck(database.db, {
+      queueId: story.queueId,
+      revisionId: toCheck?.revisionId,
+      claims: [goodClaim],
+      sensitive: false,
+      reason: 'Cocok.',
+    });
+    expect((await notifyReadyStories(workerDb.db, bot)).sent).toBe(1);
+    return story;
+  };
+  const autopilotRun = () => publishDueStories(database.db, { userId: founderId }, testNow());
+  const age = (queueId: string) =>
+    migrator.query(`UPDATE story_queue SET sent_at = now() - interval '20 minutes' WHERE id = $1`, [
+      queueId,
+    ]);
+
+  it('publishes a PASSED story by itself after the cancel window, once switched on', async () => {
+    expect(await replyText('/autopilot')).toMatch(/Autopilot mati/);
+    expect(await replyText('/autopilot on')).toMatch(/Autopilot NYALA/);
+    expect(await replyText('/status')).toMatch(/Autopilot nyala/);
+    const story = await checkedStory('BI pangkas biaya transfer antarbank');
+    expect(sent.at(-1)?.body.text).toContain('Autopilot: terbit otomatis 15 menit');
+
+    // Not before the window is over.
+    expect((await autopilotRun()).published).toEqual([]);
+    await age(story.queueId);
+    expect((await autopilotRun()).published).toEqual([story.articleId]);
+    const row = await migrator.query<{ status: string; published_via: string; note: string }>(
+      `SELECT a.status, q.published_via, r.change_note AS note FROM story_queue q
+       JOIN articles a ON a.id = q.article_id JOIN article_revisions r ON r.id = a.current_revision_id
+       WHERE q.id = $1`,
+      [story.queueId],
+    );
+    expect(row.rows[0]).toEqual({
+      status: 'published',
+      published_via: 'autopilot',
+      note: expect.stringMatching(/Pemeriksa/) as unknown,
+    });
+    expect((await autopilotRun()).published).toEqual([]);
+  });
+
+  it('never publishes a story the founder cancelled, or with the switch off', async () => {
+    const cancelled = await checkedStory('BI terbitkan aturan QRIS antarnegara');
+    const [, skip] = buttons(sent.at(-1));
+    expect(parse<{ text: string }>(await webhook(skip ?? '')).text).toMatch(/dilewati/);
+    await age(cancelled.queueId);
+    expect((await autopilotRun()).published).toEqual([]);
+
+    const later = await checkedStory('BI perpanjang relaksasi kredit kendaraan');
+    expect(await replyText('/autopilot off')).toMatch(/Autopilot MATI/);
+    await age(later.queueId);
+    expect((await autopilotRun()).published).toEqual([]);
+    const audits = await migrator.query<{ n: string }>(
+      `SELECT count(*) AS n FROM audit_events WHERE action = 'autopilot.settings'`,
+    );
+    expect(audits.rows[0]?.n).toBe('2');
   });
 });
