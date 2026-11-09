@@ -72,6 +72,19 @@ Perintah lain:
 5. **Nyalakan saklar** di NALARA OS → Agent AI. Atur kuota harian dulu (default: 3 draft, 30 usulan, 200.000 token).
 6. Pantau usulan pertama di NALARA OS → Usulan, dan pemakaian token di halaman Agent AI.
 
+## Pemeriksa otomatis (P5-09)
+
+Setiap draft dari antrean dicek dulu oleh agent **Pemeriksa** sebelum dikirim ke Telegram:
+
+1. Pemeriksa membaca draft dan teks arsip tiap sumber.
+2. Ia mengirim pasangan kutipan: kalimat draft persis + potongan sumber persis.
+3. **Sistem (bukan AI) yang memutuskan.** Kutipan harus benar-benar ada di draft dan di arsip, semua angka di draft harus muncul di kutipan sumber, dan minimal satu kutipan dari sumber resmi primer.
+4. Hasilnya tampil di pesan usulan: `Pemeriksa AI: LOLOS` atau `Pemeriksa AI: DITAHAN` beserta alasannya.
+
+Topik sensitif (tuduhan pidana terhadap orang/lembaga yang disebut, SARA, anak, kesehatan pribadi, korban) selalu **DITAHAN**.
+
+Kalau Pemeriksa mati atau lambat, usulan tetap dikirim paling lambat 45 menit setelah draft jadi, tanpa hasil cek. Hasil cek terikat ke satu revisi: kalau judul/ringkasan diedit, hasil lama tidak berlaku.
+
 ## Mematikan
 
 | Seberapa cepat | Cara |

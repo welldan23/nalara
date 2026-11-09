@@ -124,3 +124,13 @@ Founder minta semua dikerjakan AI, founder tinggal posting. Keputusan: tetap sat
 - **Worker** (`modules/cards/telegram-post.ts`): `sendMediaGroup` (multipart, `attach://`), lalu `sendMessage` berisi caption polos. Dua langkah dicatat terpisah, jadi album tidak terkirim dua kali. Setelah terkirim, gambar dihapus dari baris.
 - **`safeFetch`:** opsi `rawBody` (byte + content-type, maks 20 MiB) untuk upload multipart; tetap POST tanpa redirect, alamat dicek seperti biasa.
 - **Tes:** integrasi `card-post.test.ts` (5 tes: antre saat terbit, album + caption sekali, ulang caption tanpa album, tanpa bot tidak antre, batas hak worker); `story-package.test.ts` (✅ Telegram mengantrekan kartu); `db.test.ts` (tabel baru).
+
+## P5-09: Pemeriksa otomatis (bagian 1 dari autopilot)
+
+Founder: "semua harus diotomasi dengan agent AI, gua tinggal duduk manis". Langkah 1: agent Pemeriksa mengecek sumber; langkah 2 (berikutnya): terbit otomatis dengan jeda batal 15 menit untuk draft yang LOLOS.
+
+- **Migrasi `0023_story_check.sql`:** `story_queue.check_status` (`passed`/`held`), `check_revision_id`, `check_note`, `checked_at`. Hanya app yang boleh mengisi.
+- **Tool gateway** (role pemeriksa): `stories.to_check` (draft + teks arsip tiap sumber, maks 20.000 karakter, sebagai `external`) dan `stories.submit_check` (pasangan kutipan, `sensitive`, alasan).
+- **Penilaian di API** (`modules/stories/check.ts`, fungsi murni `judgeCheck`): kutipan draft dan sumber harus ada (huruf besar/kecil, tanda kutip, spasi diabaikan); semua angka draft (kecuali tahun) harus didukung kutipan; angka di klaim harus ada di kutipannya; minimal satu kutipan dari sumber primer; tidak sensitif. Gagal satu → `held` dengan daftar alasan.
+- **Worker:** menunggu hasil cek paling lama 45 menit (`CHECK_WAIT_MINUTES`) sejak draft jadi. Paket Telegram memuat hasilnya.
+- **Tes:** unit `story-check.test.ts` (8); integrasi `story-package.test.ts` (+2: menunggu cek lalu kirim dengan LOLOS; kutipan karangan + sensitif → DITAHAN).

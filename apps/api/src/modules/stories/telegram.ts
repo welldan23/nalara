@@ -11,7 +11,7 @@
 // checked), then runs the normal workflow (submit, approve, publish) as the founder, so every
 // publish gate still applies.
 import { createHash, randomBytes } from 'node:crypto';
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   articleRevisions,
@@ -35,6 +35,8 @@ export type Route = 'fast' | 'review';
 export const STORY_TOKEN_PATTERN = /^[A-Za-z0-9_-]{22}$/;
 // Telegram allows 4096; the worker appends the OS link.
 const MAX_MESSAGE = 3800;
+/** Pemeriksa runs every 30 minutes by default (AGENT_INTERVAL_SECONDS); some slack on top. */
+export const CHECK_WAIT_MINUTES = 45;
 const hash = (token: string) => createHash('sha256').update(token, 'utf8').digest();
 
 interface CitationLike {
@@ -59,6 +61,8 @@ export function storyMessage(input: {
   readonly route: Route;
   readonly bodySource: string;
   readonly citations: readonly CitationLike[];
+  /** P5-09: the Pemeriksa agent's outcome, as decided by the API. */
+  readonly check?: string;
 }): string {
   const sources = input.citations.map(
     (citation, index) =>
@@ -73,6 +77,7 @@ export function storyMessage(input: {
     'Sumber (sudah diarsipkan sebagai bukti):',
     ...sources,
     '',
+    ...(input.check === undefined ? [] : [`Pemeriksa AI: ${input.check}`, '']),
     input.route === 'fast'
       ? 'Ada sumber resmi primer. Buka dan cek sumbernya, lalu tekan ✅ untuk mencatat bahwa kamu sudah mengecek dan menerbitkan versi ini.'
       : 'Sumbernya media saja. Cek dan terbitkan dari NALARA OS (tombol ✅ sengaja tidak ada di sini).',
@@ -93,6 +98,7 @@ export function preparePackage(input: {
   readonly score: number;
   readonly bodySource: string;
   readonly citations: readonly CitationLike[];
+  readonly check?: string;
 }): { route: Route; packageText: string; sourceUrls: string[] } {
   const route = routeFor(input.citations);
   return {
@@ -102,8 +108,12 @@ export function preparePackage(input: {
   };
 }
 
-/** Stories that are drafted, prepared and not sent, oldest first. No article content is read. */
-async function readyStories(db: Db, limit: number) {
+/**
+ * Stories that are drafted, prepared and not sent, oldest first. No article content is read. A
+ * story waits for the Pemeriksa agent's check (P5-09), but never longer than `checkWaitMinutes`
+ * after it was drafted: with the AI off or slow, the founder still gets the package.
+ */
+async function readyStories(db: Db, limit: number, checkWaitMinutes: number) {
   return db
     .select({
       id: storyQueue.id,
@@ -117,7 +127,16 @@ async function readyStories(db: Db, limit: number) {
     })
     .from(storyQueue)
     .innerJoin(articles, eq(articles.id, storyQueue.articleId))
-    .where(and(eq(storyQueue.status, 'drafted'), isNull(storyQueue.sentAt)))
+    .where(
+      and(
+        eq(storyQueue.status, 'drafted'),
+        isNull(storyQueue.sentAt),
+        or(
+          isNotNull(storyQueue.checkRevisionId),
+          lt(storyQueue.updatedAt, sql`now() - make_interval(mins => ${checkWaitMinutes})`),
+        ),
+      ),
+    )
     .orderBy(asc(storyQueue.queuedAt))
     .limit(limit);
 }
@@ -142,6 +161,8 @@ async function evidenceStatus(db: Db, urls: readonly string[]) {
 export interface PackageOptions extends BotOptions {
   /** Public origin for the OS link (https), or null to name the page only. */
   readonly appOrigin?: string | null;
+  /** How long a drafted story waits for the Pemeriksa agent's check. Default 45. */
+  readonly checkWaitMinutes?: number;
 }
 
 /**
@@ -155,7 +176,11 @@ export async function notifyReadyStories(
 ): Promise<{ sent: number; dropped: number; failed: string | null }> {
   let sent = 0;
   let dropped = 0;
-  for (const story of await readyStories(db, limit)) {
+  for (const story of await readyStories(
+    db,
+    limit,
+    options.checkWaitMinutes ?? CHECK_WAIT_MINUTES,
+  )) {
     const { route, revisionId, packageText, sourceUrls, articleId } = story;
     if (route === null || revisionId === null || packageText === null || articleId === null) {
       continue;
