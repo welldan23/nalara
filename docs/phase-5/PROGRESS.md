@@ -112,3 +112,15 @@
     - user lain diabaikan;
     - setelah terbit, cerita tidak bisa diubah dari chat.
 - **Belum:** perintah bebas yang diteruskan ke agent (misalnya "buat lebih singkat"). Ini menyusul setelah AI menyala di server (D-25), supaya bisa diuji dengan model sungguhan.
+
+## P5-04b: Kartu IG ke Telegram setelah terbit ("Opsi A")
+
+Founder minta semua dikerjakan AI, founder tinggal posting. Keputusan: tetap satu tap ✅ untuk terbit (tanggung jawab redaksi), lalu bahan posting IG dikirim otomatis. Posting ke Instagram tetap manual (Opsi B, API Meta, menyusul kalau diminta).
+
+- **Migrasi `0022_card_outbox.sql`:** tabel `card_outbox` (gambar PNG `bytea[]`, caption, status kirim). Satu baris per revisi yang terbit.
+  - App: `SELECT, INSERT`.
+  - Worker: hanya `id, title, caption, slides, created_at, album_sent_at, sent_at, attempts`; boleh ubah status kirim dan mengosongkan gambar. Worker tidak bisa membaca `article_id` atau menghapus baris.
+- **API** (`modules/cards/outbox.ts`): setelah terbit (route OS dan ✅ Telegram), kartu dirender seperti di OS dan diantrekan. Berjalan setelah jawaban dikirim; gagal render tidak membatalkan terbit. Hanya kalau bot Telegram dipasang.
+- **Worker** (`modules/cards/telegram-post.ts`): `sendMediaGroup` (multipart, `attach://`), lalu `sendMessage` berisi caption polos. Dua langkah dicatat terpisah, jadi album tidak terkirim dua kali. Setelah terkirim, gambar dihapus dari baris.
+- **`safeFetch`:** opsi `rawBody` (byte + content-type, maks 20 MiB) untuk upload multipart; tetap POST tanpa redirect, alamat dicek seperti biasa.
+- **Tes:** integrasi `card-post.test.ts` (5 tes: antre saat terbit, album + caption sekali, ulang caption tanpa album, tanpa bot tidak antre, batas hak worker); `story-package.test.ts` (✅ Telegram mengantrekan kartu); `db.test.ts` (tabel baru).

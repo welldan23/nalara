@@ -15,6 +15,7 @@ import { authRoutes } from './routes/auth.ts';
 import { healthRoutes } from './routes/health.ts';
 import { agentRoutes } from './routes/agent.ts';
 import { telegramRoutes } from './routes/telegram.ts';
+import { queueCardPost } from './modules/cards/outbox.ts';
 import { osRoutes } from './routes/os.ts';
 import { publicRoutes } from './routes/public.ts';
 
@@ -142,11 +143,32 @@ export async function buildApp(config: AppConfig, deps: AppDependencies): Promis
         : {}),
       ...(deps.mfaRateLimitMax !== undefined ? { mfaRateLimitMax: deps.mfaRateLimitMax } : {}),
     });
+    // Kartu IG to the founder's Telegram after each publish (P5-04b), only when the bot is set up.
+    // Runs after the answer: rendering takes a moment and never blocks or undoes a publish.
+    const database = deps.database;
+    const onPublished =
+      deps.telegram === undefined
+        ? undefined
+        : (articleId: string) => {
+            queueCardPost(database, articleId, { origin: config.appOrigin })
+              .then((outcome) => {
+                app.log.info({ outcome }, 'kartu IG queued for telegram');
+              })
+              .catch((error: unknown) => {
+                app.log.error(
+                  {
+                    err: { type: (error as Error).name, code: (error as { code?: unknown }).code },
+                  },
+                  'kartu IG render failed',
+                );
+              });
+          };
     await app.register(osRoutes, {
       prefix: '/api/v1/os',
       guards,
       db: deps.database,
       origin: config.appOrigin,
+      ...(onPublished === undefined ? {} : { onPublished }),
     });
     await app.register(agentRoutes, { prefix: '/api/v1/agent', db: deps.database });
     if (deps.telegram !== undefined) {
@@ -154,6 +176,7 @@ export async function buildApp(config: AppConfig, deps: AppDependencies): Promis
         prefix: '/api/v1/telegram',
         db: deps.database,
         telegram: deps.telegram,
+        ...(onPublished === undefined ? {} : { onPublished }),
       });
     }
     await app.register(publicRoutes, {

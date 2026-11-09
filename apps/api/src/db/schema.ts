@@ -16,6 +16,13 @@ import {
 } from 'drizzle-orm/pg-core';
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
+/** bytea[] (card images): node-postgres cannot serialise an array of Buffers, so it goes as a
+ * hex array literal. Reads come back as Buffer[] (pg parses bytea[] itself). */
+const byteaArray = customType<{ data: Buffer[]; driverData: string }>({
+  dataType: () => 'bytea[]',
+  toDriver: (value) => `{${value.map((buffer) => `"\\\\x${buffer.toString('hex')}"`).join(',')}}`,
+  fromDriver: (value) => value as unknown as Buffer[],
+});
 
 export const users = pgTable('users', {
   id: uuid('id')
@@ -613,6 +620,27 @@ export const storyQueue = pgTable('story_queue', {
   number: bigint('number', { mode: 'number' }).generatedAlwaysAsIdentity(),
 });
 
+/** Kartu IG waiting to go to the founder's Telegram (P5-04b): rendered by the API on publish. */
+export const cardOutbox = pgTable('card_outbox', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`uuidv7()`),
+  articleId: uuid('article_id')
+    .notNull()
+    .references(() => articles.id),
+  revisionId: uuid('revision_id')
+    .notNull()
+    .references(() => articleRevisions.id),
+  title: text('title').notNull(),
+  caption: text('caption').notNull(),
+  slides: byteaArray('slides').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  albumSentAt: timestamp('album_sent_at', { withTimezone: true }),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  attempts: integer('attempts').notNull().default(0),
+  lastError: text('last_error'),
+});
+
 /** Single-use Telegram button tokens for a story package (P5-03), bound to one revision. */
 export const storyTokens = pgTable('story_tokens', {
   id: uuid('id')
@@ -634,6 +662,7 @@ export const storyTokens = pgTable('story_tokens', {
 export const schema = {
   storyQueue,
   storyTokens,
+  cardOutbox,
   users,
   sessions,
   loginChallenges,

@@ -5,6 +5,7 @@
 import { writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { ConfigError, loadTelegramBotConfig, loadWorkerConfig } from './config/env.ts';
+import { notifyCardPosts } from './modules/cards/telegram-post.ts';
 import { notifyReadyStories } from './modules/stories/telegram.ts';
 import { notifyPendingProposals } from './modules/telegram/bot.ts';
 import { createDatabase } from './db/client.ts';
@@ -108,6 +109,11 @@ function main(): void {
               if (sent > 0 || dropped > 0 || failed !== null) {
                 line('info', { sent, dropped, failed }, 'story packages');
               }
+            })
+            // Kartu IG of freshly published articles (P5-04b): album + caption to copy.
+            .then(() => notifyCardPosts(database.db, telegram))
+            .then(({ sent, failed }) => {
+              if (sent > 0 || failed !== null) line('info', { sent, failed }, 'kartu IG');
             })
             .catch(() => {
               line('warn', {}, 'telegram notify failed; database unavailable?');

@@ -9,14 +9,11 @@ import { AppError } from '../lib/errors.ts';
 import { parseOrThrow } from '../lib/validation.ts';
 import { buildDeck } from '../modules/cards/deck.ts';
 import type { Deck } from '../modules/cards/deck.ts';
-import { renderCard } from '../modules/cards/render.ts';
-import { getPublicMediaFile } from '../modules/media/media.ts';
+import { renderDeckSlide } from '../modules/cards/outbox.ts';
 import { publicArticle } from '../modules/public/articles.ts';
 import type { PublicArticle } from '../modules/public/articles.ts';
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-/** satori decodes PNG and JPEG; other stored types simply get a type-only cover. */
-const DRAWABLE = new Set(['image/png', 'image/jpeg']);
 
 function slugParam(params: unknown): string {
   const { slug } = parseOrThrow(z.object({ slug: z.string() }), params);
@@ -53,17 +50,9 @@ export function registerCardRoutes(
       if (match === null) throw new AppError('NOT_FOUND');
       const { deck } = await load(slugParam(request.params));
       const index = Number(match[1]) - 1;
-      const slide = deck.slides[index];
-      if (slide === undefined) throw new AppError('NOT_FOUND');
-      let image: string | null = null;
-      if (slide.kind === 'cover' && slide.imageId !== null) {
-        // Only images readers may see (licensed, credited, used by the published revision).
-        const file = await getPublicMediaFile(db, slide.imageId);
-        if (file !== null && DRAWABLE.has(file.mime)) {
-          image = `data:${file.mime};base64,${file.data.toString('base64')}`;
-        }
-      }
-      const png = await renderCard(slide, index, deck.slides.length, deck.context, image);
+      // Only images readers may see (licensed, credited, used by the published revision).
+      const png = await renderDeckSlide(db, deck, index);
+      if (png === null) throw new AppError('NOT_FOUND');
       return reply
         .header('content-type', 'image/png')
         .header('x-content-type-options', 'nosniff')

@@ -65,6 +65,11 @@ export interface SafeFetchOptions {
   readonly method?: 'GET' | 'POST';
   /** JSON request body for POST; at most 1 MiB once serialised. */
   readonly body?: unknown;
+  /**
+   * Instead of `body`: bytes sent as they are with this content type (a multipart upload to
+   * Telegram, P5-04b). At most 20 MiB.
+   */
+  readonly rawBody?: { readonly data: Buffer; readonly contentType: string };
   /** Tests only. Production uses PUBLIC_ONLY. */
   readonly policy?: AddressPolicy;
   /** Tests only: replaces DNS. */
@@ -181,7 +186,7 @@ function request(
     if (!FORBIDDEN_HEADERS.has(key.toLowerCase())) headers[key.toLowerCase()] = value;
   }
   if (payload !== null) {
-    headers['content-type'] = 'application/json';
+    headers['content-type'] = options.rawBody?.contentType ?? 'application/json';
     headers['content-length'] = String(payload.length);
   }
   const client = target.url.protocol === 'https:' ? https : http;
@@ -249,8 +254,15 @@ export async function safeFetch(
   const maxRedirects = post ? 0 : (options.maxRedirects ?? 3);
   let payload: Buffer | null = null;
   if (post) {
-    payload = Buffer.from(JSON.stringify(options.body ?? null), 'utf8');
-    if (payload.length > 1024 * 1024) throw new FetchBlocked('too_large');
+    if (options.rawBody === undefined) {
+      payload = Buffer.from(JSON.stringify(options.body ?? null), 'utf8');
+      if (payload.length > 1024 * 1024) throw new FetchBlocked('too_large');
+    } else {
+      // No CR/LF in a header value: the type is the caller's own constant, but check anyway.
+      if (/[\r\n]/.test(options.rawBody.contentType)) throw new FetchBlocked('invalid_url');
+      payload = options.rawBody.data;
+      if (payload.length > 20 * 1024 * 1024) throw new FetchBlocked('too_large');
+    }
   }
   const controller = new AbortController();
   const timer = setTimeout(() => {

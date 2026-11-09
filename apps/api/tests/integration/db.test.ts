@@ -122,6 +122,7 @@ describe.skipIf(!databaseAvailable)('database and migrations', { timeout: 30_000
         'article_revisions',
         'articles',
         'audit_events',
+        'card_outbox',
         'categories',
         'corrections',
         'dataset_versions',
