@@ -30,6 +30,7 @@ import { plainText } from '../articles/content.ts';
 import { parseMarkdown } from '../articles/markdown.ts';
 import { fileProposal, getAgentPreferences } from '../proposals/proposals.ts';
 import { loadRadar, radarView } from '../radar/radar.ts';
+import { checkSchema, storiesToCheck, submitCheck } from '../stories/check.ts';
 import { nextStory, skipSchema, skipStory, submitDraft, submitSchema } from '../stories/queue.ts';
 import type { AgentRole, ProposalKind } from '../proposals/proposals.ts';
 import type { AgentCredential } from './credentials.ts';
@@ -459,6 +460,40 @@ export const TOOLS = {
       return { ok: true };
     },
   },
+  'stories.to_check': {
+    input: z.strictObject({ limit: limit(2, 1) }),
+    writes: false,
+    run: async ({ db }: ToolContext, input: { limit: number }) => {
+      const stories = await storiesToCheck(db, input.limit);
+      return {
+        notice: EXTERNAL_NOTICE,
+        rules:
+          'Untuk tiap angka dan klaim penting di draft: kutip kalimat draft PERSIS (claim) dan potongan teks sumber PERSIS yang mendukungnya (evidence), dengan nomor sumbernya. Semua angka di draft harus punya pasangan. Kalau sumber tidak mendukung, supported=false. sensitive=true kalau ada tuduhan pidana/pelanggaran terhadap orang atau lembaga yang disebut, SARA, anak, kesehatan pribadi, atau korban.',
+        stories: stories.map((story) => ({
+          queueId: story.queueId,
+          revisionId: story.revisionId,
+          external: {
+            draft: story.draft,
+            sources: story.sources.map((source) => ({
+              number: source.number,
+              publisher: source.publisher,
+              primary: source.primary,
+              url: source.url,
+              text: source.text === '' ? '(arsip tidak bisa dibaca sebagai teks)' : source.text,
+            })),
+          },
+        })),
+      };
+    },
+  },
+  'stories.submit_check': {
+    input: checkSchema,
+    writes: true,
+    run: async ({ db }: ToolContext, input: z.infer<typeof checkSchema>) => {
+      const outcome = await submitCheck(db, input);
+      return { status: outcome.status, problems: outcome.problems };
+    },
+  },
   'articles.list_pending': {
     input: z.strictObject({ limit: limit(10, 5) }),
     writes: false,
@@ -571,7 +606,14 @@ export const ROLE_TOOLS: Readonly<Record<AgentRole, readonly ToolName[]>> = {
     'stories.submit_draft',
     'stories.skip',
   ],
-  pemeriksa: ['status', 'usage.record', 'articles.list_pending', 'articles.propose_note'],
+  pemeriksa: [
+    'status',
+    'usage.record',
+    'stories.to_check',
+    'stories.submit_check',
+    'articles.list_pending',
+    'articles.propose_note',
+  ],
   periset: [
     'status',
     'usage.record',

@@ -18,6 +18,7 @@ import { saveRevision } from '../../src/modules/articles/articles.ts';
 import { onlyAddresses } from '../../src/modules/fetch/address-policy.ts';
 import { inQuietHours } from '../../src/modules/radar/score.ts';
 import { nextStory, submitDraft } from '../../src/modules/stories/queue.ts';
+import { storiesToCheck, submitCheck } from '../../src/modules/stories/check.ts';
 import { notifyReadyStories } from '../../src/modules/stories/telegram.ts';
 import type { PackageOptions } from '../../src/modules/stories/telegram.ts';
 import { testCertificate } from '../support/tls.ts';
@@ -86,18 +87,18 @@ describe.skipIf(!databaseAvailable)('story packages on Telegram', { timeout: 90_
     );
   };
   // The worker archives sources; here the outcome is set directly.
-  const archive = (status: 'captured' | 'failed') =>
+  const archive = (status: 'captured' | 'failed', html = 'TEST') =>
     migrator.query(
       `UPDATE evidence_snapshots SET status = $1,
          captured_at = CASE WHEN $1 = 'captured' THEN now() END,
          http_status = CASE WHEN $1 = 'captured' THEN 200 END,
          content_type = CASE WHEN $1 = 'captured' THEN 'text/html' END,
-         byte_size = CASE WHEN $1 = 'captured' THEN 4 END,
-         sha256 = CASE WHEN $1 = 'captured' THEN sha256('TEST'::bytea) END,
-         body = CASE WHEN $1 = 'captured' THEN 'TEST'::bytea END,
+         byte_size = CASE WHEN $1 = 'captured' THEN octet_length(convert_to($2, 'UTF8')) END,
+         sha256 = CASE WHEN $1 = 'captured' THEN sha256(convert_to($2, 'UTF8')) END,
+         body = CASE WHEN $1 = 'captured' THEN convert_to($2, 'UTF8') END,
          error = CASE WHEN $1 = 'failed' THEN 'http_status:404' END
        WHERE status = 'pending'`,
-      [status],
+      [status, html],
     );
   const draftNext = async (sources: number[], primary: number[]) => {
     const next = await nextStory(database.db, testNow());
@@ -193,6 +194,8 @@ describe.skipIf(!databaseAvailable)('story packages on Telegram', { timeout: 90_
       botToken: '12345678:fixture-bot-token-not-real-aaaaaaaaaa',
       chatId: CHAT,
       appOrigin: 'https://nalara.example',
+      // These tests are about the package; the Pemeriksa wait has its own tests at the end.
+      checkWaitMinutes: 0,
       apiBase: `https://api.telegram.test:${String(port)}`,
       fetchOptions: {
         policy: onlyAddresses(['127.0.0.1']),
@@ -451,5 +454,77 @@ describe.skipIf(!databaseAvailable)('story packages on Telegram', { timeout: 90_
     ).rejects.toThrow();
     await expect(workerDb.pool.query('SELECT token_hash FROM story_tokens')).rejects.toThrow();
     await expect(migrator.query('DELETE FROM story_tokens')).rejects.toThrow();
+  });
+
+  // P5-09: the Pemeriksa agent's check, judged by the API (quotes must exist, numbers backed).
+  const PAGE =
+    '<html><body><nav>Menu</nav><script>evil()</script><p>Bank Indonesia hari ini: Teks TEST yang ditulis agent tiruan.</p></body></html>';
+  const goodClaim = {
+    claim: 'Teks TEST yang ditulis agent tiruan.',
+    source: 1,
+    evidence: 'teks  TEST yang ditulis agent tiruan',
+    supported: true,
+  };
+
+  it('waits for the Pemeriksa check, then sends the package with the outcome', async () => {
+    await migrator.query(`UPDATE story_queue SET queued_at = queued_at - interval '2 hours'`);
+    await addItem('bi', 'BI pertahankan suku bunga acuan pekan ini TEST');
+    await addItem('media-a', 'Suku bunga acuan BI tetap pekan ini TEST');
+    const story = await draftNext([1, 2], [1]);
+    await archive('captured', PAGE);
+    const waiting = { ...bot, checkWaitMinutes: 45 };
+    expect((await notifyReadyStories(workerDb.db, waiting)).sent).toBe(0);
+
+    const [toCheck] = await storiesToCheck(database.db, 2);
+    expect(toCheck?.queueId).toBe(story.queueId);
+    expect(toCheck?.sources[0]?.text).toContain('Bank Indonesia hari ini');
+    expect(toCheck?.sources[0]?.text).not.toContain('evil');
+    const outcome = await submitCheck(database.db, {
+      queueId: story.queueId,
+      revisionId: toCheck?.revisionId,
+      claims: [goodClaim],
+      sensitive: false,
+      reason: 'Cocok dengan rilis BI.',
+    });
+    expect(outcome).toEqual({ status: 'passed', problems: [] });
+    expect(await storiesToCheck(database.db, 2)).toEqual([]);
+    // Checked once per revision.
+    await expect(
+      submitCheck(database.db, {
+        queueId: story.queueId,
+        revisionId: toCheck?.revisionId,
+        claims: [goodClaim],
+        sensitive: false,
+        reason: 'Lagi.',
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+
+    expect((await notifyReadyStories(workerDb.db, waiting)).sent).toBe(1);
+    expect(sent.at(-1)?.body.text).toContain('Pemeriksa AI: LOLOS');
+  });
+
+  it('holds a story whose quotes are not in the archive, or that is sensitive', async () => {
+    await migrator.query(`UPDATE story_queue SET queued_at = queued_at - interval '2 hours'`);
+    await addItem('bi', 'BI luncurkan uang rupiah kertas baru TEST');
+    await addItem('media-b', 'Uang rupiah kertas baru diluncurkan BI TEST');
+    const story = await draftNext([1, 2], [1]);
+    await archive('captured', PAGE);
+    const [toCheck] = await storiesToCheck(database.db, 1);
+    const outcome = await submitCheck(database.db, {
+      queueId: story.queueId,
+      revisionId: toCheck?.revisionId,
+      claims: [{ ...goodClaim, evidence: 'Kutipan karangan yang tidak ada di arsip' }],
+      sensitive: true,
+      reason: 'Menyebut tersangka.',
+    });
+    expect(outcome.status).toBe('held');
+    expect(outcome.problems.join('\n')).toMatch(/sensitif/);
+    expect(outcome.problems.join('\n')).toMatch(/tidak ditemukan di arsipnya/);
+    const note = await migrator.query<{ check_status: string; package_text: string }>(
+      'SELECT check_status, package_text FROM story_queue WHERE id = $1',
+      [story.queueId],
+    );
+    expect(note.rows[0]?.check_status).toBe('held');
+    expect(note.rows[0]?.package_text).toContain('Pemeriksa AI: DITAHAN');
   });
 });
