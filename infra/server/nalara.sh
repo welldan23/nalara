@@ -14,6 +14,8 @@
 #   sudo nalara ai-off            stop the agent container (the CMS keeps working)
 #   sudo nalara ai-check          test the saved OpenCode key (prints the answer, never the key)
 #   sudo nalara sources-seed      add the starter source list as candidates (verify them in the OS)
+#   sudo nalara launch            open the public site to readers (PUBLIC_SITE_ENABLED=true)
+#   sudo nalara unlaunch          hide it again (the OS keeps working)
 set -euo pipefail
 
 ROOT=/srv/nalara
@@ -306,5 +308,15 @@ case "${1:-}" in
   ai-off) compose --profile agent stop agent ;;
   ai-check) ai_check ;;
   sources-seed) compose run --rm --no-deps api node dist/cli/seed-sources.js ;;
-  *) sed -n '5,16p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  launch | unlaunch)
+    # ADR-015: readers see nothing until launch. Published articles appear at once after this.
+    if [[ "$1" == launch ]]; then set_kv PUBLIC_SITE_ENABLED true; else set_kv PUBLIC_SITE_ENABLED false; fi
+    compose up -d api web >/dev/null
+    if [[ "$1" == launch ]]; then
+      echo "Situs dibuka untuk pembaca. Berita yang sudah terbit langsung tampil."
+    else
+      echo "Situs disembunyikan lagi dari pembaca. NALARA OS tetap jalan."
+    fi
+    ;;
+  *) sed -n '5,18p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
