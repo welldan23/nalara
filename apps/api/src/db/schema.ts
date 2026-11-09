@@ -482,6 +482,8 @@ export const systemSettings = pgTable('system_settings', {
   dailyDraftQuota: integer('daily_draft_quota').notNull().default(3),
   dailyProposalQuota: integer('daily_proposal_quota').notNull().default(30),
   dailyTokenQuota: integer('daily_token_quota').notNull().default(200000),
+  /** P5-10: publish PASSED stories by itself after the cancel window. */
+  autopilot: boolean('autopilot').notNull().default(false),
   version: integer('version').notNull().default(1),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -623,6 +625,9 @@ export const storyQueue = pgTable('story_queue', {
   checkRevisionId: uuid('check_revision_id'),
   checkNote: text('check_note'),
   checkedAt: timestamp('checked_at', { withTimezone: true }),
+  /** P5-10: the package announced an automatic publish; who published in the end. */
+  autopilot: boolean('autopilot').notNull().default(false),
+  publishedVia: text('published_via', { enum: ['founder', 'autopilot'] }),
 });
 
 /** Kartu IG waiting to go to the founder's Telegram (P5-04b): rendered by the API on publish. */

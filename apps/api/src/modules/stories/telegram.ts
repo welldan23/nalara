@@ -333,14 +333,39 @@ export async function decideStory(
     throw new AppError('VERSION_CONFLICT');
   }
 
+  await publishStoryRevision(db, actor, {
+    storyId: story.id,
+    articleId: story.articleId,
+    revisionId: used.revisionId,
+    expectedVersion: article.currentVersion,
+    via: 'founder',
+  });
+  return 'published';
+}
+
+/**
+ * Publishes exactly one revision of a sent story: a new revision with the citations marked checked
+ * (by the founder's tap, or by the Pemeriksa check under autopilot), then the normal workflow
+ * (submit, approve, publish) as the founder, so every publish gate still applies.
+ */
+export async function publishStoryRevision(
+  db: Db,
+  actor: Actor,
+  target: {
+    readonly storyId: string;
+    readonly articleId: string;
+    readonly revisionId: string;
+    readonly expectedVersion: number;
+    readonly via: 'founder' | 'autopilot';
+  },
+): Promise<void> {
   const [revision] = await db
     .select()
     .from(articleRevisions)
-    .where(eq(articleRevisions.id, used.revisionId));
+    .where(eq(articleRevisions.id, target.revisionId));
   if (revision === undefined) throw new AppError('NOT_FOUND');
-  // The founder's tap is the source check (D-32): the same content, citations now marked checked.
-  const checked = await saveRevision(db, actor, story.articleId, {
-    expectedVersion: article.currentVersion,
+  const checked = await saveRevision(db, actor, target.articleId, {
+    expectedVersion: target.expectedVersion,
     content: {
       title: revision.title,
       dek: revision.dek,
@@ -354,14 +379,16 @@ export async function decideStory(
         verified: true,
       })),
     },
-    changeNote: 'Sumber dicek founder lewat tombol Telegram (D-32).',
+    changeNote:
+      target.via === 'founder'
+        ? 'Sumber dicek founder lewat tombol Telegram (D-32).'
+        : 'Sumber dicek agent Pemeriksa (P5-09); terbit otomatis lewat autopilot founder (P5-10).',
   });
   for (const action of ['submit', 'approve', 'publish'] as const) {
-    await transition(db, actor, story.articleId, action, { expectedVersion: checked.version });
+    await transition(db, actor, target.articleId, action, { expectedVersion: checked.version });
   }
   await db
     .update(storyQueue)
-    .set({ status: 'published', updatedAt: sql`now()` })
-    .where(and(eq(storyQueue.id, story.id), eq(storyQueue.status, 'sent')));
-  return 'published';
+    .set({ status: 'published', publishedVia: target.via, updatedAt: sql`now()` })
+    .where(and(eq(storyQueue.id, target.storyId), eq(storyQueue.status, 'sent')));
 }

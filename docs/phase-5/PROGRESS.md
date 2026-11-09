@@ -134,3 +134,22 @@ Founder: "semua harus diotomasi dengan agent AI, gua tinggal duduk manis". Langk
 - **Penilaian di API** (`modules/stories/check.ts`, fungsi murni `judgeCheck`): kutipan draft dan sumber harus ada (huruf besar/kecil, tanda kutip, spasi diabaikan); semua angka draft (kecuali tahun) harus didukung kutipan; angka di klaim harus ada di kutipannya; minimal satu kutipan dari sumber primer; tidak sensitif. Gagal satu → `held` dengan daftar alasan.
 - **Worker:** menunggu hasil cek paling lama 45 menit (`CHECK_WAIT_MINUTES`) sejak draft jadi. Paket Telegram memuat hasilnya.
 - **Tes:** unit `story-check.test.ts` (8); integrasi `story-package.test.ts` (+2: menunggu cek lalu kirim dengan LOLOS; kutipan karangan + sensitif → DITAHAN).
+
+## P5-10: Autopilot (bagian 2: terbit otomatis)
+
+- **Migrasi `0024_autopilot.sql`:** `system_settings.autopilot` (default mati), `story_queue.autopilot` (paket sudah mengumumkan terbit otomatis) dan `published_via` (`founder`/`autopilot`).
+- **Saklar:** `/autopilot on|off` di Telegram, diaudit (`autopilot.settings`).
+- **`modules/stories/autopilot.ts` → `publishDueStories`**, dijalankan API tiap menit, hanya kalau bot terpasang. Syarat terbit otomatis:
+  - saklar nyala (dibaca ulang tiap putaran);
+  - cek Pemeriksa `passed` untuk revisi yang dikirim;
+  - paket mengumumkan autopilot;
+  - route `fast`;
+  - artikel tidak berubah;
+  - paket terkirim ≥15 menit lalu tanpa ❌;
+  - bukan jam sepi;
+  - <8 per hari.
+- **Cara terbit:** sama dengan ✅ (`publishStoryRevision`: revisi baru dengan sumber ditandai dicek, lalu submit/approve/publish lewat semua gerbang). Gerbang menolak → usulan ditahan untuk founder, tidak diulang tiap menit. Setelah terbit, Kartu IG diantrekan.
+- **Tes** di `story-package.test.ts` (+2):
+  - nyala → menunggu 15 menit → terbit sekali dengan `published_via = autopilot`;
+  - ❌ dan saklar mati mencegah terbit;
+  - audit tercatat.

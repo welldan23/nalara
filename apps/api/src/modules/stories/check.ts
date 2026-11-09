@@ -17,6 +17,7 @@ import { parseOrThrow } from '../../lib/validation.ts';
 import type { Block } from '../articles/content.ts';
 import { plainText } from '../articles/content.ts';
 import { htmlToText } from '../feeds/feed.ts';
+import { autopilotEnabled, autopilotNotice } from './autopilot.ts';
 import { preparePackage } from './telegram.ts';
 
 type Db = NodePgDatabase<typeof schema>;
@@ -275,6 +276,7 @@ export async function submitCheck(db: Db, raw: unknown): Promise<CheckOutcome> {
     .select({
       number: storyQueue.number,
       score: storyQueue.score,
+      route: storyQueue.route,
       status: storyQueue.status,
       sentAt: storyQueue.sentAt,
       revisionId: storyQueue.revisionId,
@@ -316,6 +318,9 @@ export async function submitCheck(db: Db, raw: unknown): Promise<CheckOutcome> {
     input,
   );
   const note = checkNote(outcome);
+  // Autopilot (P5-10): announced in the package only when it will really happen.
+  const autopilot =
+    outcome.status === 'passed' && story.route === 'fast' && (await autopilotEnabled(db));
   const updated = await db
     .update(storyQueue)
     .set({
@@ -323,6 +328,7 @@ export async function submitCheck(db: Db, raw: unknown): Promise<CheckOutcome> {
       checkRevisionId: input.revisionId,
       checkNote: note,
       checkedAt: sql`now()`,
+      autopilot,
       ...preparePackage({
         number: story.number,
         title: revision.title,
@@ -334,7 +340,7 @@ export async function submitCheck(db: Db, raw: unknown): Promise<CheckOutcome> {
           publisher: citation.publisher,
           primary: citation.primary === true,
         })),
-        check: note,
+        check: autopilot ? `${note}\n${autopilotNotice()}` : note,
       }),
       updatedAt: sql`now()`,
     })

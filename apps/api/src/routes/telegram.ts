@@ -24,6 +24,12 @@ import type { schema } from '../db/schema.ts';
 import { AppError } from '../lib/errors.ts';
 import { recordAudit } from '../modules/audit/audit.ts';
 import { getAiSettings, stopAi } from '../modules/agent/settings.ts';
+import {
+  AUTOPILOT_DAILY_MAX,
+  AUTOPILOT_DELAY_MINUTES,
+  autopilotEnabled,
+  setAutopilot,
+} from '../modules/stories/autopilot.ts';
 import { countPendingProposals, decideProposal } from '../modules/proposals/proposals.ts';
 import {
   editStory,
@@ -82,6 +88,7 @@ const CHAT_REFUSALS: Readonly<Record<string, string>> = {
 const HELP = [
   'Perintah:',
   '/status, /stop',
+  '/autopilot on | off — terbit otomatis untuk usulan yang LOLOS cek Pemeriksa (jeda 15 menit, ❌ membatalkan)',
   'lihat 12 — lihat usulan #12',
   'judul 12: teks baru — ganti judul',
   'ringkas 12: teks baru — ganti ringkasan (juga pembuka caption IG)',
@@ -204,12 +211,31 @@ export function telegramRoutes(
         return reply('AI dimatikan. Nyalakan lagi dari NALARA OS → Agent AI.');
       }
       if (command === '/status') {
-        const [settings, pending] = await Promise.all([
+        const [settings, pending, autopilot] = await Promise.all([
           getAiSettings(db),
           countPendingProposals(db),
+          autopilotEnabled(db),
         ]);
         return reply(
-          `AI ${settings.aiEnabled ? 'menyala' : 'mati'}. Usulan menunggu: ${String(pending)}.`,
+          `AI ${settings.aiEnabled ? 'menyala' : 'mati'}. Autopilot ${autopilot ? 'nyala' : 'mati'}. Usulan menunggu: ${String(pending)}.`,
+        );
+      }
+      // Autopilot (P5-10): the founder's own switch, audited.
+      if (command === '/autopilot') {
+        const arg = (message.text ?? '').trim().split(/\s+/)[1]?.toLowerCase();
+        const on = arg === 'on' || arg === 'nyala';
+        const off = arg === 'off' || arg === 'mati';
+        if (!on && !off) {
+          return reply(
+            `Autopilot ${(await autopilotEnabled(db)) ? 'nyala' : 'mati'}. Ketik "/autopilot on" atau "/autopilot off".`,
+          );
+        }
+        await setAutopilot(db, { ...(await founder()), requestId: request.id }, on, 'telegram');
+        await audit(on ? 'autopilot_on' : 'autopilot_off', 'success', request.id);
+        return reply(
+          on
+            ? `Autopilot NYALA. Usulan yang LOLOS cek Pemeriksa akan terbit sendiri ${String(AUTOPILOT_DELAY_MINUTES)} menit setelah pesannya masuk, kecuali kamu tekan ❌. Maksimal ${String(AUTOPILOT_DAILY_MAX)} per hari, tidak terbit jam 01-05 WIB. Yang DITAHAN tetap menunggu kamu. Matikan: /autopilot off`
+            : 'Autopilot MATI. Semua usulan menunggu tombol ✅ dari kamu.',
         );
       }
       // Fast edits (P5-04): plain commands; the text after ":" is data, never instructions.

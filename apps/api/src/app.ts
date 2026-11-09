@@ -16,6 +16,9 @@ import { healthRoutes } from './routes/health.ts';
 import { agentRoutes } from './routes/agent.ts';
 import { telegramRoutes } from './routes/telegram.ts';
 import { queueCardPost } from './modules/cards/outbox.ts';
+import { publishDueStories } from './modules/stories/autopilot.ts';
+import { users } from './db/schema.ts';
+import { eq } from 'drizzle-orm';
 import { osRoutes } from './routes/os.ts';
 import { publicRoutes } from './routes/public.ts';
 
@@ -35,6 +38,8 @@ export interface AppDependencies {
   readonly loginRateLimitMax?: number;
   /** Override the per-IP second-factor attempt limit (tests). */
   readonly mfaRateLimitMax?: number;
+  /** Autopilot run interval (P5-10). Default one minute; 0 turns the timer off (tests). */
+  readonly autopilotIntervalMs?: number;
   /** The founder's Telegram webhook (P3-04); absent means the route does not exist. */
   readonly telegram?: TelegramWebhookConfig;
 }
@@ -163,6 +168,46 @@ export async function buildApp(config: AppConfig, deps: AppDependencies): Promis
                 );
               });
           };
+    // Autopilot (P5-10): publish due stories every minute. Only with the bot (the founder gets the
+    // packages and the ❌ to cancel); the switch itself is read live on every run.
+    if (onPublished !== undefined && deps.autopilotIntervalMs !== 0) {
+      let running = false;
+      const tick = async () => {
+        if (running) return;
+        running = true;
+        try {
+          const [founder] = await database
+            .select({ id: users.id })
+            .from(users)
+            .where(eq(users.role, 'founder'));
+          if (founder === undefined) return;
+          const result = await publishDueStories(database, {
+            userId: founder.id,
+            requestId: 'autopilot',
+          });
+          for (const articleId of result.published) onPublished(articleId);
+          if (result.published.length > 0 || result.held > 0) {
+            app.log.info({ published: result.published.length, held: result.held }, 'autopilot');
+          }
+        } catch (error) {
+          app.log.error(
+            { err: { type: (error as Error).name, code: (error as { code?: unknown }).code } },
+            'autopilot run failed',
+          );
+        } finally {
+          running = false;
+        }
+      };
+      let timer: NodeJS.Timeout | undefined;
+      app.addHook('onReady', () => {
+        timer = setInterval(() => void tick(), deps.autopilotIntervalMs ?? 60_000);
+        return Promise.resolve();
+      });
+      app.addHook('onClose', () => {
+        clearInterval(timer);
+        return Promise.resolve();
+      });
+    }
     await app.register(osRoutes, {
       prefix: '/api/v1/os',
       guards,
