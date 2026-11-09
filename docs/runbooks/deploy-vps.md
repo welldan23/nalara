@@ -133,7 +133,7 @@ Create `/srv/nalara/.env` with mode `0600`, owned by the deploy user. It must no
 | `APP_BASE_URL` | `https://<domain>` |
 | `SITE_ADDRESS` | `<domain>` (no scheme) |
 | `CADDY_TLS` | ACME contact email for real certificates (`internal` only for a rehearsal) |
-| `PUBLIC_SITE_ENABLED` | `false` until launch (ADR-015). Set `true` when the founder launches |
+| `PUBLIC_SITE_ENABLED` | `false` until launch (ADR-015). `sudo nalara launch` sets it to `true` and restarts api + web; `sudo nalara unlaunch` hides the site again |
 
 **Optional (leave empty until decided):**
 
